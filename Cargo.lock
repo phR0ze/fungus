@@ -2,5 +2,12 @@
 # It is not intended for manual editing.
 [[package]]
 name = "rs"
-version = "0.1.0"
+version = "0.0.3"
+dependencies = [
+ "sys 0.0.2",
+]
+
+[[package]]
+name = "sys"
+version = "0.0.3"
 

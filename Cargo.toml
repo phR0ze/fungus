@@ -1,15 +1,13 @@
 [package]
 name = "rs"
-version = "0.0.1"
+version = "0.0.3"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
-description = "CLI for cyberlinux"
+description = "General purpose reusable Rust code"
 readme = "README.md"
-homepage = "https://github.com/phR0ze/cyberlinux/cli"
-repository = "https://github.com/phR0ze/cyberlinux/cli"
-keywords = ["cyberlinux", "cli"]
-categories = ["command-line-utilities"]
+homepage = "https://github.com/phR0ze/rs"
+repository = "https://github.com/phR0ze/rs"
 exclude = [
 	"examples",
 	"tests",
@@ -25,7 +23,7 @@ include = [
 lto = true
 
 [workspace]
-members = ["errors", "laconic", "sys"]
+members = ["sys"]
 
 [dependencies]
 sys = { path = "sys" }
