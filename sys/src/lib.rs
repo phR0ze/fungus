@@ -28,7 +28,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_sys() {
+    fn test_exec_dir() {
         let cwd = env::current_dir().unwrap();
         let dir = cwd.parent().unwrap().join("target/debug/deps");
         assert_eq!(dir, exec_dir().unwrap())
