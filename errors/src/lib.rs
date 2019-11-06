@@ -1,3 +1,8 @@
+use std::error::Error;
+
+// New general purpose ok or error result
+pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
+
 // use std::error;
 // use std::fmt;
 

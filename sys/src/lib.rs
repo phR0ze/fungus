@@ -1,45 +1,64 @@
+use glob::glob;
 use std::env;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use errors::Result;
+
+// Path related helper functions
+// -------------------------------------------------------------------------------------------------
+
 // Returns the full path to the directory of the current running executable.
-pub fn exec_dir() -> io::Result<PathBuf> {
+pub fn exec_dir() -> Result<PathBuf> {
     let path = env::current_exe()?;
     let dir = dirname(&path)?;
     Ok(dir)
 }
 
 // Returns the `Path` without its final component, if there is one.
-pub fn dirname<T: AsRef<Path>>(path: &T) -> io::Result<PathBuf> {
+pub fn dirname<T: AsRef<Path>>(path: &T) -> Result<PathBuf> {
     let parent = path.as_ref().parent().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Parent directory not found"))?;
     let dir = parent.to_path_buf();
     Ok(dir)
 }
 
 // Returns the final component of the `Path`, if there is one.
-pub fn filename<T: AsRef<Path>>(path: &T) -> io::Result<&str> {
+pub fn filename<T: AsRef<Path>>(path: &T) -> Result<&str> {
     let os_str = path.as_ref().file_name().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Filename not found"))?;
     let filename = os_str.to_str().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unable to convert filename into String"))?;
     Ok(filename)
 }
 
+// Returns a vector of PathBuf or the first error it encountered.
+pub fn getpaths<T: AsRef<str>>(pattern: &T) -> Result<Vec<PathBuf>> {
+    let mut paths: Vec<PathBuf> = Vec::new();
+    for x in glob(pattern.as_ref())? {
+        let path = x?;
+        paths.push(path);
+    }
+    Ok(paths)
+}
+
 // PathBuf extensions
+// -------------------------------------------------------------------------------------------------
 pub trait PathBufExt {
-    fn dirname(&self) -> io::Result<PathBuf>;
-    fn filename(&self) -> io::Result<&str>;
+    fn dirname(&self) -> Result<PathBuf>;
+    fn filename(&self) -> Result<&str>;
 }
 impl PathBufExt for PathBuf {
     // Returns the `Path` without its final component, if there is one.
-    fn dirname(&self) -> io::Result<PathBuf> {
-        return crate::dirname(self);
+    fn dirname(&self) -> Result<PathBuf> {
+        crate::dirname(self)
     }
 
     // Returns the final component of the `Path`, if there is one.
-    fn filename(&self) -> io::Result<&str> {
-        return crate::filename(self);
+    fn filename(&self) -> Result<&str> {
+        crate::filename(self)
     }
 }
 
+// Unit tests
+// -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -53,14 +72,27 @@ mod tests {
 
     #[test]
     fn test_dirname() {
-        let dir = PathBuf::from("/foo/bar");
-        assert_eq!(PathBuf::from("/foo"), dirname(&dir).unwrap());
+        // test from PathBuf
+        assert_eq!(PathBuf::from("/foo"), dirname(&PathBuf::from("/foo/bar")).unwrap());
+
+        // test from string slice
+        assert_eq!(PathBuf::from("/foo"), dirname(&"/foo/bar").unwrap());
+
+        // test from String
+        assert_eq!(PathBuf::from("/foo"), dirname(&String::from("/foo/bar")).unwrap());
     }
 
     #[test]
     fn test_filename() {
         let path = PathBuf::from("/foo/bar");
         assert_eq!("bar", filename(&path).unwrap());
+    }
+
+    #[test]
+    fn test_getpaths() {
+        let paths = getpaths(&"*").unwrap();
+        assert_eq!(&PathBuf::from("Cargo.toml"), paths.first().unwrap());
+        assert_eq!(&PathBuf::from("src"), paths.last().unwrap());
     }
 
     #[test]
