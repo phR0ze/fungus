@@ -25,14 +25,15 @@ pub fn dirname<T: AsRef<Path>>(path: &T) -> Result<PathBuf> {
 // Returns the final component of the `Path`, if there is one.
 pub fn filename<T: AsRef<Path>>(path: &T) -> Result<&str> {
     let os_str = path.as_ref().file_name().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Filename not found"))?;
-    let filename = os_str.to_str().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unable to convert filename into String"))?;
+    let filename = os_str.to_str().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unable to convert filename into str"))?;
     Ok(filename)
 }
 
 // Returns a vector of PathBuf or the first error it encountered.
-pub fn getpaths<T: AsRef<str>>(pattern: &T) -> Result<Vec<PathBuf>> {
+pub fn getpaths<T: AsRef<Path>>(pattern: &T) -> Result<Vec<PathBuf>> {
     let mut paths: Vec<PathBuf> = Vec::new();
-    for x in glob(pattern.as_ref())? {
+    let _str = pattern.as_ref().to_str().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unable to convert path into str"))?;
+    for x in glob(_str)? {
         let path = x?;
         paths.push(path);
     }
