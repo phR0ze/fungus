@@ -1,6 +1,6 @@
 [package]
 name = "rs"
-version = "0.0.13"
+version = "0.0.14"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -23,8 +23,10 @@ include = [
 lto = true
 
 [workspace]
-members = ["errors", "sys"]
+members = ["errors", "laconic", "logs", "sys"]
 
 [dependencies]
 errors = { path = "errors" }
+laconic = { path = "laconic" }
+logs = { path = "logs" }
 sys = { path = "sys" }

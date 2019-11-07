@@ -30,7 +30,7 @@ run: build
 	@${CARGO} run
 
 test: build
-	@${CARGO} test --all
+	@${CARGO} test --all --lib
 
 update:
 	@${CARGO} update
