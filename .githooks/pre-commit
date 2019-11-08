@@ -26,6 +26,9 @@ source .githooks/utils
 update_copyright 'Copyright \(c\)'
 
 increment_version 'Cargo.toml' '(.*version =.*")([0-9]+\.[0-9]+\.[0-9]+)(".*)'
+increment_version 'errors/Cargo.toml' '(.*version =.*")([0-9]+\.[0-9]+\.[0-9]+)(".*)'
+increment_version 'laconic/Cargo.toml' '(.*version =.*")([0-9]+\.[0-9]+\.[0-9]+)(".*)'
+increment_version 'logs/Cargo.toml' '(.*version =.*")([0-9]+\.[0-9]+\.[0-9]+)(".*)'
 increment_version 'sys/Cargo.toml' '(.*version =.*")([0-9]+\.[0-9]+\.[0-9]+)(".*)'
 
 # vim: ts=2:sw=2:sts=2
