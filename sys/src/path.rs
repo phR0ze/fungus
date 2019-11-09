@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use errors::Result;
 
-// Path related helper functions
+// Path utilities
 // -------------------------------------------------------------------------------------------------
 
 // Returns the full path to the directory of the current running executable.

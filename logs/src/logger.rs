@@ -15,9 +15,8 @@ pub fn init() -> Result<()> {
 // Initialize the logger with the given options.
 pub fn init_with(opts: Vec<Opt>) -> Result<()> {
     let level = opts.level();
-
     let logger = Logger { level };
-    log::set_boxed_logger(Box::new(logger))?;
+    let _ = log::set_boxed_logger(Box::new(logger));
     log::set_max_level(level.to_level_filter());
     Ok(())
 }
