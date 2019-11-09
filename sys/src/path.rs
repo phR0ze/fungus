@@ -23,7 +23,7 @@ pub fn home_dir() -> Result<PathBuf> {
 }
 
 // Returns the `Path` without its final component, if there is one.
-pub fn dirname<T: AsRef<Path>>(path: &T) -> Result<PathBuf> {
+pub fn dirname<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     let parent = path.as_ref().parent().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Parent directory not found"))?;
     let dir = parent.to_path_buf();
     Ok(dir)
@@ -37,7 +37,7 @@ pub fn filename<T: AsRef<Path>>(path: &T) -> Result<&str> {
 }
 
 // Returns a vector of PathBuf or the first error it encountered.
-pub fn getpaths<T: AsRef<Path>>(pattern: &T) -> Result<Vec<PathBuf>> {
+pub fn getpaths<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
     let mut paths: Vec<PathBuf> = Vec::new();
     let _str = pattern.as_ref().to_str().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unable to convert path into str"))?;
     for x in glob(_str)? {
