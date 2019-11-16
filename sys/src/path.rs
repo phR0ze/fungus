@@ -38,74 +38,14 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     Ok(path_buf)
 }
 
-// Return the shortest path equivalent to the path by purely lexical processing and thus does not handle
-// links correctly in some cases, use canonicalize in those cases. It applies the following rules
-// interatively until no further processing can be done.
-//
-//	1. Replace multiple slashes with a single
-//	2. Eliminate each . path name element (the current directory)
-//	3. Eliminate each inner .. path name element (the parent directory)
-//	   along with the non-.. element that precedes it.
-//	4. Eliminate .. elements that begin a rooted path:
-//	   that is, replace "/.." by "/" at the beginning of a path.
-//  5. Leave intact ".." elements that begin a non-rooted path.
-//  6. Drop trailing '/' unless it is the root
-//
-// If the result of this process is an empty string, return the string `.`, representing the current directory.
-pub fn clean_path<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
-    let _path = path.as_ref();
-    let path_str = _path.to_string()?;
-
-    // Components already handles the following cases:
-    // 1. Repeated separators are ignored, so a/b and a//b both have a and b as components.
-    // 2. Occurrences of . are normalized away, except if they are at the beginning of the path.
-    //    e.g. a/./b, a/b/, a/b/. and a/b all have a and b as components, but ./a/b starts with an additional CurDir component.
-    // 6. A trailing slash is normalized away, /a/b and /a/b/ are equivalent.
-    let mut cnt = 0;
-    let mut path_buf = PathBuf::new();
-    for component in _path.components() {
-        if component == Component::ParentDir {
-            // } && cnt > 0 => (),
-            //     _ => (),
-        }
-        cnt += 1;
-        path_buf.push(component);
-    }
-
-    // Ensure if empty the current dir is returned
-    if path_buf.empty() {
-        path_buf.push(".");
-    }
-    Ok(path_buf)
-}
-
 // Returns the full path to the directory of the current running executable.
 pub fn exec_dir() -> Result<PathBuf> {
     Ok(env::current_exe()?.dirname()?)
 }
 
-// Expand the path to include the home prefix if necessary.
-pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
-    let _path = path.as_ref();
-    let path_str = _path.to_string()?;
-    let mut expanded = _path.to_path_buf();
-
-    // Check for invalid home expansion
-    match path_str.matches("~").count() {
-        // Only home expansion at the begining of the path is allowed
-        cnt if cnt > 1 => return Err(Box::from(io::Error::new(io::ErrorKind::Other, "Only one tilda is allowed"))),
-
-        // Invalid home expansion requested
-        cnt if cnt == 1 && !_path.starts_with_str("~/") => {
-            return Err(Box::from(io::Error::new(io::ErrorKind::Other, "Invalid home expansion requested")))
-        }
-
-        // Replace prefix with home directory
-        1 => expanded = crate::user_home()?.join(&path_str[2..]),
-        _ => (),
-    }
-
-    Ok(expanded)
+// Returns the current running executable's name.
+pub fn exec_name() -> Result<String> {
+    Ok(env::current_exe()?.name()?)
 }
 
 // Returns a vector of all paths from the given target glob, sorted by name.
@@ -124,6 +64,7 @@ pub fn getpaths<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
 // -------------------------------------------------------------------------------------------------
 pub trait PathExt {
     fn contains_str<T: AsRef<str>>(&self, value: T) -> bool;
+    fn clean(&self) -> Result<PathBuf>;
     fn dirname(&self) -> Result<PathBuf>;
     fn empty(&self) -> bool;
     fn expand(&self) -> Result<PathBuf>;
@@ -145,6 +86,46 @@ impl PathExt for Path {
             return true;
         }
         false
+    }
+
+    // Return the shortest path equivalent to the path by purely lexical processing and thus does not handle
+    // links correctly in some cases, use canonicalize in those cases. It applies the following rules
+    // interatively until no further processing can be done.
+    //
+    //	1. Replace multiple slashes with a single
+    //	2. Eliminate each . path name element (the current directory)
+    //	3. Eliminate each inner .. path name element (the parent directory)
+    //	   along with the non-.. element that precedes it.
+    //	4. Eliminate .. elements that begin a rooted path:
+    //	   that is, replace "/.." by "/" at the beginning of a path.
+    //  5. Leave intact ".." elements that begin a non-rooted path.
+    //  6. Drop trailing '/' unless it is the root
+    //
+    // If the result of this process is an empty string, return the string `.`, representing the current directory.
+    fn clean(&self) -> Result<PathBuf> {
+        let path_str = self.to_string()?;
+
+        // Components already handles the following cases:
+        // 1. Repeated separators are ignored, so a/b and a//b both have a and b as components.
+        // 2. Occurrences of . are normalized away, except if they are at the beginning of the path.
+        //    e.g. a/./b, a/b/, a/b/. and a/b all have a and b as components, but ./a/b starts with an additional CurDir component.
+        // 6. A trailing slash is normalized away, /a/b and /a/b/ are equivalent.
+        let mut cnt = 0;
+        let mut path_buf = PathBuf::new();
+        for component in self.components() {
+            if component == Component::ParentDir {
+                // } && cnt > 0 => (),
+                //     _ => (),
+            }
+            cnt += 1;
+            path_buf.push(component);
+        }
+
+        // Ensure if empty the current dir is returned
+        if path_buf.empty() {
+            path_buf.push(".");
+        }
+        Ok(path_buf)
     }
 
     // Returns the `Path` without its final component, if there is one.
@@ -267,32 +248,10 @@ mod tests {
     }
 
     #[test]
-    fn test_expand() {
-        // no change
-        assert_eq!(PathBuf::from("foo"), expand("foo").unwrap());
-
-        // happy path
-        {
-            let home = env::var("HOME").unwrap();
-            assert_eq!(PathBuf::from(&home).join("foo"), expand("~/foo").unwrap());
-        }
-
-        // More than one ~
-        assert_eq!(true, expand("~/foo~").is_err());
-
-        // invalid path
-        assert_eq!(true, expand("~foo").is_err());
-
-        // empty path - nothing to do but no error
-        assert_eq!(PathBuf::from(""), expand("").unwrap());
-
-        // home not set
-        {
-            let save = env::var("HOME").unwrap();
-            env::remove_var("HOME");
-            assert!(expand("~/foo").is_err());
-            env::set_var("HOME", &save);
-        }
+    fn test_exec_name() {
+        let exec_path = env::current_exe().unwrap();
+        let name = exec_path.name().unwrap();
+        assert_eq!(name, exec_name().unwrap());
     }
 
     #[test]
@@ -306,35 +265,40 @@ mod tests {
     // ---------------------------------------------------------------------------------------------
     #[test]
     fn test_pathext_contains() {
-        let dir = PathBuf::from("/foo/bar");
-        let pdir = dir.as_path();
-        assert!(pdir.contains_str("foo"));
-        assert!(pdir.contains_str("/foo"));
-        assert!(pdir.contains_str("/"));
-        assert!(pdir.contains_str("/ba"));
-        assert!(!pdir.contains_str("bob"));
+        let path = PathBuf::from("/foo/bar");
+        assert!(path.contains_str("foo"));
+        assert!(path.contains_str("/foo"));
+        assert!(path.contains_str("/"));
+        assert!(path.contains_str("/ba"));
+        assert!(!path.contains_str("bob"));
+    }
+
+    #[test]
+    fn test_pathext_clean() {
+        // remove uneeded double slashes
+        {
+            let path = PathBuf::from("/foo//bar");
+            assert_eq!(PathBuf::from("/foo/bar"), path.clean().unwrap());
+        }
     }
 
     #[test]
     fn test_pathext_dirname() {
-        let dir = PathBuf::from("/foo/bar");
-        let pdir = dir.as_path();
-        assert_eq!(PathBuf::from("/foo").as_path(), pdir.dirname().unwrap());
+        let path = PathBuf::from("/foo/bar");
+        assert_eq!(PathBuf::from("/foo").as_path(), path.dirname().unwrap());
     }
 
     #[test]
     fn test_pathext_empty() {
         // empty string
         {
-            let path_buf = PathBuf::from("");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("");
             assert!(path.empty());
         }
 
         // false
         {
-            let path_buf = PathBuf::from("/foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("/foo");
             assert!(!path.empty());
         }
     }
@@ -344,29 +308,25 @@ mod tests {
         // happy path
         {
             let home = env::var("HOME").unwrap();
-            let path_buf = PathBuf::from("~/foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("~/foo");
             assert_eq!(PathBuf::from(&home).join("foo"), path.expand().unwrap());
         }
 
         // More than one ~
         {
-            let path_buf = PathBuf::from("~/foo~");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("~/foo~");
             assert!(path.expand().is_err());
         }
 
         // invalid path
         {
-            let path_buf = PathBuf::from("~foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("~foo");
             assert!(path.expand().is_err());
         }
 
         // empty path - nothing to do but no error
         {
-            let path_buf = PathBuf::from("");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("");
             assert_eq!(PathBuf::from(""), path.expand().unwrap());
         }
 
@@ -374,8 +334,7 @@ mod tests {
         {
             let save = env::var("HOME").unwrap();
             env::remove_var("HOME");
-            let path_buf = PathBuf::from("~/foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("~/foo");
             assert!(path.expand().is_err());
             env::set_var("HOME", &save);
         }
@@ -383,15 +342,13 @@ mod tests {
 
     #[test]
     fn test_pathext_filename() {
-        let path_buf = PathBuf::from("/foo/bar");
-        let path = path_buf.as_path();
+        let path = PathBuf::from("/foo/bar");
         assert_eq!("bar", path.name().unwrap());
     }
 
     #[test]
     fn test_pathext_to_string() {
-        let path_buf = PathBuf::from("/foo");
-        let path = path_buf.as_path();
+        let path = PathBuf::from("/foo");
         assert_eq!("/foo".to_string(), path.to_string().unwrap());
     }
 
@@ -399,38 +356,32 @@ mod tests {
     fn test_pathext_trim_protocol() {
         // no change
         {
-            let path_buf = PathBuf::from("/foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("/foo");
             assert_eq!(PathBuf::from("/foo"), path.trim_protocol().unwrap());
         }
         // file://
         {
-            let path_buf = PathBuf::from("file:///foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("file:///foo");
             assert_eq!(PathBuf::from("/foo"), path.trim_protocol().unwrap());
         }
         // ftp://
         {
-            let path_buf = PathBuf::from("ftp://foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("ftp://foo");
             assert_eq!(PathBuf::from("foo"), path.trim_protocol().unwrap());
         }
         // http://
         {
-            let path_buf = PathBuf::from("http://foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("http://foo");
             assert_eq!(PathBuf::from("foo"), path.trim_protocol().unwrap());
         }
         // https://
         {
-            let path_buf = PathBuf::from("https://foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("https://foo");
             assert_eq!(PathBuf::from("foo"), path.trim_protocol().unwrap());
         }
         // HTTPS://
         {
-            let path_buf = PathBuf::from("HTTPS://foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("HTTPS://foo");
             assert_eq!(PathBuf::from("foo"), path.trim_protocol().unwrap());
         }
     }
@@ -439,22 +390,19 @@ mod tests {
     fn test_pathext_trim_end_matches() {
         // drop root
         {
-            let path_buf = PathBuf::from("/");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("/");
             assert_eq!(PathBuf::new(), path.trim_end_matches("/").unwrap());
         }
 
         // drop end
         {
-            let path_buf = PathBuf::from("/foo/");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("/foo/");
             assert_eq!(PathBuf::from("/foo"), path.trim_end_matches("/").unwrap());
         }
 
         // no change
         {
-            let path_buf = PathBuf::from("/foo");
-            let path = path_buf.as_path();
+            let path = PathBuf::from("/foo");
             assert_eq!(PathBuf::from("/foo"), path.trim_end_matches("/").unwrap());
         }
     }
