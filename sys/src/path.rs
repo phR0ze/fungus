@@ -275,135 +275,94 @@ mod tests {
 
     #[test]
     fn test_pathext_clean() {
-        // remove uneeded double slashes
-        {
-            let path = PathBuf::from("/foo//bar");
-            assert_eq!(PathBuf::from("/foo/bar"), path.clean().unwrap());
-        }
+        // Remove trailing slashes
+        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar/").clean().unwrap());
+
+        // Remove unneeded current dirs
+        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/./bar").clean().unwrap());
+
+        // remove unneeded double slashes
+        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo//bar").clean().unwrap());
     }
 
     #[test]
     fn test_pathext_dirname() {
-        let path = PathBuf::from("/foo/bar");
-        assert_eq!(PathBuf::from("/foo").as_path(), path.dirname().unwrap());
+        assert_eq!(PathBuf::from("/foo").as_path(), PathBuf::from("/foo/bar").dirname().unwrap());
     }
 
     #[test]
     fn test_pathext_empty() {
         // empty string
-        {
-            let path = PathBuf::from("");
-            assert!(path.empty());
-        }
+        assert!(PathBuf::from("").empty());
 
         // false
-        {
-            let path = PathBuf::from("/foo");
-            assert!(!path.empty());
-        }
+        assert!(!PathBuf::from("/foo").empty());
     }
 
     #[test]
     fn test_pathext_expand() {
+        let home = env::var("HOME").unwrap();
+
         // happy path
-        {
-            let home = env::var("HOME").unwrap();
-            let path = PathBuf::from("~/foo");
-            assert_eq!(PathBuf::from(&home).join("foo"), path.expand().unwrap());
-        }
+        assert_eq!(PathBuf::from(&home).join("foo"), PathBuf::from("~/foo").expand().unwrap());
 
         // More than one ~
-        {
-            let path = PathBuf::from("~/foo~");
-            assert!(path.expand().is_err());
-        }
+        assert!(PathBuf::from("~/foo~").expand().is_err());
 
         // invalid path
-        {
-            let path = PathBuf::from("~foo");
-            assert!(path.expand().is_err());
-        }
+        assert!(PathBuf::from("~foo").expand().is_err());
 
         // empty path - nothing to do but no error
-        {
-            let path = PathBuf::from("");
-            assert_eq!(PathBuf::from(""), path.expand().unwrap());
-        }
+        assert_eq!(PathBuf::from(""), PathBuf::from("").expand().unwrap());
 
         // home not set
         {
-            let save = env::var("HOME").unwrap();
             env::remove_var("HOME");
-            let path = PathBuf::from("~/foo");
-            assert!(path.expand().is_err());
-            env::set_var("HOME", &save);
+            assert!(PathBuf::from("~/foo").expand().is_err());
+            env::set_var("HOME", &home);
         }
     }
 
     #[test]
     fn test_pathext_filename() {
-        let path = PathBuf::from("/foo/bar");
-        assert_eq!("bar", path.name().unwrap());
+        assert_eq!("bar", PathBuf::from("/foo/bar").name().unwrap());
     }
 
     #[test]
     fn test_pathext_to_string() {
-        let path = PathBuf::from("/foo");
-        assert_eq!("/foo".to_string(), path.to_string().unwrap());
+        assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
     }
 
     #[test]
     fn test_pathext_trim_protocol() {
         // no change
-        {
-            let path = PathBuf::from("/foo");
-            assert_eq!(PathBuf::from("/foo"), path.trim_protocol().unwrap());
-        }
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_protocol().unwrap());
+
         // file://
-        {
-            let path = PathBuf::from("file:///foo");
-            assert_eq!(PathBuf::from("/foo"), path.trim_protocol().unwrap());
-        }
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("file:///foo").trim_protocol().unwrap());
+
         // ftp://
-        {
-            let path = PathBuf::from("ftp://foo");
-            assert_eq!(PathBuf::from("foo"), path.trim_protocol().unwrap());
-        }
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol().unwrap());
+
         // http://
-        {
-            let path = PathBuf::from("http://foo");
-            assert_eq!(PathBuf::from("foo"), path.trim_protocol().unwrap());
-        }
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("http://foo").trim_protocol().unwrap());
+
         // https://
-        {
-            let path = PathBuf::from("https://foo");
-            assert_eq!(PathBuf::from("foo"), path.trim_protocol().unwrap());
-        }
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("https://foo").trim_protocol().unwrap());
+
         // HTTPS://
-        {
-            let path = PathBuf::from("HTTPS://foo");
-            assert_eq!(PathBuf::from("foo"), path.trim_protocol().unwrap());
-        }
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("HTTPS://foo").trim_protocol().unwrap());
     }
 
     #[test]
     fn test_pathext_trim_end_matches() {
         // drop root
-        {
-            let path = PathBuf::from("/");
-            assert_eq!(PathBuf::new(), path.trim_end_matches("/").unwrap());
-        }
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_end_matches("/").unwrap());
 
         // drop end
-        {
-            let path = PathBuf::from("/foo/");
-            assert_eq!(PathBuf::from("/foo"), path.trim_end_matches("/").unwrap());
-        }
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/").trim_end_matches("/").unwrap());
 
         // no change
-        {
-            let path = PathBuf::from("/foo");
-            assert_eq!(PathBuf::from("/foo"), path.trim_end_matches("/").unwrap());
-        }
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_end_matches("/").unwrap());
     }
 }
