@@ -1,6 +1,6 @@
 [package]
 name = "rs"
-version = "0.0.23"
+version = "0.0.24"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -20,7 +20,7 @@ include = [
 ]
 
 [workspace]
-members = ["errors", "laconic", "logs", "sys"]
+members = ["edit", "errors", "laconic", "logs", "sys"]
 
 [profile.release]
 lto = true
