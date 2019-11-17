@@ -1,7 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use errors::Result;
+use core::*;
 
 // Returns the full path to the current user's home directory.
 pub fn user_home() -> Result<PathBuf> {

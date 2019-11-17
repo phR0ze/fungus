@@ -3,7 +3,7 @@ use std::env;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
-use errors::Result;
+use core::*;
 
 // Path utilities
 // -------------------------------------------------------------------------------------------------
@@ -12,7 +12,7 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 
     // Check for empty string
     if _path.to_string()? == "" {
-        return Err(Box::from(io::Error::new(io::ErrorKind::Other, "Empty string is an invalid path")));
+        return Err(PathError::Empty.into());
     }
 
     // Expand home directory and trim trailing slash if needed
@@ -68,6 +68,8 @@ pub trait PathExt {
     fn dirname(&self) -> Result<PathBuf>;
     fn empty(&self) -> bool;
     fn expand(&self) -> Result<PathBuf>;
+    fn first(&self) -> Result<Component>;
+    fn last(&self) -> Result<Component>;
     fn name(&self) -> Result<String>;
     fn starts_with_str<T: AsRef<str>>(&self, value: T) -> bool;
     fn to_string(&self) -> Result<String>;
@@ -113,10 +115,32 @@ impl PathExt for Path {
         let mut cnt = 0;
         let mut path_buf = PathBuf::new();
         for component in self.components() {
-            if component == Component::ParentDir {
-                // } && cnt > 0 => (),
-                //     _ => (),
-            }
+            match component {
+                // 2. Eliminate . path name at begining of path
+                x if x == Component::CurDir && cnt == 0 => continue,
+
+                // 4/5. Eliminate .. elements that begin a root path and leave .. begining non rooted path
+                x if x == Component::ParentDir && cnt == 1 && path_buf.starts_with("/") => continue,
+
+                // 3. Eliminate inner .. path name elements
+                x if x == Component::ParentDir && cnt > 0 => {
+                    // match path_buf.first()? {
+                    //     Component::CurDir => (),
+                    //     Component::ParentDir => (),
+                    //     Component::RootDir => (),
+                    //     Component::Normal => (),
+                    //     _ => (),
+                    // }
+                    // // path_buf.to_string()? != "/");
+                    // // path_buf.pop();
+                    // // cnt -= 1;
+                    // // continue;
+                    continue;
+                }
+
+                _ => false,
+            };
+
             cnt += 1;
             path_buf.push(component);
         }
@@ -130,31 +154,9 @@ impl PathExt for Path {
 
     // Returns the `Path` without its final component, if there is one.
     fn dirname(&self) -> Result<PathBuf> {
-        let dir = self.parent().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Parent directory not found"))?;
+        //let dir = self.parent().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Parent directory not found"))?;
+        let dir = self.parent().ok_or_else(|| PathError::ParentNotFound)?;
         Ok(dir.to_path_buf())
-    }
-
-    // Expand the path to include the home prefix if necessary
-    fn expand(&self) -> Result<PathBuf> {
-        let path_str = self.to_string()?;
-        let mut expanded = self.to_path_buf();
-
-        // Check for invalid home expansion
-        match path_str.matches("~").count() {
-            // Only home expansion at the begining of the path is allowed
-            cnt if cnt > 1 => return Err(Box::from(io::Error::new(io::ErrorKind::Other, "Only one tilda is allowed"))),
-
-            // Invalid home expansion requested
-            cnt if cnt == 1 && !self.starts_with_str("~/") => {
-                return Err(Box::from(io::Error::new(io::ErrorKind::Other, "Invalid home expansion requested")))
-            }
-
-            // Replace prefix with home directory
-            1 => expanded = crate::user_home()?.join(&path_str[2..]),
-            _ => (),
-        }
-
-        Ok(expanded)
     }
 
     // Returns true if the `Path` is empty.
@@ -167,10 +169,45 @@ impl PathExt for Path {
         _str == ""
     }
 
+    // Expand the path to include the home prefix if necessary
+    fn expand(&self) -> Result<PathBuf> {
+        let path_str = self.to_string()?;
+        let mut expanded = self.to_path_buf();
+
+        // Check for invalid home expansion
+        match path_str.matches("~").count() {
+            // Only home expansion at the begining of the path is allowed
+            cnt if cnt > 1 => return Err(PathError::MultipleHomeSymbols.into()),
+
+            // Invalid home expansion requested
+            cnt if cnt == 1 && !self.starts_with_str("~/") => {
+                return Err(PathError::InvalidExpansion.into());
+            }
+
+            // Replace prefix with home directory
+            1 => expanded = crate::user_home()?.join(&path_str[2..]),
+            _ => (),
+        }
+
+        Ok(expanded)
+    }
+
+    // Returns the first path component.
+    fn first(&self) -> Result<Component> {
+        let component = self.components().next().ok_or_else(|| PathError::ComponentNotFound)?;
+        Ok(component)
+    }
+
+    // Returns the last path component.
+    fn last(&self) -> Result<Component> {
+        let component = self.components().next().ok_or_else(|| PathError::ComponentNotFound)?;
+        Ok(component)
+    }
+
     // Returns the final component of the `Path`, if there is one.
     fn name(&self) -> Result<String> {
-        let os_str = self.file_name().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Filename not found"))?;
-        let filename = os_str.to_str().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unable to convert filename into str"))?;
+        let os_str = self.file_name().ok_or_else(|| PathError::FileNameNotFound)?;
+        let filename = os_str.to_str().ok_or_else(|| PathError::FailedToString)?;
         Ok(String::from(filename))
     }
 
@@ -189,7 +226,7 @@ impl PathExt for Path {
 
     // Returns the `Path` as a String
     fn to_string(&self) -> Result<String> {
-        let _str = self.to_str().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unable to convert Path into String"))?;
+        let _str = self.to_str().ok_or_else(|| PathError::FailedToString)?;
         Ok(String::from(_str))
     }
 
@@ -217,6 +254,7 @@ impl PathExt for Path {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsStr;
 
     #[test]
     fn test_abs() {
@@ -275,14 +313,51 @@ mod tests {
 
     #[test]
     fn test_pathext_clean() {
-        // Remove trailing slashes
-        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar/").clean().unwrap());
+        let tests = vec![
+            // Root case
+            ("/", "/"),
+            // // Remove trailing slashes
+            // ("/", "//"),
+            // ("/", "///"),
+            // (".", ".//"),
+            // // Remove duplicates and handle rooted parent ref
+            // ("/", "//.."),
+            //////("..", "..//"),
+            // ("/", "/..//"),
+            // // Unneeded current dirs and duplicates
+            // ("/", "/.//./"),
+            // (".", "././/./"),
+            // (".", "./"),
+            // ("/", "/./"),
+            // ("foo", "./foo"),
+            // ("foo/bar", "./foo/./bar"),
+            // ("/foo/bar", "/foo/./bar"),
+            // ("foo/bar", "foo/bar/."),
+            // // Handle parent references
+            // ("../foo", "../foo"),
+            // ("/bar", "/foo/../bar"),
+            // ("/", "/.."),
+            // ("/foo", "/../foo"),
+            // (".", "foo/.."),
 
-        // Remove unneeded current dirs
-        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/./bar").clean().unwrap());
-
-        // remove unneeded double slashes
-        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo//bar").clean().unwrap());
+            // ("foo", "foo/bar/.."),
+            // ("foo", "foo/../bar"),
+            // ("/foo", "/foo/../bar"),
+            // (".", "foo/bar/../../"),
+            // ("..", "foo/bar/../../.."),
+            // ("/", "/foo/bar/../../.."),
+            // ("/", "/foo/bar/../../../.."),
+            // ("../..", "foo/bar/../../../.."),
+            // ("test/path/../../another/path", "another/path"),
+            // ("test/path/../../another/path/..", "another"),
+            // ("../test", "../test"),
+            // ("../test/", "../test"),
+            // ("../test/path", "../test/path"),
+            // ("../test/..", ".."),
+        ];
+        for test in tests {
+            assert_eq!(PathBuf::from(test.0), PathBuf::from(test.1).clean().unwrap());
+        }
     }
 
     #[test]
@@ -321,6 +396,14 @@ mod tests {
             assert!(PathBuf::from("~/foo").expand().is_err());
             env::set_var("HOME", &home);
         }
+    }
+
+    #[test]
+    fn test_pathext_first() {
+        assert_eq!(Component::RootDir, PathBuf::from("/").first().unwrap());
+        assert_eq!(Component::CurDir, PathBuf::from(".").first().unwrap());
+        assert_eq!(Component::ParentDir, PathBuf::from("..").first().unwrap());
+        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").first().unwrap());
     }
 
     #[test]

@@ -1,6 +1,6 @@
 [package]
 name = "logs"
-version = "0.0.26"
+version = "0.0.27"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -13,4 +13,4 @@ repository = "https://github.com/phR0ze/rs/logs"
 log = { version = "0.4.8", features = ["std"] }
 chrono = "0.4.9"
 colored = "1.8.0"
-errors = { path = "../errors" }
+core = { path = "../core" }

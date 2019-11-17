@@ -1,6 +1,6 @@
 use chrono;
 use colored::*;
-use errors::Result;
+use core::*;
 use log;
 use std::path::PathBuf;
 

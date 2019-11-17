@@ -1,6 +1,6 @@
 [package]
 name = "rs"
-version = "0.0.26"
+version = "0.0.27"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -20,13 +20,13 @@ include = [
 ]
 
 [workspace]
-members = ["edit", "errors", "laconic", "logs", "sys"]
+members = ["core", "edit", "laconic", "logs", "sys"]
 
 [profile.release]
 lto = true
 
 [dependencies]
-errors = { path = "errors" }
+core = { path = "core" }
 laconic = { path = "laconic" }
 logs = { path = "logs" }
 sys = { path = "sys" }
