@@ -19,6 +19,9 @@ mod tests {
 
     #[test]
     fn test_user_home() {
-        assert_eq!(PathBuf::from("/home"), user_home().unwrap().dirname().unwrap());
+        let home_str = env::var("HOME").unwrap();
+        let home_path = PathBuf::from(home_str);
+        let home_dir = home_path.parent().unwrap();
+        assert_eq!(home_dir.to_path_buf(), user_home().unwrap().dirname().unwrap());
     }
 }
