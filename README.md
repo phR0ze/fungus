@@ -1,2 +1,3 @@
 # rs
-General purpose reusable Rust code
+General purpose reusable Rust utilities
+

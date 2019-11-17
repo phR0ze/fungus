@@ -100,7 +100,7 @@ update_copyright() {
 
       # Update target file
       if [ "x$updated" != "x" ]; then
-        sed -i -e "s/$original/$updated/" "$x"
+        sed -i '' -e "s/$original/$updated/" "$x"
         git add "$x"
       fi
     fi
@@ -131,7 +131,7 @@ increment_version() {
     updated="${BASH_REMATCH[1]}$ver${BASH_REMATCH[3]}"
 
     # Write out the changes to the file and stage
-    sed -i -e "s/$original/$updated/" "$file"
+    sed -i '' -e "s/$original/$updated/" "$file"
     git add "$file"
     echo "Version: $ver ${file}"
   fi
