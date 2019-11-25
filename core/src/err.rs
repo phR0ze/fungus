@@ -4,6 +4,7 @@ use std::error;
 use std::fmt;
 use std::io;
 
+use crate::iter_error::*;
 use crate::path_error::*;
 
 /// The canonical `Result` type.
@@ -18,6 +19,7 @@ pub enum Error {
     Glob(glob::GlobError),
     GlobPattern(glob::PatternError),
     Path(PathError),
+    Iter(IterError),
 }
 
 impl Error {
@@ -35,6 +37,7 @@ impl fmt::Display for Error {
             Error::Env(ref err) => err.fmt(fmt),
             Error::Glob(ref err) => err.fmt(fmt),
             Error::GlobPattern(ref err) => err.fmt(fmt),
+            Error::Iter(kind) => write!(fmt, "{}", kind.as_str()),
             Error::Path(kind) => write!(fmt, "{}", kind.as_str()),
         }
     }
@@ -44,10 +47,10 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         "single not found"
     }
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&(dyn error::Error)> {
         None
     }
-    fn source(&self) -> Option<&(error::Error + 'static)> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         None
     }
 }
@@ -76,10 +79,17 @@ impl From<env::VarError> for Error {
     }
 }
 
-// Converts an [`PathError`] into an [`Error`].
+// Converts an `IterError` into an `Error`.
 impl From<PathError> for Error {
     fn from(err: PathError) -> Error {
         Error::Path(err)
+    }
+}
+
+// Converts a `PathError` into an `Error`.
+impl From<IterError> for Error {
+    fn from(err: IterError) -> Error {
+        Error::Iter(err)
     }
 }
 

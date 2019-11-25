@@ -38,10 +38,10 @@ impl error::Error for PathError {
     fn description(&self) -> &str {
         self.as_str()
     }
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&(dyn error::Error)> {
         None
     }
-    fn source(&self) -> Option<&(error::Error + 'static)> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         None
     }
 }

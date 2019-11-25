@@ -154,7 +154,6 @@ impl PathExt for Path {
 
     // Returns the `Path` without its final component, if there is one.
     fn dirname(&self) -> Result<PathBuf> {
-        //let dir = self.parent().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Parent directory not found"))?;
         let dir = self.parent().ok_or_else(|| PathError::ParentNotFound)?;
         Ok(dir.to_path_buf())
     }

@@ -3,7 +3,7 @@ use std::iter::Iterator;
 
 use crate::*;
 
-// Extensions for the Iterator trait and other iterator utilites
+// Iterator extensions and utilities
 //--------------------------------------------------------------------------------------------------
 
 pub trait IteratorExt: Iterator {
@@ -21,10 +21,10 @@ where
     {
         match self.next() {
             Some(first) => match self.next() {
-                Some(_) => Err(Error::new()),
+                Some(_) => Err(IterError::MultipleFound.into()),
                 None => Ok(first),
             },
-            None => Err(Error::new()),
+            None => Err(IterError::ItemNotFound.into()),
         }
     }
 }
@@ -44,7 +44,7 @@ mod tests {
     #[test]
     fn test_single() {
         assert!(PathBuf::new().components().single().is_err());
-        //assert!(PathBuf::new().components().single().contains_err(Error::new()));
+        assert!(PathBuf::new().components().single().contains_err(Error::new()));
         assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").components().single().unwrap());
     }
 }
