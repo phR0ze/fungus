@@ -1,35 +1,62 @@
-use std::error;
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum IterError {
-    ItemNotFound,
-    MultipleFound,
-}
+use crate::error::*;
 
+/// An error aggregate for common errors in rust
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum IterError {
+    /// An error indicating that the iterator item was not found
+    ItemNotFound,
+
+    /// An error indicating that multiple items were found for the iterator
+    MultipleItemsFound,
+}
 impl IterError {
-    pub(crate) fn as_str(&self) -> &'static str {
-        match *self {
-            IterError::ItemNotFound => "item not found",
-            IterError::MultipleFound => "multiple found",
-        }
+    /// An error indicating that the iterator item was not found
+    pub fn item_not_found() -> Error {
+        Error::from(IterError::ItemNotFound)
+    }
+
+    /// An error indicating that multiple items were found for the iterator
+    pub fn multiple_items_found() -> Error {
+        Error::from(IterError::MultipleItemsFound)
     }
 }
 
 impl fmt::Display for IterError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.as_str())
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            IterError::ItemNotFound => write!(f, "iterator item not found"),
+            IterError::MultipleItemsFound => write!(f, "multiple iterator items found"),
+        }
     }
 }
 
-impl error::Error for IterError {
-    fn description(&self) -> &str {
-        self.as_str()
+impl From<IterError> for Error {
+    fn from(err: IterError) -> Error {
+        Error::from(ErrorKind::Iter(err))
     }
-    fn cause(&self) -> Option<&(dyn error::Error)> {
-        None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+    use failure::Fail;
+
+    // when the iter error gets converted to a Result<i32, Error> it will get the failure goodness
+    fn iter_error_result() -> Result<i32> {
+        Err(IterError::item_not_found())
     }
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        None
+
+    // #[test]
+    // fn test_backtrace() {
+    //     let err = iter_error_result().unwrap_err();
+    //     println!("{:?}", err)
+    // }
+
+    #[test]
+    fn test_iter_error_display() {
+        assert_eq!("iterator item not found", format!("{}", IterError::item_not_found().kind()));
     }
 }

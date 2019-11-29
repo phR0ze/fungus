@@ -1,4 +1,3 @@
-use std::io;
 use std::iter::Iterator;
 
 use crate::*;
@@ -15,16 +14,28 @@ impl<T: ?Sized> IteratorExt for T
 where
     T: Iterator,
 {
+    /// If the iterator yields as single element, that element will be returned, otherwise
+    /// an error will be returned.
+    ///
+    /// # Examples
+    /// ```
+    /// use rs::core::*;
+    ///
+    /// assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
+    /// assert!((0..10).filter(|&x| x > 1 && x < 4).single().unwrap_err().eq(2..4));
+    /// assert!((0..10).filter(|&x| x > 1 && x < 5).single().unwrap_err().eq(2..5));
+    /// assert!((0..10).filter(|&_| false).single().unwrap_err().eq(0..0));
+    /// ```
     fn single(mut self) -> Result<Self::Item>
     where
         Self: Sized,
     {
         match self.next() {
             Some(first) => match self.next() {
-                Some(_) => Err(IterError::MultipleFound.into()),
+                Some(_) => Err(IterError::multiple_items_found()),
                 None => Ok(first),
             },
-            None => Err(IterError::ItemNotFound.into()),
+            None => Err(IterError::item_not_found()),
         }
     }
 }
@@ -43,8 +54,7 @@ mod tests {
 
     #[test]
     fn test_single() {
-        assert!(PathBuf::new().components().single().is_err());
-        assert!(PathBuf::new().components().single().contains_err(Error::new()));
-        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").components().single().unwrap());
+        assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
+        // assert!((0..10).filter(|&x| x > 2 && x < 4).single().unwrap_err().eq(2..4));
     }
 }

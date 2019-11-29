@@ -1,8 +1,10 @@
-mod err;
+mod error;
 mod iter;
 mod iter_error;
 mod path_error;
-pub use err::*;
+mod result;
+pub use error::*;
 pub use iter::*;
 pub use iter_error::*;
 pub use path_error::*;
+pub use result::*;

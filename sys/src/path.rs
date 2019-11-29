@@ -1,6 +1,5 @@
 use glob::glob;
 use std::env;
-use std::io;
 use std::path::{Component, Path, PathBuf};
 
 use core::*;
