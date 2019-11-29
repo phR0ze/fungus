@@ -20,6 +20,12 @@
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #SOFTWARE.
 
+# Handle darwin's lame sed behavior
+SED="sed -i"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  SED="sed -i ''"
+fi
+
 # Read target file and capture Sem Version string and set result
 get_version() {
   local file="$1"     # target version file to read from
