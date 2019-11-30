@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::error::*;
 
-/// An error aggregate for common errors in rust
+/// An error indicating something went wrong with an iterator operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum IterError {
     /// An error indicating that the iterator item was not found
@@ -58,5 +58,14 @@ mod tests {
     #[test]
     fn test_iter_error_display() {
         assert_eq!("iterator item not found", format!("{}", IterError::item_not_found().kind()));
+    }
+
+    #[test]
+    fn test_matching_error() {
+        if let ErrorKind::Iter(err) = iter_error_result().unwrap_err().kind() {
+            assert_eq!(&IterError::ItemNotFound, err);
+        } else {
+            panic!();
+        }
     }
 }

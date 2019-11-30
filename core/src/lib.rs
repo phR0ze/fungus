@@ -1,9 +1,13 @@
+mod env_error;
 mod error;
+mod io_error;
 mod iter;
 mod iter_error;
 mod path_error;
 mod result;
+pub use env_error::*;
 pub use error::*;
+pub use io_error::*;
 pub use iter::*;
 pub use iter_error::*;
 pub use path_error::*;

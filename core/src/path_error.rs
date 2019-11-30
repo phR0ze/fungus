@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::*;
 
+// An error indicating that something went wrong with a path operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PathError {
     /// An error indicating that the desired path component is not found.
@@ -101,5 +102,14 @@ mod tests {
     fn test_backtrace() {
         let err = path_empty().unwrap_err();
         println!("{:?}", err);
+    }
+
+    #[test]
+    fn test_matching_error() {
+        if let ErrorKind::Path(err) = path_empty().unwrap_err().kind() {
+            assert_eq!(&PathError::Empty, err);
+        } else {
+            panic!();
+        }
     }
 }

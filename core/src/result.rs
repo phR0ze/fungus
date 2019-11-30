@@ -1,10 +1,10 @@
-use failure::Error;
+use std::io;
 use std::result;
 
 use crate::error::*;
 
 /// The canonical `Result` type.
-pub type Result<T> = result::Result<T, failure::Error>;
+pub type Result<T> = result::Result<T, Error>;
 
 #[cfg(test)]
 mod tests {

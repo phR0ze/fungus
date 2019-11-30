@@ -3,6 +3,8 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::env_error::*;
+use crate::io_error::*;
 use crate::iter_error::*;
 use crate::path_error::*;
 
@@ -42,8 +44,11 @@ impl fmt::Display for Error {
 /// The specific kind of error that can occur.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
+    /// An env error
+    Env(EnvError),
+
     /// An IO error
-    // Io(io::Error),
+    Io(IoError),
 
     /// An iterator error
     Iter(IterError),
@@ -55,7 +60,8 @@ pub enum ErrorKind {
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            // ErrorKind::Io(ref err) => err.fmt(f),
+            ErrorKind::Env(ref err) => err.fmt(f),
+            ErrorKind::Io(ref err) => err.fmt(f),
             ErrorKind::Iter(ref err) => err.fmt(f),
             ErrorKind::Path(ref err) => err.fmt(f),
         }
