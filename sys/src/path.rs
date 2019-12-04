@@ -235,10 +235,10 @@ impl PathExt for Path {
 
     // Returns a string slice with the given suffix trimmed off else the original string.
     fn trim_suffix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf> {
-        let mut old = self.to_string()?;
+        let old = self.to_string()?;
         let _value = value.as_ref();
         if (&old[..]).ends_with(_value) {
-            let new = old.truncate(_value.len());
+            let new = &old[..old.len() - _value.len()];
             return Ok(PathBuf::from(new));
         }
         Ok(PathBuf::from(old))
@@ -292,7 +292,7 @@ mod tests {
     fn test_getpaths() {
         let paths = getpaths(&"*").unwrap();
         assert_eq!(&PathBuf::from(".vscode"), paths.first().unwrap());
-        assert_eq!(&PathBuf::from("target"), paths.last().unwrap());
+        assert_eq!(&PathBuf::from("src"), paths.last().unwrap());
     }
 
     // Path tests
@@ -449,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pathext_trim_end_matches() {
+    fn test_pathext_trim_suffix() {
         // drop root
         assert_eq!(PathBuf::new(), PathBuf::from("/").trim_suffix("/").unwrap());
 
