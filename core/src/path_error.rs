@@ -6,9 +6,6 @@ use crate::error::*;
 // An error indicating that something went wrong with a path operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PathError {
-    /// An error indicating that the desired path component is not found.
-    ComponentNotFound(PathBuf),
-
     /// An error indicating that the path is empty.
     Empty,
 
@@ -28,11 +25,6 @@ pub enum PathError {
     ParentNotFound(PathBuf),
 }
 impl PathError {
-    /// Return an error indicating that the desired path component is not found
-    pub fn component_not_found<T: AsRef<Path>>(path: T) -> Error {
-        Error::from(PathError::ComponentNotFound(path.as_ref().to_path_buf()))
-    }
-
     /// Return an error indicating that the path is empty
     pub fn empty() -> Error {
         Error::from(PathError::Empty)
@@ -60,14 +52,13 @@ impl PathError {
 
     /// Return an error indicating that the path does not have a valid parent path
     pub fn parent_not_found<T: AsRef<Path>>(path: T) -> Error {
-        Error::from(PathError::ComponentNotFound(path.as_ref().to_path_buf()))
+        Error::from(PathError::ParentNotFound(path.as_ref().to_path_buf()))
     }
 }
 
 impl fmt::Display for PathError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            PathError::ComponentNotFound(ref path) => write!(f, "component not found for path {}", path.display()),
             PathError::Empty => write!(f, "path empty"),
             PathError::FailedToString(ref path) => write!(f, "failed to convert to string for path {}", path.display()),
             PathError::FileNameNotFound(ref path) => write!(f, "filename not found for path {}", path.display()),
@@ -79,7 +70,7 @@ impl fmt::Display for PathError {
 }
 
 impl From<PathError> for Error {
-    fn from(err: PathError) -> Error {
+    fn from(err: PathError) -> Self {
         Error::from(ErrorKind::Path(err))
     }
 }

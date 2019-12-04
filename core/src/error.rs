@@ -1,12 +1,9 @@
 use failure::{Backtrace, Context, Fail};
 use std::fmt;
-use std::io;
-use std::path::{Path, PathBuf};
 
-use crate::env_error::*;
-use crate::io_error::*;
 use crate::iter_error::*;
 use crate::path_error::*;
+use crate::sys_error::*;
 
 /// An error aggregate for common errors in rust
 #[derive(Debug)]
@@ -44,38 +41,34 @@ impl fmt::Display for Error {
 /// The specific kind of error that can occur.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
-    /// An env error
-    Env(EnvError),
-
-    /// An IO error
-    Io(IoError),
-
     /// An iterator error
     Iter(IterError),
 
     /// A path error
     Path(PathError),
+
+    /// An IO error
+    Sys(SysError),
 }
 
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ErrorKind::Env(ref err) => err.fmt(f),
-            ErrorKind::Io(ref err) => err.fmt(f),
             ErrorKind::Iter(ref err) => err.fmt(f),
             ErrorKind::Path(ref err) => err.fmt(f),
+            ErrorKind::Sys(ref err) => err.fmt(f),
         }
     }
 }
 
 impl From<ErrorKind> for Error {
-    fn from(kind: ErrorKind) -> Error {
+    fn from(kind: ErrorKind) -> Self {
         Error::from(Context::new(kind))
     }
 }
 
 impl From<Context<ErrorKind>> for Error {
-    fn from(ctx: Context<ErrorKind>) -> Error {
+    fn from(ctx: Context<ErrorKind>) -> Self {
         Error { ctx }
     }
 }
@@ -84,6 +77,7 @@ impl From<Context<ErrorKind>> for Error {
 mod tests {
     use super::*;
     use crate::*;
+    use std::path::PathBuf;
 
     fn path_empty() -> Result<PathBuf> {
         Err(PathError::empty())
@@ -107,108 +101,3 @@ mod tests {
         assert_ne!(PathError::parent_not_found("foo"), PathError::parent_not_found("bar"));
     }
 }
-
-// // use glob;
-// // use std::env;
-// // use std::error;
-// // use std::io;
-
-// // use crate::*;
-
-// // // Error for the single extension method.
-// // //--------------------------------------------------------------------------------------------------
-// // #[derive(Debug)]
-// // pub enum Error {
-// //     Io(io::Error),
-// //     Env(env::VarError),
-// //     Glob(glob::GlobError),
-// //     GlobPattern(glob::PatternError),
-// //     Path(PathError),
-// //     Iter(IterError),
-// // }
-
-// // impl fmt::Display for Error {
-// //     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-// //         match self {
-// //             Error::Io(ref err) => err.fmt(fmt),
-// //             Error::Env(ref err) => err.fmt(fmt),
-// //             Error::Glob(ref err) => err.fmt(fmt),
-// //             Error::GlobPattern(ref err) => err.fmt(fmt),
-// //             Error::Iter(ref err) => err.fmt(fmt),
-// //             Error::Path(ref err) => err.fmt(fmt),
-// //         }
-// //     }
-// // }
-
-// // impl error::Error for Error {
-// //     fn description(&self) -> &str {
-// //         match self {
-// //             Error::Io(ref err) => err.description(),
-// //             Error::Env(ref err) => err.description(),
-// //             Error::Glob(ref err) => err.description(),
-// //             Error::GlobPattern(ref err) => err.description(),
-// //             Error::Iter(ref err) => err.description(),
-// //             Error::Path(ref err) => err.description(),
-// //         }
-// //     }
-// //     fn cause(&self) -> Option<&(dyn error::Error)> {
-// //         None
-// //     }
-// //     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-// //         None
-// //     }
-// // }
-
-// // impl From<io::Error> for Error {
-// //     fn from(err: io::Error) -> Error {
-// //         Error::Io(err)
-// //     }
-// // }
-
-// // impl From<glob::GlobError> for Error {
-// //     fn from(err: glob::GlobError) -> Error {
-// //         Error::Glob(err)
-// //     }
-// // }
-
-// // impl From<glob::PatternError> for Error {
-// //     fn from(err: glob::PatternError) -> Error {
-// //         Error::GlobPattern(err)
-// //     }
-// // }
-
-// // impl From<env::VarError> for Error {
-// //     fn from(err: env::VarError) -> Error {
-// //         Error::Env(err)
-// //     }
-// // }
-
-// // // Converts an `IterError` into an `Error`.
-// // impl From<PathError> for Error {
-// //     fn from(err: PathError) -> Error {
-// //         Error::Path(err)
-// //     }
-// // }
-
-// // // Converts a `PathError` into an `Error`.
-// // impl From<IterError> for Error {
-// //     fn from(err: IterError) -> Error {
-// //         Error::Iter(err)
-// //     }
-// // }
-
-// // #[cfg(test)]
-// // mod tests {
-// //     use super::*;
-// //     use std::env;
-// //     use std::error::Error;
-// //     use std::ffi::OsStr;
-// //     use std::path::{Component, PathBuf};
-
-// //     #[test]
-// //     fn test_description() {
-// //         let err = PathError::ParentNotFound;
-// //         assert_eq!("parent not found", err.description());
-// //         //let err = Error::from(PathError::ParentNotFound);
-// //     }
-// // }

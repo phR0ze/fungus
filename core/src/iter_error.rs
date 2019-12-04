@@ -33,7 +33,7 @@ impl fmt::Display for IterError {
 }
 
 impl From<IterError> for Error {
-    fn from(err: IterError) -> Error {
+    fn from(err: IterError) -> Self {
         Error::from(ErrorKind::Iter(err))
     }
 }
@@ -42,9 +42,7 @@ impl From<IterError> for Error {
 mod tests {
     use super::*;
     use crate::*;
-    use failure::Fail;
 
-    // when the iter error gets converted to a Result<i32, Error> it will get the failure goodness
     fn iter_error_result() -> Result<i32> {
         Err(IterError::item_not_found())
     }
