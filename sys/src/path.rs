@@ -1,7 +1,7 @@
 use std::env;
 use std::path::{Component, Path, PathBuf};
 
-use core::*;
+use core::preamble::*;
 
 // Path utilities
 // -------------------------------------------------------------------------------------------------

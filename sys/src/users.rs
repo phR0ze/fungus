@@ -1,7 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use core::*;
+use core::preamble::*;
 
 pub mod user {
     use super::*;
