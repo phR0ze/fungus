@@ -126,8 +126,10 @@ pub trait IteratorExt: Iterator {
     where
         Self: Sized;
 
-    /// Slice returns this iterator manipulated eagerly to only iterate over the range of elements
-    /// call out by the given indices. Allows for negative notation.
+    /// Slice returns this iterator eagerly to only iterate over the range of elements called out
+    /// by the given indices. Allows for negative notation.
+    ///
+    /// Note this operation uses count() to determine length which means cost O(n) out of the gate.
     ///
     /// # Examples
     /// ```
@@ -225,11 +227,6 @@ where
         Self: Clone,
         Self: DoubleEndedIterator,
     {
-        //  -4  -3  -2  -1
-        // -----------------
-        // | 0 | 1 | 2 | 3 |
-        // -----------------
-
         // Convert left to postive notation and trim
         let (mut l, mut r): (usize, usize) = (left as usize, 0);
         let len = (self.clone()).count() as isize;
@@ -273,6 +270,19 @@ mod tests {
 
     #[test]
     fn test_slice() {
+        // Both negative
+        assert_eq!(vec![0, 1, 2, 3].into_iter().slice(-1, -5).next(), None); // right out of bounds negatively consumes all
+        assert_iter_eq(vec![0, 1, 2, 3], vec![0, 1, 2, 3].into_iter().slice(-4, -1)); // get all
+        assert_iter_eq(vec![0, 1, 2], vec![0, 1, 2, 3].into_iter().slice(-4, -2)); // get all but last
+        assert_iter_eq(vec![0, 1], vec![0, 1, 2, 3].into_iter().slice(-4, -3)); // get all but last 2
+        assert_iter_eq(vec![3], vec![0, 1, 2, 3].into_iter().slice(-1, -1)); // get last
+        assert_iter_eq(vec![2], vec![0, 1, 2, 3].into_iter().slice(-2, -2)); // get index 2
+        assert_iter_eq(vec![1], vec![0, 1, 2, 3].into_iter().slice(-3, -3)); // get index 1
+        assert_iter_eq(vec![0], vec![0, 1, 2, 3].into_iter().slice(-4, -4)); // get first
+        assert_iter_eq(vec![1, 2, 3], vec![0, 1, 2, 3].into_iter().slice(-3, -1)); // get all but first
+        assert_iter_eq(vec![1, 2], vec![0, 1, 2, 3].into_iter().slice(-3, -2)); // get middle
+        assert_eq!(vec![0, 1, 2, 3].into_iter().slice(-1, -2).next(), None); // mutually exclusive consumes everything
+
         // Both positive
         assert_iter_eq(vec![0, 1, 2, 3], vec![0, 1, 2, 3].into_iter().slice(0, 4)); // right out of bounds positively gets moved in
         assert_iter_eq(vec![0, 1, 2, 3], vec![0, 1, 2, 3].into_iter().slice(0, 3)); // get all
