@@ -10,6 +10,9 @@ pub enum IterError {
 
     /// An error indicating that multiple items were found for the iterator
     MultipleItemsFound,
+
+    /// An error indicating that the indicies are mutually exclusive
+    MutuallyExclusiveIndicies,
 }
 impl IterError {
     /// An error indicating that the iterator item was not found
@@ -21,6 +24,11 @@ impl IterError {
     pub fn multiple_items_found() -> Error {
         Error::from(IterError::MultipleItemsFound)
     }
+
+    /// An error indicating that the indicies are mutually exclusive
+    pub fn mutually_exclusive_indices() -> Error {
+        Error::from(IterError::MutuallyExclusiveIndicies)
+    }
 }
 
 impl fmt::Display for IterError {
@@ -28,6 +36,7 @@ impl fmt::Display for IterError {
         match *self {
             IterError::ItemNotFound => write!(f, "iterator item not found"),
             IterError::MultipleItemsFound => write!(f, "multiple iterator items found"),
+            IterError::MutuallyExclusiveIndicies => write!(f, "mutually exclusive indices"),
         }
     }
 }
@@ -54,8 +63,18 @@ mod tests {
     // }
 
     #[test]
-    fn test_iter_error_display() {
+    fn test_item_not_found() {
         assert_eq!("iterator item not found", format!("{}", IterError::item_not_found().kind()));
+    }
+
+    #[test]
+    fn test_multiple_items_found() {
+        assert_eq!("multiple iterator items found", format!("{}", IterError::multiple_items_found().kind()));
+    }
+
+    #[test]
+    fn test_mutually_exclusive_indices() {
+        assert_eq!("mutually exclusive indices", format!("{}", IterError::mutually_exclusive_indices().kind()));
     }
 
     #[test]

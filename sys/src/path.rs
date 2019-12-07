@@ -4,79 +4,73 @@ use std::path::{Component, Path, PathBuf};
 
 use core::*;
 
-// // Path utilities
-// // -------------------------------------------------------------------------------------------------
-// pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
-//     let _path = path.as_ref();
+// Path utilities
+// -------------------------------------------------------------------------------------------------
+pub mod paths {
+    use super::*;
 
-//     // Check for empty string
-//     if _path.to_string()? == "" {
-//         return Err(PathError::Empty.into());
-//     }
+    /// Return the given path in an absolute clean form
+    pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+        let _path = path.as_ref();
 
-//     // Expand home directory and trim trailing slash if needed
-//     let mut path_buf = _path.expand()?;
-//     let mut path_str = path_buf.to_string()?;
-//     if path_str.len() > 1 {
-//         path_buf = path_buf.trim_end_matches("/")?;
-//         path_str = path_buf.to_string()?;
-//     }
+        // Check for empty string
+        if _path.empty() {
+            return Err(PathError::empty());
+        }
 
-//     // Expand current directory if needed
-//     if !path_buf.is_absolute() {
-//         // Unwrap is acceptable here as Some will always exist
-//         match path_str.split("/").next().unwrap() {
-//             "." => path_buf = env::current_dir()?.join(&path_str[1..]),
-//             ".." => path_buf = env::current_dir()?.dirname()?.join(&path_str[2..]),
-//             _ => path_buf = env::current_dir()?.join(path_buf),
-//         }
-//     }
+        // Expand home directory
+        let mut path_buf = _path.expand()?;
 
-//     // Clean the path
+        // Trim protocol prefix if needed
+        path_buf = path_buf.trim_protocol()?;
 
-//     Ok(path_buf)
-// }
+        // Clean the resulting path
+        path_buf = path_buf.clean()?;
 
-// Returns the full path to the directory of the current running executable.
-pub fn exec_dir() -> Result<PathBuf> {
-    Ok(env::current_exe()?.dirname()?)
-}
+        // Expand relative directories if needed
+        if !path_buf.is_absolute() {
+            let curr = env::current_dir()?;
 
-// Returns the current running executable's name.
-pub fn exec_name() -> Result<String> {
-    Ok(env::current_exe()?.name()?)
-}
+            // Unwrap works here as there will always be Some
+            path_buf = match path_buf.first()? {
+                Component::CurDir => curr.join(path_buf),
+                Component::ParentDir => curr.dirname()?.join(path_buf.trim_first()?),
+                _ => curr.join(path_buf),
+            }
+        }
 
-// Returns a vector of all paths from the given target glob, sorted by name.
-// Doesn't include the target itself only its children nor is this recursive.
-pub fn getpaths<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
-    let mut paths: Vec<PathBuf> = Vec::new();
-    let _str = pattern.as_ref().to_string()?;
-    for x in glob(&_str)? {
-        let path = x?;
-        paths.push(path);
+        Ok(path_buf)
     }
-    Ok(paths)
+
+    // Returns the full path to the directory of the current running executable.
+    pub fn exec_dir() -> Result<PathBuf> {
+        Ok(env::current_exe()?.dirname()?)
+    }
+
+    // Returns the current running executable's name.
+    pub fn exec_name() -> Result<String> {
+        Ok(env::current_exe()?.name()?)
+    }
+
+    // Returns a vector of all paths from the given target glob, sorted by name.
+    // Doesn't include the target itself only its children nor is this recursive.
+    pub fn getpaths<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
+        let mut paths: Vec<PathBuf> = Vec::new();
+        let _str = pattern.as_ref().to_string()?;
+        for x in glob(&_str)? {
+            let path = x?;
+            paths.push(path);
+        }
+        Ok(paths)
+    }
 }
 
 // Path extensions
 // -------------------------------------------------------------------------------------------------
 pub trait PathExt {
-    fn clean(&self) -> Result<PathBuf>;
-    fn dirname(&self) -> Result<PathBuf>;
-    fn empty(&self) -> bool;
-    fn expand(&self) -> Result<PathBuf>;
-    fn first(&self) -> Result<Component>;
-    fn has<T: AsRef<str>>(&self, value: T) -> bool;
-    fn has_prefix<T: AsRef<str>>(&self, value: T) -> bool;
-    fn has_suffix<T: AsRef<str>>(&self, value: T) -> bool;
-    fn last(&self) -> Result<Component>;
-    fn name(&self) -> Result<String>;
-    fn to_string(&self) -> Result<String>;
-    fn trim_protocol(&self) -> Result<PathBuf>;
-    fn trim_suffix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf>;
-}
-impl PathExt for Path {
+    /// Return the path in an absolute clean form
+    fn abs(&self) -> Result<PathBuf>;
+
     /// Return the shortest path equivalent to the path by purely lexical processing and thus does not handle
     /// links correctly in some cases, use canonicalize in those cases. It applies the following rules
     /// interatively until no further processing can be done.
@@ -91,6 +85,59 @@ impl PathExt for Path {
     ///  6. Drop trailing '/' unless it is the root
     ///
     /// If the result of this process is an empty string, return the string `.`, representing the current directory.
+    fn clean(&self) -> Result<PathBuf>;
+
+    /// Returns the `Path` without its final component, if there is one.
+    fn dirname(&self) -> Result<PathBuf>;
+
+    /// Returns true if the `Path` is empty.
+    fn empty(&self) -> bool;
+
+    /// Expand the path to include the home prefix if necessary
+    fn expand(&self) -> Result<PathBuf>;
+
+    /// Returns the first path component.
+    fn first(&self) -> Result<Component>;
+
+    /// Returns true if the `Path` as a String contains the given string
+    fn has<T: AsRef<str>>(&self, value: T) -> bool;
+
+    /// Returns true if the `Path` as a String has the given string prefix
+    fn has_prefix<T: AsRef<str>>(&self, value: T) -> bool;
+
+    /// Returns true if the `Path` as a String has the given string suffix
+    fn has_suffix<T: AsRef<str>>(&self, value: T) -> bool;
+
+    /// Returns the last path component.
+    fn last(&self) -> Result<Component>;
+
+    /// Returns the final component of the `Path`, if there is one.
+    fn name(&self) -> Result<String>;
+
+    /// Returns the `Path` as a String
+    fn to_string(&self) -> Result<String>;
+
+    /// Returns the `Path` with the file extension removed
+    fn trim_ext(&self) -> Result<PathBuf>;
+
+    /// Returns the `Path` with the first component trimmed off
+    fn trim_first(&self) -> Result<PathBuf>;
+
+    /// Returns the `Path` with the last component trimmed off
+    fn trim_last(&self) -> Result<PathBuf>;
+
+    /// Returns the `Path` with well known protocol prefixes removed.
+    fn trim_protocol(&self) -> Result<PathBuf>;
+
+    /// Returns a string slice with the given suffix trimmed off else the original string.
+    fn trim_suffix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf>;
+}
+
+impl PathExt for Path {
+    fn abs(&self) -> Result<PathBuf> {
+        paths::abs(self)
+    }
+
     fn clean(&self) -> Result<PathBuf> {
         // Components already handles the following cases:
         // 1. Repeated separators are ignored, so a/b and a//b both have a and b as components.
@@ -138,13 +185,11 @@ impl PathExt for Path {
         Ok(path_buf)
     }
 
-    // Returns the `Path` without its final component, if there is one.
     fn dirname(&self) -> Result<PathBuf> {
         let dir = self.parent().ok_or_else(|| PathError::parent_not_found(self))?;
         Ok(dir.to_path_buf())
     }
 
-    // Returns true if the `Path` is empty.
     fn empty(&self) -> bool {
         match self.to_string() {
             Ok(s) => s == "",
@@ -152,7 +197,6 @@ impl PathExt for Path {
         }
     }
 
-    // Expand the path to include the home prefix if necessary
     fn expand(&self) -> Result<PathBuf> {
         let path_str = self.to_string()?;
         let mut expanded = self.to_path_buf();
@@ -168,19 +212,17 @@ impl PathExt for Path {
             }
 
             // Replace prefix with home directory
-            1 => expanded = crate::user_home()?.join(&path_str[2..]),
+            1 => expanded = crate::users::user::home()?.join(&path_str[2..]),
             _ => (),
         }
 
         Ok(expanded)
     }
 
-    // Returns the first path component.
     fn first(&self) -> Result<Component> {
         self.components().first_result()
     }
 
-    /// Returns true if the `Path` as a String contains the given string
     fn has<T: AsRef<str>>(&self, value: T) -> bool {
         match self.to_string() {
             Ok(s) => s.contains(value.as_ref()),
@@ -188,56 +230,72 @@ impl PathExt for Path {
         }
     }
 
-    // Returns true if the `Path` as a String has the given string prefix
     fn has_prefix<T: AsRef<str>>(&self, value: T) -> bool {
         match self.to_string() {
-            Ok(s) => (&s[..]).starts_with(value.as_ref()),
+            Ok(s) => s.starts_with(value.as_ref()),
             Err(_) => false,
         }
     }
 
-    // Returns true if the `Path` as a String has the given string suffix
     fn has_suffix<T: AsRef<str>>(&self, value: T) -> bool {
         match self.to_string() {
-            Ok(s) => (&s[..]).ends_with(value.as_ref()),
+            Ok(s) => s.ends_with(value.as_ref()),
             Err(_) => false,
         }
     }
 
-    // Returns the last path component.
     fn last(&self) -> Result<Component> {
         self.components().last_result()
     }
 
-    // Returns the final component of the `Path`, if there is one.
     fn name(&self) -> Result<String> {
         let os_str = self.file_name().ok_or_else(|| PathError::filename_not_found(self))?;
         let filename = os_str.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
         Ok(String::from(filename))
     }
 
-    // Returns the `Path` as a String
     fn to_string(&self) -> Result<String> {
         let _str = self.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
         Ok(String::from(_str))
     }
 
-    // Returns the `Path` with well known protocol prefixes removed.
-    fn trim_protocol(&self) -> Result<PathBuf> {
-        let _str = self.to_string()?;
-        let _str = _str.to_lowercase();
-        let _str = _str.trim_start_matches("file://");
-        let _str = _str.trim_start_matches("ftp://");
-        let _str = _str.trim_start_matches("http://");
-        let _str = _str.trim_start_matches("https://");
-        Ok(PathBuf::from(_str))
+    fn trim_ext(&self) -> Result<PathBuf> {
+        match self.file_stem() {
+            Some(val) => Ok(self.trim_last()?.join(val)),
+            None => Ok(self.to_path_buf()),
+        }
     }
 
-    // Returns a string slice with the given suffix trimmed off else the original string.
+    fn trim_first(&self) -> Result<PathBuf> {
+        Ok(self.components().drop(1).as_path().to_path_buf())
+    }
+
+    fn trim_last(&self) -> Result<PathBuf> {
+        Ok(self.components().drop(-1).as_path().to_path_buf())
+    }
+
+    fn trim_protocol(&self) -> Result<PathBuf> {
+        let mut s = self.to_string()?;
+        if let Some(i) = s.find("//") {
+            let (prefix, suffix) = s.split_at(i + 2);
+            let lower = prefix.to_lowercase();
+            let lower = lower.trim_start_matches("file://");
+            let lower = lower.trim_start_matches("ftp://");
+            let lower = lower.trim_start_matches("http://");
+            let lower = lower.trim_start_matches("https://");
+            if lower != "" {
+                s = format!("{}{}", prefix, suffix);
+            } else {
+                return Ok(PathBuf::from(suffix));
+            }
+        }
+        Ok(PathBuf::from(s))
+    }
+
     fn trim_suffix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf> {
         let old = self.to_string()?;
         let _value = value.as_ref();
-        if (&old[..]).ends_with(_value) {
+        if old.ends_with(_value) {
             let new = &old[..old.len() - _value.len()];
             return Ok(PathBuf::from(new));
         }
@@ -249,48 +307,57 @@ impl PathExt for Path {
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::env;
     use std::ffi::OsStr;
+    use std::path::{Component, PathBuf};
 
-    //     #[test]
-    //     fn test_abs() {
-    //         let home = env::var("HOME").unwrap();
-    //         let cwd = env::current_dir().unwrap();
-    //         let prev = cwd.dirname().unwrap();
+    use crate::*;
 
-    //         // expand previous directory and drop slash
-    //         assert_eq!(PathBuf::from(&prev), abs("../").unwrap());
+    #[test]
+    fn test_abs() {
+        let home = env::var("HOME").unwrap();
+        let cwd = env::current_dir().unwrap();
+        let prev = cwd.dirname().unwrap();
 
-    //         // expand previous directory
-    //         assert_eq!(PathBuf::from(&prev), abs("..").unwrap());
+        // expand previous directory and drop trailing slashes
+        assert_eq!(PathBuf::from(&prev), paths::abs("..//").unwrap());
+        assert_eq!(PathBuf::from(&prev), paths::abs("../").unwrap());
+        assert_eq!(PathBuf::from(&prev), paths::abs("..").unwrap());
 
-    //         // expand current directory
-    //         assert_eq!(PathBuf::from(&cwd), abs(".").unwrap());
+        // expand current directory and drop trailing slashes
+        assert_eq!(PathBuf::from(&cwd), paths::abs(".//").unwrap());
+        assert_eq!(PathBuf::from(&cwd), paths::abs("./").unwrap());
+        assert_eq!(PathBuf::from(&cwd), paths::abs(".").unwrap());
 
-    //         // expand relative directory
-    //         assert_eq!(PathBuf::from(&cwd).join("foo"), abs("foo").unwrap());
+        // expand relative directory
+        assert_eq!(PathBuf::from(&cwd).join("foo"), paths::abs("foo").unwrap());
 
-    //         // expand home path
-    //         assert_eq!(PathBuf::from(&home).join("foo"), abs("~/foo").unwrap());
-    //     }
+        // expand home path
+        assert_eq!(PathBuf::from(&home).join("foo"), paths::abs("~/foo").unwrap());
+
+        // More complicated
+        assert_eq!(PathBuf::from(&home).join("foo"), paths::abs("~/foo/bar/../.").unwrap());
+        assert_eq!(PathBuf::from(&home).join("foo"), paths::abs("~/foo/bar/../").unwrap());
+        assert_eq!(PathBuf::from(&home).join("foo/blah"), paths::abs("~/foo/bar/../blah").unwrap());
+    }
 
     #[test]
     fn test_exec_dir() {
         let cwd = env::current_dir().unwrap();
         let dir = cwd.parent().unwrap().join("target/debug/deps");
-        assert_eq!(dir, exec_dir().unwrap());
+        assert_eq!(dir, paths::exec_dir().unwrap());
     }
 
     #[test]
     fn test_exec_name() {
         let exec_path = env::current_exe().unwrap();
         let name = exec_path.name().unwrap();
-        assert_eq!(name, exec_name().unwrap());
+        assert_eq!(name, paths::exec_name().unwrap());
     }
 
     #[test]
     fn test_getpaths() {
-        let paths = getpaths(&"*").unwrap();
+        let paths = paths::getpaths(&"*").unwrap();
         assert_eq!(&PathBuf::from(".vscode"), paths.first().unwrap());
         assert_eq!(&PathBuf::from("src"), paths.last().unwrap());
     }
@@ -340,7 +407,8 @@ mod tests {
             ("../foo", "../foo"),
             ("../foo", "../foo/"),
             ("../foo/bar", "../foo/bar"),
-            ("..", "../test/.."),
+            ("..", "../foo/.."),
+            ("~/foo", "~/foo"),
         ];
         for test in tests {
             assert_eq!(PathBuf::from(test.0), PathBuf::from(test.1).clean().unwrap());
@@ -391,6 +459,7 @@ mod tests {
         assert_eq!(Component::CurDir, PathBuf::from(".").first().unwrap());
         assert_eq!(Component::ParentDir, PathBuf::from("..").first().unwrap());
         assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").first().unwrap());
+        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo/bar").first().unwrap());
     }
 
     #[test]
@@ -423,8 +492,36 @@ mod tests {
     }
 
     #[test]
+    fn test_pathext_last() {
+        assert_eq!(Component::RootDir, PathBuf::from("/").last().unwrap());
+        assert_eq!(Component::CurDir, PathBuf::from(".").last().unwrap());
+        assert_eq!(Component::ParentDir, PathBuf::from("..").last().unwrap());
+        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").last().unwrap());
+        assert_eq!(Component::Normal(OsStr::new("bar")), PathBuf::from("/foo/bar").last().unwrap());
+    }
+
+    #[test]
     fn test_pathext_to_string() {
         assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_last() {
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_last().unwrap());
+        assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_ext() {
+        assert_eq!(PathBuf::new(), PathBuf::from("").trim_ext().unwrap());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
+        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar.exe").trim_ext().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_first() {
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_first().unwrap());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
     }
 
     #[test]
@@ -444,8 +541,16 @@ mod tests {
         // https://
         assert_eq!(PathBuf::from("foo"), PathBuf::from("https://foo").trim_protocol().unwrap());
 
-        // HTTPS://
-        assert_eq!(PathBuf::from("foo"), PathBuf::from("HTTPS://foo").trim_protocol().unwrap());
+        // Check case is being considered
+        assert_eq!(PathBuf::from("Foo"), PathBuf::from("HTTPS://Foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("Foo"), PathBuf::from("Https://Foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("FoO"), PathBuf::from("HttpS://FoO").trim_protocol().unwrap());
+
+        // Check non protocol matches are ignored
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("foo/bar"), PathBuf::from("foo/bar").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("foo//bar"), PathBuf::from("foo//bar").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("ntp:://foo"), PathBuf::from("ntp:://foo").trim_protocol().unwrap());
     }
 
     #[test]

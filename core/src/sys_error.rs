@@ -29,9 +29,9 @@ impl fmt::Display for SysError {
         match *self {
             SysError::EnvNotFound => write!(f, "std::env::VarError environment variable not found"),
             SysError::EnvNotUnicode => write!(f, "std::env::VarError environment variable not valid unicode"),
-            SysError::Glob { ref kind, ref desc } => write!(f, "glob::GlobError {}", desc),
+            SysError::Glob { kind: _, ref desc } => write!(f, "glob::GlobError {}", desc),
             SysError::GlobPattern(ref desc) => write!(f, "glob::PatternError {}", desc),
-            SysError::Io { ref kind, ref desc } => write!(f, "std::io::Error {}", desc),
+            SysError::Io { kind: _, ref desc } => write!(f, "std::io::Error {}", desc),
         }
     }
 }

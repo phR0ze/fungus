@@ -1,4 +1,4 @@
 mod path;
-mod user;
+mod users;
 pub use path::*;
-pub use user::*;
+pub use users::*;
