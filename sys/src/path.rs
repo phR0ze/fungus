@@ -1,4 +1,3 @@
-use glob::glob;
 use std::env;
 use std::path::{Component, Path, PathBuf};
 
@@ -52,14 +51,15 @@ pub mod paths {
         Ok(env::current_exe()?.name()?)
     }
 
-    // Returns a vector of all paths from the given target glob, sorted by name.
-    // Doesn't include the target itself only its children nor is this recursive.
-    pub fn getpaths<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
+    /// Returns a vector of all paths from the given target glob with path expansion and sorted by
+    /// name.
+    ///
+    /// Doesn't include the target itself only its children nor is this recursive.
+    pub fn glob<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
         let mut paths: Vec<PathBuf> = Vec::new();
         let _str = pattern.as_ref().to_string()?;
-        for x in glob(&_str)? {
-            let path = x?;
-            paths.push(path);
+        for x in glob::glob(&_str)? {
+            paths.push(x?.abs()?);
         }
         Ok(paths)
     }
@@ -320,46 +320,48 @@ mod tests {
         let prev = cwd.dirname().unwrap();
 
         // expand previous directory and drop trailing slashes
-        assert_eq!(PathBuf::from(&prev), paths::abs("..//").unwrap());
-        assert_eq!(PathBuf::from(&prev), paths::abs("../").unwrap());
-        assert_eq!(PathBuf::from(&prev), paths::abs("..").unwrap());
+        assert_eq!(PathBuf::from(&prev), sys::abs("..//").unwrap());
+        assert_eq!(PathBuf::from(&prev), sys::abs("../").unwrap());
+        assert_eq!(PathBuf::from(&prev), sys::abs("..").unwrap());
 
         // expand current directory and drop trailing slashes
-        assert_eq!(PathBuf::from(&cwd), paths::abs(".//").unwrap());
-        assert_eq!(PathBuf::from(&cwd), paths::abs("./").unwrap());
-        assert_eq!(PathBuf::from(&cwd), paths::abs(".").unwrap());
+        assert_eq!(PathBuf::from(&cwd), sys::abs(".//").unwrap());
+        assert_eq!(PathBuf::from(&cwd), sys::abs("./").unwrap());
+        assert_eq!(PathBuf::from(&cwd), sys::abs(".").unwrap());
 
         // expand relative directory
-        assert_eq!(PathBuf::from(&cwd).join("foo"), paths::abs("foo").unwrap());
+        assert_eq!(PathBuf::from(&cwd).join("foo"), sys::abs("foo").unwrap());
 
         // expand home path
-        assert_eq!(PathBuf::from(&home).join("foo"), paths::abs("~/foo").unwrap());
+        assert_eq!(PathBuf::from(&home).join("foo"), sys::abs("~/foo").unwrap());
 
         // More complicated
-        assert_eq!(PathBuf::from(&home).join("foo"), paths::abs("~/foo/bar/../.").unwrap());
-        assert_eq!(PathBuf::from(&home).join("foo"), paths::abs("~/foo/bar/../").unwrap());
-        assert_eq!(PathBuf::from(&home).join("foo/blah"), paths::abs("~/foo/bar/../blah").unwrap());
+        assert_eq!(PathBuf::from(&home).join("foo"), sys::abs("~/foo/bar/../.").unwrap());
+        assert_eq!(PathBuf::from(&home).join("foo"), sys::abs("~/foo/bar/../").unwrap());
+        assert_eq!(PathBuf::from(&home).join("foo/blah"), sys::abs("~/foo/bar/../blah").unwrap());
     }
 
     #[test]
     fn test_exec_dir() {
         let cwd = env::current_dir().unwrap();
         let dir = cwd.parent().unwrap().join("target/debug/deps");
-        assert_eq!(dir, paths::exec_dir().unwrap());
+        assert_eq!(dir, sys::exec_dir().unwrap());
     }
 
     #[test]
     fn test_exec_name() {
         let exec_path = env::current_exe().unwrap();
         let name = exec_path.name().unwrap();
-        assert_eq!(name, paths::exec_name().unwrap());
+        assert_eq!(name, sys::exec_name().unwrap());
     }
 
     #[test]
-    fn test_getpaths() {
-        let paths = paths::getpaths(&"*").unwrap();
-        assert_eq!(&PathBuf::from(".vscode"), paths.first().unwrap());
-        assert_eq!(&PathBuf::from("src"), paths.last().unwrap());
+    fn test_glob() {
+        let cwd = env::current_dir().unwrap();
+
+        let paths = sys::glob(&"*").unwrap();
+        assert_eq!(&cwd.join(".vscode"), paths.first().unwrap());
+        assert_eq!(&cwd.join("test"), paths.last().unwrap());
     }
 
     // Path tests
