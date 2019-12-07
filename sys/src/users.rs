@@ -21,7 +21,7 @@ mod tests {
     use std::env;
     use std::path::PathBuf;
 
-    use crate::*;
+    use crate::preamble::*;
 
     #[test]
     fn test_user_home() {

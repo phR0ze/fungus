@@ -1,10 +1,10 @@
 mod path;
 mod users;
-pub use path::PathExt;
-pub use users::*;
+pub use path::paths::*;
 
-// Aggregates all submodule functions
-pub mod sys {
+// Get traits and other top level namespace entries
+pub mod preamble {
     use super::*;
-    pub use path::paths::*;
+    pub use path::PathExt;
+    pub use users::*;
 }

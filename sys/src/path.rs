@@ -311,7 +311,7 @@ mod tests {
     use std::ffi::OsStr;
     use std::path::{Component, PathBuf};
 
-    use crate::*;
+    use crate::preamble::*;
 
     #[test]
     fn test_abs() {
@@ -320,46 +320,58 @@ mod tests {
         let prev = cwd.dirname().unwrap();
 
         // expand previous directory and drop trailing slashes
-        assert_eq!(PathBuf::from(&prev), sys::abs("..//").unwrap());
-        assert_eq!(PathBuf::from(&prev), sys::abs("../").unwrap());
-        assert_eq!(PathBuf::from(&prev), sys::abs("..").unwrap());
+        assert_eq!(PathBuf::from(&prev), crate::abs("..//").unwrap());
+        assert_eq!(PathBuf::from(&prev), crate::abs("../").unwrap());
+        assert_eq!(PathBuf::from(&prev), crate::abs("..").unwrap());
 
         // expand current directory and drop trailing slashes
-        assert_eq!(PathBuf::from(&cwd), sys::abs(".//").unwrap());
-        assert_eq!(PathBuf::from(&cwd), sys::abs("./").unwrap());
-        assert_eq!(PathBuf::from(&cwd), sys::abs(".").unwrap());
+        assert_eq!(PathBuf::from(&cwd), crate::abs(".//").unwrap());
+        assert_eq!(PathBuf::from(&cwd), crate::abs("./").unwrap());
+        assert_eq!(PathBuf::from(&cwd), crate::abs(".").unwrap());
 
         // expand relative directory
-        assert_eq!(PathBuf::from(&cwd).join("foo"), sys::abs("foo").unwrap());
+        assert_eq!(PathBuf::from(&cwd).join("foo"), crate::abs("foo").unwrap());
 
         // expand home path
-        assert_eq!(PathBuf::from(&home).join("foo"), sys::abs("~/foo").unwrap());
+        match crate::abs("~/foo") {
+            Ok(val) => assert_eq!(PathBuf::from(&home).join("foo"), val),
+            Err(e) => panic!("{:?}", e),
+        }
 
         // More complicated
-        assert_eq!(PathBuf::from(&home).join("foo"), sys::abs("~/foo/bar/../.").unwrap());
-        assert_eq!(PathBuf::from(&home).join("foo"), sys::abs("~/foo/bar/../").unwrap());
-        assert_eq!(PathBuf::from(&home).join("foo/blah"), sys::abs("~/foo/bar/../blah").unwrap());
+        match crate::abs("~/foo/bar/../.") {
+            Ok(val) => assert_eq!(PathBuf::from(&home).join("foo"), val),
+            Err(e) => panic!("{:?}", e),
+        }
+        match crate::abs("~/foo/bar/../") {
+            Ok(val) => assert_eq!(PathBuf::from(&home).join("foo"), val),
+            Err(e) => panic!("{:?}", e),
+        }
+        match crate::abs("~/foo/bar/../blah") {
+            Ok(val) => assert_eq!(PathBuf::from(&home).join("foo/blah"), val),
+            Err(e) => panic!("{:?}", e),
+        }
     }
 
     #[test]
     fn test_exec_dir() {
         let cwd = env::current_dir().unwrap();
         let dir = cwd.parent().unwrap().join("target/debug/deps");
-        assert_eq!(dir, sys::exec_dir().unwrap());
+        assert_eq!(dir, crate::exec_dir().unwrap());
     }
 
     #[test]
     fn test_exec_name() {
         let exec_path = env::current_exe().unwrap();
         let name = exec_path.name().unwrap();
-        assert_eq!(name, sys::exec_name().unwrap());
+        assert_eq!(name, crate::exec_name().unwrap());
     }
 
     #[test]
     fn test_glob() {
         let cwd = env::current_dir().unwrap();
 
-        let paths = sys::glob(&"*").unwrap();
+        let paths = crate::glob(&"*").unwrap();
         assert_eq!(&cwd.join(".vscode"), paths.first().unwrap());
         assert_eq!(&cwd.join("test"), paths.last().unwrap());
     }
