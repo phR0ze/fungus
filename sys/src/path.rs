@@ -14,7 +14,7 @@ pub mod paths {
 
         // Check for empty string
         if _path.empty() {
-            return Err(PathError::empty());
+            return Err(PathError::empty().into());
         }
 
         // Expand home directory
@@ -204,11 +204,11 @@ impl PathExt for Path {
         // Check for invalid home expansion
         match path_str.matches("~").count() {
             // Only home expansion at the begining of the path is allowed
-            cnt if cnt > 1 => return Err(PathError::multiple_home_symbols(self)),
+            cnt if cnt > 1 => return Err(PathError::multiple_home_symbols(self).into()),
 
             // Invalid home expansion requested
             cnt if cnt == 1 && !self.has_prefix("~/") => {
-                return Err(PathError::invalid_expansion(self));
+                return Err(PathError::invalid_expansion(self).into());
             }
 
             // Replace prefix with home directory

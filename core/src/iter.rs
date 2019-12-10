@@ -194,7 +194,7 @@ where
     {
         match self.next() {
             Some(first) => Ok(first),
-            None => Err(IterError::item_not_found()),
+            None => Err(IterError::item_not_found().into()),
         }
     }
 
@@ -204,7 +204,7 @@ where
     {
         match self.last() {
             Some(item) => Ok(item),
-            None => Err(IterError::item_not_found()),
+            None => Err(IterError::item_not_found().into()),
         }
     }
 
@@ -214,10 +214,10 @@ where
     {
         match self.next() {
             Some(item) => match self.next() {
-                Some(_) => Err(IterError::multiple_items_found()),
+                Some(_) => Err(IterError::multiple_items_found().into()),
                 None => Ok(item),
             },
-            None => Err(IterError::item_not_found()),
+            None => Err(IterError::item_not_found().into()),
         }
     }
 
@@ -361,12 +361,7 @@ mod tests {
     #[test]
     fn test_single() {
         assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
-        assert!((0..10).filter(|&x| x > 2).single().unwrap_err().eq(&IterError::multiple_items_found()));
-
-        if let ErrorKind::Iter(err) = (0..10).filter(|&x| x > 2 && x < 5).single().unwrap_err().kind() {
-            assert_eq!(err, &IterError::MultipleItemsFound)
-        } else {
-            assert!(false)
-        }
+        assert_eq!((0..10).filter(|&x| x > 2).single().unwrap_err().downcast_ref::<IterError>(), Some(&IterError::multiple_items_found()));
+        assert_eq!((0..10).filter(|&x| x > 2 && x < 5).single().unwrap_err().downcast_ref::<IterError>(), Some(&IterError::multiple_items_found()));
     }
 }

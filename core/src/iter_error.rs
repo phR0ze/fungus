@@ -1,9 +1,8 @@
 use std::fmt;
-
-use crate::error::*;
+use failure::Fail;
 
 /// An error indicating something went wrong with an iterator operation
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Fail)]
 pub enum IterError {
     /// An error indicating that the iterator item was not found
     ItemNotFound,
@@ -16,18 +15,18 @@ pub enum IterError {
 }
 impl IterError {
     /// An error indicating that the iterator item was not found
-    pub fn item_not_found() -> Error {
-        Error::from(IterError::ItemNotFound)
+    pub fn item_not_found() -> IterError {
+        IterError::ItemNotFound
     }
 
     /// An error indicating that multiple items were found for the iterator
-    pub fn multiple_items_found() -> Error {
-        Error::from(IterError::MultipleItemsFound)
+    pub fn multiple_items_found() -> IterError {
+        IterError::MultipleItemsFound
     }
 
     /// An error indicating that the indicies are mutually exclusive
-    pub fn mutually_exclusive_indices() -> Error {
-        Error::from(IterError::MutuallyExclusiveIndicies)
+    pub fn mutually_exclusive_indices() -> IterError {
+        IterError::MutuallyExclusiveIndicies
     }
 }
 
@@ -41,48 +40,34 @@ impl fmt::Display for IterError {
     }
 }
 
-impl From<IterError> for Error {
-    fn from(err: IterError) -> Self {
-        Error::from(ErrorKind::Iter(err))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::*;
 
-    fn iter_error_result() -> Result<i32> {
-        Err(IterError::item_not_found())
+    fn item_not_found() -> Result<i32> {
+        Err(IterError::item_not_found().into())
     }
 
-    // #[test]
-    // fn test_backtrace() {
-    //     let err = iter_error_result().unwrap_err();
-    //     println!("{:?}", err)
-    // }
+    #[test]
+    fn test_backtrace() {
+        let err = item_not_found().unwrap_err();
+        println!("{:?}", err)
+    }
 
     #[test]
     fn test_item_not_found() {
-        assert_eq!("iterator item not found", format!("{}", IterError::item_not_found().kind()));
+        assert_eq!(item_not_found().unwrap_err().downcast_ref::<IterError>(), Some(&IterError::ItemNotFound));
+        assert_eq!(format!("{}", IterError::item_not_found()), "iterator item not found");
     }
 
     #[test]
     fn test_multiple_items_found() {
-        assert_eq!("multiple iterator items found", format!("{}", IterError::multiple_items_found().kind()));
+        assert_eq!(format!("{}", IterError::multiple_items_found()), "multiple iterator items found");
     }
 
     #[test]
     fn test_mutually_exclusive_indices() {
-        assert_eq!("mutually exclusive indices", format!("{}", IterError::mutually_exclusive_indices().kind()));
-    }
-
-    #[test]
-    fn test_matching_error() {
-        if let ErrorKind::Iter(err) = iter_error_result().unwrap_err().kind() {
-            assert_eq!(&IterError::ItemNotFound, err);
-        } else {
-            panic!();
-        }
+        assert_eq!(format!("{}", IterError::mutually_exclusive_indices()), "mutually exclusive indices");
     }
 }

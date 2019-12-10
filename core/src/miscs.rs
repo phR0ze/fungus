@@ -26,7 +26,7 @@ pub mod misc {
 
         // Start can't be past end else invalid
         if x > y {
-            return Err(IterError::mutually_exclusive_indices());
+            return Err(IterError::mutually_exclusive_indices().into());
         }
 
         // Move start/end within bounds
