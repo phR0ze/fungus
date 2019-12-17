@@ -1,5 +1,4 @@
-// Documentation for crate
-
+/// Documentation for crate
 mod iter;
 mod iter_error;
 mod miscs;
@@ -13,7 +12,9 @@ pub use option::*;
 pub use path_error::*;
 pub use result::*;
 
-// Get traits and other top level namespace entries
+/// Import traits and other top level namespace entries.
+/// Including preamble to have pareity with other libs in rs but its not required, you can
+/// import using `use rs::core::*;` just fine.
 pub mod preamble {
     use super::*;
     pub use iter::*;

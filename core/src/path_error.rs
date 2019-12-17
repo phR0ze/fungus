@@ -1,10 +1,13 @@
-use std::fmt;
 use failure::Fail;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 // An error indicating that something went wrong with a path operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Fail)]
 pub enum PathError {
+    /// An error indicating that the path does not exist.
+    DoesNotExist(PathBuf),
+
     /// An error indicating that the path is empty.
     Empty,
 
@@ -17,6 +20,12 @@ pub enum PathError {
     /// An error indicating that the path failed to expand properly.
     InvalidExpansion(PathBuf),
 
+    /// An error indicating that the path is not a directory.
+    IsNotDir(PathBuf),
+
+    /// An error indicating that the path is not a file.
+    IsNotFile(PathBuf),
+
     /// An error indicating that the path contains multiple user home symbols i.e. tilda.
     MultipleHomeSymbols(PathBuf),
 
@@ -24,6 +33,11 @@ pub enum PathError {
     ParentNotFound(PathBuf),
 }
 impl PathError {
+    /// Return an error indicating that the path does not exist
+    pub fn does_not_exist<T: AsRef<Path>>(path: T) -> PathError {
+        PathError::DoesNotExist(path.as_ref().to_path_buf())
+    }
+
     /// Return an error indicating that the path is empty
     pub fn empty() -> PathError {
         PathError::Empty
@@ -37,6 +51,16 @@ impl PathError {
     /// Return an error indicating that the path does not contain a filename
     pub fn filename_not_found<T: AsRef<Path>>(path: T) -> PathError {
         PathError::FileNameNotFound(path.as_ref().to_path_buf())
+    }
+
+    /// Return an error indicating that the path is not a directory
+    pub fn is_not_dir<T: AsRef<Path>>(path: T) -> PathError {
+        PathError::IsNotDir(path.as_ref().to_path_buf())
+    }
+
+    /// Return an error indicating that the path is not a file
+    pub fn is_not_file<T: AsRef<Path>>(path: T) -> PathError {
+        PathError::IsNotFile(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating that the path failed to expand properly
@@ -58,10 +82,13 @@ impl PathError {
 impl fmt::Display for PathError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            PathError::DoesNotExist(ref path) => write!(f, "path does not exist {}", path.display()),
             PathError::Empty => write!(f, "path empty"),
             PathError::FailedToString(ref path) => write!(f, "failed to convert to string for path {}", path.display()),
             PathError::FileNameNotFound(ref path) => write!(f, "filename not found for path {}", path.display()),
             PathError::InvalidExpansion(ref path) => write!(f, "invalid path expansion for path {}", path.display()),
+            PathError::IsNotDir(ref path) => write!(f, "is not a directory {}", path.display()),
+            PathError::IsNotFile(ref path) => write!(f, "is not a file {}", path.display()),
             PathError::MultipleHomeSymbols(ref path) => write!(f, "multiple home symbols for path {}", path.display()),
             PathError::ParentNotFound(ref path) => write!(f, "parent not found for path {}", path.display()),
         }

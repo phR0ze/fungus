@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use core::preamble::*;
@@ -8,7 +9,15 @@ use core::preamble::*;
 pub mod paths {
     use super::*;
 
-    /// Return the given path in an absolute clean form
+    /// Return the path in an absolute clean form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let home = env::var("HOME").unwrap();
+    /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
+    /// ```
     pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
         let _path = path.as_ref();
 
@@ -41,20 +50,121 @@ pub mod paths {
         Ok(path_buf)
     }
 
-    // Returns the full path to the directory of the current running executable.
+    /// Returns all directories for the given path, sorted by filename. Handles path expansion.
+    /// Paths are returned as abs paths. Doesn't include the path itself only its children nor
+    /// is this recursive.
+    pub fn dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+        let abs = path.as_ref().abs()?;
+        if abs.exists() {
+            if abs.is_dir() {
+                let mut paths: Vec<PathBuf> = Vec::new();
+                for entry in fs::read_dir(abs)? {
+                    let entry = entry?;
+                    let path = entry.path();
+                    if path.is_dir() {
+                        paths.push(path.abs()?);
+                    }
+                }
+                return Ok(paths);
+            }
+            return Err(PathError::is_not_dir(abs).into());
+        }
+        Err(PathError::does_not_exist(abs).into())
+    }
+
+    /// Returns the full path to the directory of the current running executable.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let dir = env::current_exe().unwrap().dirname().unwrap();
+    /// assert_eq!(sys::exec_dir().unwrap(), dir);
+    /// ```
     pub fn exec_dir() -> Result<PathBuf> {
         Ok(env::current_exe()?.dirname()?)
     }
 
-    // Returns the current running executable's name.
+    /// Returns the current running executable's name.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let name = env::current_exe().unwrap().name().unwrap();
+    /// assert_eq!(sys::exec_exe().unwrap(), name);
+    /// ```
     pub fn exec_name() -> Result<String> {
         Ok(env::current_exe()?.name()?)
     }
 
-    /// Returns a vector of all paths from the given target glob with path expansion and sorted by
-    /// name.
+    /// Returns true if the given path exists. Handles path expansion.
     ///
-    /// Doesn't include the target itself only its children nor is this recursive.
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(sys::exists("/etc"), true);
+    /// ```
+    pub fn exists<T: AsRef<Path>>(path: T) -> bool {
+        let abs = path.as_ref().abs();
+        if abs.is_ok() {
+            let meta = fs::metadata(abs.unwrap());
+            if meta.is_ok() {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Returns true if the given path exists and is a directory. Handles path expansion.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(sys::is_dir("/etc"), true);
+    /// ```
+    pub fn is_dir<T: AsRef<Path>>(path: T) -> bool {
+        let abs = path.as_ref().abs();
+        if abs.is_ok() {
+            let meta = fs::metadata(abs.unwrap());
+            if meta.is_ok() {
+                return meta.unwrap().is_dir();
+            }
+        }
+        false
+    }
+
+    /// Returns true if the given path exists and is a file. Handles path expansion
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(sys::is_file("/etc/hosts"), true);
+    /// ```
+    pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
+        let abs = path.as_ref().abs();
+        if abs.is_ok() {
+            let meta = fs::metadata(abs.unwrap());
+            if meta.is_ok() {
+                return meta.unwrap().is_file();
+            }
+        }
+        false
+    }
+
+    /// Returns a vector of all paths from the given target glob with path expansion and sorted by
+    /// name. Doesn't include the target itself only its children nor is this recursive.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let paths = sys::glob(&"*").unwrap();
+    /// assert_eq!(&cwd.join(".vscode"), paths.first().unwrap());
+    /// ```
     pub fn glob<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
         let mut paths: Vec<PathBuf> = Vec::new();
         let _str = pattern.as_ref().to_string()?;
@@ -69,6 +179,14 @@ pub mod paths {
 // -------------------------------------------------------------------------------------------------
 pub trait PathExt {
     /// Return the path in an absolute clean form
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let home = env::var("HOME").unwrap();
+    /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
+    /// ```
     fn abs(&self) -> Result<PathBuf>;
 
     /// Return the shortest path equivalent to the path by purely lexical processing and thus does not handle
@@ -81,55 +199,211 @@ pub trait PathExt {
     ///	   along with the non-.. element that precedes it.
     ///	4. Eliminate .. elements that begin a rooted path:
     ///	   that is, replace "/.." by "/" at the beginning of a path.
-    ///  5. Leave intact ".." elements that begin a non-rooted path.
-    ///  6. Drop trailing '/' unless it is the root
+    /// 5. Leave intact ".." elements that begin a non-rooted path.
+    /// 6. Drop trailing '/' unless it is the root
     ///
     /// If the result of this process is an empty string, return the string `.`, representing the current directory.
     fn clean(&self) -> Result<PathBuf>;
 
     /// Returns the `Path` without its final component, if there is one.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let dir = PathBuf::from("/foo/bar").dirname().unwrap();
+    /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
+    /// ```
     fn dirname(&self) -> Result<PathBuf>;
 
     /// Returns true if the `Path` is empty.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(PathBuf::from("").empty(), true);
+    /// ```
     fn empty(&self) -> bool;
 
+    /// Returns true if the `Path` exists. Handles path expansion.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(Path::new("/etc").exists(), true);
+    /// ```
+    fn exists<T: AsRef<Path>>(path: T) -> bool;
+
     /// Expand the path to include the home prefix if necessary
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let home = env::var("HOME").unwrap();
+    /// assert_eq!(PathBuf::from(&home).join("foo"), PathBuf::from("~/foo").expand().unwrap());
+    /// ```
     fn expand(&self) -> Result<PathBuf>;
 
     /// Returns the first path component.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let first = Component::Normal(OsStr::new("foo"));
+    /// assert_eq!(PathBuf::from("foo/bar").first().unwrap(), first);
+    /// ```
     fn first(&self) -> Result<Component>;
 
     /// Returns true if the `Path` as a String contains the given string
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has("foo"), true);
+    /// assert_eq!(path.has("/foo"), true);
+    /// ```
     fn has<T: AsRef<str>>(&self, value: T) -> bool;
 
     /// Returns true if the `Path` as a String has the given string prefix
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has_prefix("/foo"), true);
+    /// assert_eq!(path.has_prefix("foo"), false);
+    /// ```
     fn has_prefix<T: AsRef<str>>(&self, value: T) -> bool;
 
     /// Returns true if the `Path` as a String has the given string suffix
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let path = PathBuf::from("/foo/bar");
+    /// assert_eq!(path.has_suffix("/bar"), true);
+    /// assert_eq!(path.has_suffix("foo"), false);
+    /// ```
     fn has_suffix<T: AsRef<str>>(&self, value: T) -> bool;
 
+    /// Returns true if the `Path` exists and is a directory. Handles path expansion.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(Path::new("/etc").is_dir(), true);
+    /// ```
+    fn is_dir(&self) -> bool;
+
+    /// Returns true if the `Path` exists and is a file. Handles path expansion
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(Path::new("/etc/hosts").is_file(), true);
+    /// ```
+    fn is_file(&self) -> bool;
+
     /// Returns the last path component.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let first = Component::Normal(OsStr::new("bar"));
+    /// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
+    /// ```
     fn last(&self) -> Result<Component>;
 
     /// Returns the final component of the `Path`, if there is one.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!("bar", PathBuf::from("/foo/bar").name().unwrap());
+    /// ```
     fn name(&self) -> Result<String>;
 
+    /// Returns the Metadata object for the `Path` if it exists else and error
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// let meta = Path::new("/etc").unwrap();
+    /// assert_eq!(meta.is_dir(), true);
+    /// ```
+    fn meta(&self) -> Result<fs::Metadata>;
+
     /// Returns the `Path` as a String
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
+    /// ```
     fn to_string(&self) -> Result<String>;
 
     /// Returns the `Path` with the file extension removed
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
+    /// ```
     fn trim_ext(&self) -> Result<PathBuf>;
 
     /// Returns the `Path` with the first component trimmed off
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
+    /// ```
     fn trim_first(&self) -> Result<PathBuf>;
 
     /// Returns the `Path` with the last component trimmed off
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
+    /// ```
     fn trim_last(&self) -> Result<PathBuf>;
 
     /// Returns the `Path` with well known protocol prefixes removed.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol().unwrap());
+    /// ```
     fn trim_protocol(&self) -> Result<PathBuf>;
 
     /// Returns a string slice with the given suffix trimmed off else the original string.
+    ///
+    /// ### Examples
+    /// ```
+    /// use rs::sys::preamble;
+    ///
+    /// assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/bar").trim_suffix("/bar").unwrap());
+    /// ```
     fn trim_suffix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf>;
 }
 
@@ -197,6 +471,10 @@ impl PathExt for Path {
         }
     }
 
+    fn exists<T: AsRef<Path>>(path: T) -> bool {
+        crate::exists(path)
+    }
+
     fn expand(&self) -> Result<PathBuf> {
         let path_str = self.to_string()?;
         let mut expanded = self.to_path_buf();
@@ -244,6 +522,14 @@ impl PathExt for Path {
         }
     }
 
+    fn is_dir(&self) -> bool {
+        crate::is_dir(self)
+    }
+
+    fn is_file(&self) -> bool {
+        crate::is_file(self)
+    }
+
     fn last(&self) -> Result<Component> {
         self.components().last_result()
     }
@@ -252,6 +538,11 @@ impl PathExt for Path {
         let os_str = self.file_name().ok_or_else(|| PathError::filename_not_found(self))?;
         let filename = os_str.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
         Ok(String::from(filename))
+    }
+
+    fn meta(&self) -> Result<fs::Metadata> {
+        let meta = fs::metadata(self)?;
+        Ok(meta)
     }
 
     fn to_string(&self) -> Result<String> {
@@ -313,6 +604,16 @@ mod tests {
 
     use crate::preamble::*;
 
+    // Reusable teset setup
+    struct Setup {
+        root: PathBuf,
+    }
+    impl Setup {
+        fn init() -> Self {
+            Self { root: PathBuf::from("test").abs().unwrap() }
+        }
+    }
+
     #[test]
     fn test_abs() {
         let home = env::var("HOME").unwrap();
@@ -365,6 +666,22 @@ mod tests {
         let exec_path = env::current_exe().unwrap();
         let name = exec_path.name().unwrap();
         assert_eq!(name, crate::exec_name().unwrap());
+    }
+
+    #[test]
+    fn test_is_dir() {
+        let setup = Setup::init();
+        assert_eq!(crate::is_dir("."), true);
+        assert_eq!(crate::is_dir(setup.root), true);
+        assert_eq!(crate::is_dir("/foobar"), false);
+    }
+
+    #[test]
+    fn test_is_file() {
+        // let setup = Setup::new();
+        // assert_eq!(crate::is_file("."), false);
+        // assert_eq!(crate::is_file(setup.root), true);
+        // assert_eq!(crate::is_dir("/foobar"), false);
     }
 
     #[test]
@@ -431,6 +748,7 @@ mod tests {
 
     #[test]
     fn test_pathext_dirname() {
+        assert_eq!(PathBuf::from("/").as_path(), PathBuf::from("/foo/").dirname().unwrap());
         assert_eq!(PathBuf::from("/foo").as_path(), PathBuf::from("/foo/bar").dirname().unwrap());
     }
 
@@ -441,6 +759,12 @@ mod tests {
 
         // false
         assert_eq!(PathBuf::from("/foo").empty(), false);
+    }
+
+    #[test]
+    fn test_pathext_exists() {
+        let setup = Setup::init();
+        assert_eq!(setup.root.exists(), true);
     }
 
     #[test]
@@ -501,11 +825,6 @@ mod tests {
     }
 
     #[test]
-    fn test_pathext_name() {
-        assert_eq!("bar", PathBuf::from("/foo/bar").name().unwrap());
-    }
-
-    #[test]
     fn test_pathext_last() {
         assert_eq!(Component::RootDir, PathBuf::from("/").last().unwrap());
         assert_eq!(Component::CurDir, PathBuf::from(".").last().unwrap());
@@ -515,14 +834,20 @@ mod tests {
     }
 
     #[test]
-    fn test_pathext_to_string() {
-        assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
+    fn test_pathext_name() {
+        assert_eq!("bar", PathBuf::from("/foo/bar").name().unwrap());
     }
 
     #[test]
-    fn test_pathext_trim_last() {
-        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_last().unwrap());
-        assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
+    fn test_pathext_meta() {
+        let setup = Setup::init();
+        let meta = setup.root.meta().unwrap();
+        assert_eq!(meta.is_dir(), true);
+    }
+
+    #[test]
+    fn test_pathext_to_string() {
+        assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
     }
 
     #[test]
@@ -530,6 +855,12 @@ mod tests {
         assert_eq!(PathBuf::new(), PathBuf::from("").trim_ext().unwrap());
         assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
         assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar.exe").trim_ext().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_last() {
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_last().unwrap());
+        assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
     }
 
     #[test]
