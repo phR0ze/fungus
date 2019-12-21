@@ -15,13 +15,19 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble::*;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
-    /// assert_eq!(sys::mkdir_p("~/foo").unwrap(), sys::abs("~/foo"));
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_mkdir_p");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// assert_eq!(tmpdir.exists(), false);
     /// ```
     pub fn mkdir_p<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
         let abs = path.as_ref().abs()?;
-        fs::create_dir_all(&abs)?;
+        if !abs.exists() {
+            fs::create_dir_all(&abs)?;
+        }
         Ok(abs)
     }
 
@@ -30,9 +36,13 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble::*;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
-    /// assert_eq!(sys::remove("~/foo").is_ok(), true);
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_remove");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::remove(&tmpdir).is_ok());
+    /// assert_eq!(tmpdir.exists(), false);
     /// ```
     pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
         let abs = path.as_ref().abs()?;
@@ -53,9 +63,13 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble::*;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
-    /// assert_eq!(sys::mkdir_p("~/foo").unwrap(), sys::abs("~/foo"));
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_remove_all");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// assert_eq!(tmpdir.exists(), false);
     /// ```
     pub fn remove_all<T: AsRef<Path>>(path: T) -> Result<()> {
         let abs = path.as_ref().abs()?;
@@ -69,9 +83,16 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble::*;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
-    /// assert_eq!(sys::touch("~/foo").unwrap(), sys::abs("~/foo"));
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_touch");
+    /// let tmpfile = tmpdir.join("file1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&tmpfile).is_ok());
+    /// assert_eq!(tmpfile.exists(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// assert_eq!(tmpdir.exists(), false);
     /// ```
     pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
         let abs = path.as_ref().abs()?;
@@ -102,16 +123,10 @@ mod tests {
     }
     impl Setup {
         fn init() -> Self {
-            let setup = Self { root: PathBuf::from("test").abs().unwrap(), temp: PathBuf::from("test/temp").abs().unwrap() };
+            let setup = Self { root: PathBuf::from("tests").abs().unwrap(), temp: PathBuf::from("tests/temp").abs().unwrap() };
             crate::mkdir_p(&setup.temp).unwrap();
             setup
         }
-    }
-
-    #[test]
-    fn test_mkdir_p() {
-        let setup = Setup::init();
-        assert!(setup.temp.is_dir());
     }
 
     #[test]
@@ -149,9 +164,11 @@ mod tests {
         let setup = Setup::init();
         let tmpfile = setup.temp.join("touch");
 
-        assert!(crate::remove(&tmpfile).is_ok());
-        assert_eq!(tmpfile.exists(), false);
         assert!(crate::touch(&tmpfile).is_ok());
         assert_eq!(tmpfile.exists(), true);
+
+        // Clean up
+        assert!(crate::remove(&tmpfile).is_ok());
+        assert_eq!(tmpfile.exists(), false);
     }
 }

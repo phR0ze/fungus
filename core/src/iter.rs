@@ -9,7 +9,9 @@ use crate::*;
 /// Assert that the elements of the given iterables are equal and `Panics` when when not.
 ///
 /// # Examples
-/// ```ignore
+/// ```
+/// use rs::core::*;
+///
 /// assert_iter_eq(vec![2, 3].into_iter(), vec![1, 2, 3].into_iter());
 /// ```
 pub fn assert_iter_eq<T, U>(x: T, y: U)
@@ -264,9 +266,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::ffi::OsStr;
     use std::path::{Component, PathBuf};
+
+    use crate::preamble::*;
 
     #[test]
     fn test_slice() {

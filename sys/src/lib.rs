@@ -8,7 +8,9 @@ pub use path::paths::*;
 ///
 /// ### Examples
 /// ```
-/// use rs::sys::preamble::*;
+/// use std::env;
+/// use std::path::PathBuf;
+/// use sys::preamble::*;
 ///
 /// let home = env::var("HOME").unwrap();
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());

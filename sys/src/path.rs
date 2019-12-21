@@ -13,7 +13,9 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// let home = env::var("HOME").unwrap();
     /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
@@ -53,6 +55,22 @@ pub mod paths {
     /// Returns all directories for the given path, sorted by filename. Handles path expansion.
     /// Paths are returned as abs paths. Doesn't include the path itself only its children nor
     /// is this recursive.
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    /// use core::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_dirs");
+    /// let dir1 = tmpdir.join("dir1");
+    /// let dir2 = tmpdir.join("dir2");
+    /// assert!(sys::mkdir_p(&dir1).is_ok());
+    /// assert!(sys::mkdir_p(&dir2).is_ok());
+    /// assert_iter_eq(sys::dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
     pub fn dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let abs = path.as_ref().abs()?;
         if abs.exists() {
@@ -65,6 +83,7 @@ pub mod paths {
                         paths.push(path.abs()?);
                     }
                 }
+                paths.sort();
                 return Ok(paths);
             }
             return Err(PathError::is_not_dir(abs).into());
@@ -76,7 +95,8 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::env;
+    /// use sys::preamble::*;
     ///
     /// let dir = env::current_exe().unwrap().dirname().unwrap();
     /// assert_eq!(sys::exec_dir().unwrap(), dir);
@@ -89,10 +109,11 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::env;
+    /// use sys::preamble::*;
     ///
     /// let name = env::current_exe().unwrap().name().unwrap();
-    /// assert_eq!(sys::exec_exe().unwrap(), name);
+    /// assert_eq!(sys::exec_name().unwrap(), name);
     /// ```
     pub fn exec_name() -> Result<String> {
         Ok(env::current_exe()?.name()?)
@@ -102,7 +123,7 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(sys::exists("/etc"), true);
     /// ```
@@ -121,7 +142,7 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(sys::is_dir("/etc"), true);
     /// ```
@@ -140,7 +161,7 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(sys::is_file("/etc/hosts"), true);
     /// ```
@@ -160,8 +181,10 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::env;
+    /// use sys::preamble::*;
     ///
+    /// let cwd = env::current_dir().unwrap();
     /// let paths = sys::glob(&"*").unwrap();
     /// assert_eq!(&cwd.join(".vscode"), paths.first().unwrap());
     /// ```
@@ -182,7 +205,9 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// let home = env::var("HOME").unwrap();
     /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
@@ -209,7 +234,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// let dir = PathBuf::from("/foo/bar").dirname().unwrap();
     /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
@@ -220,7 +246,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("").empty(), true);
     /// ```
@@ -230,7 +257,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::Path;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(Path::new("/etc").exists(), true);
     /// ```
@@ -240,7 +268,9 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// let home = env::var("HOME").unwrap();
     /// assert_eq!(PathBuf::from(&home).join("foo"), PathBuf::from("~/foo").expand().unwrap());
@@ -251,7 +281,9 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::ffi::OsStr;
+    /// use std::path::{Component, PathBuf};
+    /// use sys::preamble::*;
     ///
     /// let first = Component::Normal(OsStr::new("foo"));
     /// assert_eq!(PathBuf::from("foo/bar").first().unwrap(), first);
@@ -262,7 +294,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
     /// assert_eq!(path.has("foo"), true);
@@ -274,7 +307,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
     /// assert_eq!(path.has_prefix("/foo"), true);
@@ -286,7 +320,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
     /// assert_eq!(path.has_suffix("/bar"), true);
@@ -298,7 +333,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::Path;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(Path::new("/etc").is_dir(), true);
     /// ```
@@ -308,7 +344,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::Path;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(Path::new("/etc/hosts").is_file(), true);
     /// ```
@@ -318,7 +355,9 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::ffi::OsStr;
+    /// use std::path::{Component, PathBuf};
+    /// use sys::preamble::*;
     ///
     /// let first = Component::Normal(OsStr::new("bar"));
     /// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
@@ -329,7 +368,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!("bar", PathBuf::from("/foo/bar").name().unwrap());
     /// ```
@@ -339,9 +379,10 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::Path;
+    /// use sys::preamble::*;
     ///
-    /// let meta = Path::new("/etc").unwrap();
+    /// let meta = Path::new("/etc").meta().unwrap();
     /// assert_eq!(meta.is_dir(), true);
     /// ```
     fn meta(&self) -> Result<fs::Metadata>;
@@ -350,7 +391,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
     /// ```
@@ -360,7 +402,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
     /// ```
@@ -370,7 +413,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
     /// ```
@@ -380,7 +424,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
     /// ```
@@ -390,7 +435,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol().unwrap());
     /// ```
@@ -400,7 +446,8 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use rs::sys::preamble;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/bar").trim_suffix("/bar").unwrap());
     /// ```
@@ -485,8 +532,13 @@ impl PathExt for Path {
             cnt if cnt > 1 => return Err(PathError::multiple_home_symbols(self).into()),
 
             // Invalid home expansion requested
-            cnt if cnt == 1 && !self.has_prefix("~/") => {
+            cnt if cnt == 1 && !self.has_prefix("~/") && path_str != "~" => {
                 return Err(PathError::invalid_expansion(self).into());
+            }
+
+            // Single tilda only
+            cnt if cnt == 1 && path_str == "~" => {
+                expanded = crate::users::user::home()?;
             }
 
             // Replace prefix with home directory
@@ -603,55 +655,83 @@ mod tests {
     use std::path::{Component, PathBuf};
 
     use crate::preamble::*;
+    use core::*;
 
     // Reusable teset setup
     struct Setup {
         root: PathBuf,
+        temp: PathBuf,
     }
     impl Setup {
         fn init() -> Self {
-            Self { root: PathBuf::from("test").abs().unwrap() }
+            let setup = Self { root: PathBuf::from("tests").abs().unwrap(), temp: PathBuf::from("tests/temp").abs().unwrap() };
+            crate::mkdir_p(&setup.temp).unwrap();
+            setup
         }
     }
 
     #[test]
     fn test_abs() {
-        let home = env::var("HOME").unwrap();
+        let home = PathBuf::from(env::var("HOME").unwrap());
         let cwd = env::current_dir().unwrap();
         let prev = cwd.dirname().unwrap();
 
         // expand previous directory and drop trailing slashes
-        assert_eq!(PathBuf::from(&prev), crate::abs("..//").unwrap());
-        assert_eq!(PathBuf::from(&prev), crate::abs("../").unwrap());
-        assert_eq!(PathBuf::from(&prev), crate::abs("..").unwrap());
+        assert_eq!(crate::abs("..//").unwrap(), prev);
+        assert_eq!(crate::abs("../").unwrap(), prev);
+        assert_eq!(crate::abs("..").unwrap(), prev);
 
         // expand current directory and drop trailing slashes
-        assert_eq!(PathBuf::from(&cwd), crate::abs(".//").unwrap());
-        assert_eq!(PathBuf::from(&cwd), crate::abs("./").unwrap());
-        assert_eq!(PathBuf::from(&cwd), crate::abs(".").unwrap());
+        assert_eq!(crate::abs(".//").unwrap(), cwd);
+        assert_eq!(crate::abs("./").unwrap(), cwd);
+        assert_eq!(crate::abs(".").unwrap(), cwd);
+
+        // home dir
+        assert_eq!(crate::abs("~").unwrap(), home);
+        assert_eq!(crate::abs("~/").unwrap(), home);
 
         // expand relative directory
-        assert_eq!(PathBuf::from(&cwd).join("foo"), crate::abs("foo").unwrap());
+        assert_eq!(crate::abs("foo").unwrap(), cwd.join("foo"));
 
         // expand home path
-        match crate::abs("~/foo") {
-            Ok(val) => assert_eq!(PathBuf::from(&home).join("foo"), val),
-            Err(e) => panic!("{:?}", e),
-        }
+        assert_eq!(crate::abs("~/foo").unwrap(), home.join("foo"));
 
         // More complicated
-        match crate::abs("~/foo/bar/../.") {
-            Ok(val) => assert_eq!(PathBuf::from(&home).join("foo"), val),
-            Err(e) => panic!("{:?}", e),
-        }
-        match crate::abs("~/foo/bar/../") {
-            Ok(val) => assert_eq!(PathBuf::from(&home).join("foo"), val),
-            Err(e) => panic!("{:?}", e),
-        }
-        match crate::abs("~/foo/bar/../blah") {
-            Ok(val) => assert_eq!(PathBuf::from(&home).join("foo/blah"), val),
-            Err(e) => panic!("{:?}", e),
-        }
+        assert_eq!(crate::abs("~/foo/bar/../.").unwrap(), home.join("foo"));
+        assert_eq!(crate::abs("~/foo/bar/../").unwrap(), home.join("foo"));
+        assert_eq!(crate::abs("~/foo/bar/../blah").unwrap(), home.join("foo/blah"));
+    }
+
+    #[test]
+    fn test_dirs() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("dirs");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(crate::mkdir_p(&tmpdir1).is_ok());
+        assert!(crate::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(crate::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(crate::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the dirs function gives me the correct dirs without the files and in order
+        let dirs = crate::dirs(&tmpdir).unwrap();
+        assert_iter_eq(dirs, vec![tmpdir1, tmpdir2]);
+
+        // Clean up
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
     }
 
     #[test]
@@ -678,10 +758,15 @@ mod tests {
 
     #[test]
     fn test_is_file() {
-        // let setup = Setup::new();
-        // assert_eq!(crate::is_file("."), false);
-        // assert_eq!(crate::is_file(setup.root), true);
-        // assert_eq!(crate::is_dir("/foobar"), false);
+        let setup = Setup::init();
+        let tmpfile = setup.temp.join("is_file");
+
+        assert!(crate::touch(&tmpfile).is_ok());
+        assert_eq!(tmpfile.is_file(), true);
+
+        // Clean up
+        assert!(crate::remove(&tmpfile).is_ok());
+        assert_eq!(tmpfile.is_file(), false);
     }
 
     #[test]
@@ -690,7 +775,7 @@ mod tests {
 
         let paths = crate::glob(&"*").unwrap();
         assert_eq!(&cwd.join(".vscode"), paths.first().unwrap());
-        assert_eq!(&cwd.join("test"), paths.last().unwrap());
+        assert_eq!(&cwd.join("tests"), paths.last().unwrap());
     }
 
     // Path tests
@@ -769,10 +854,11 @@ mod tests {
 
     #[test]
     fn test_pathext_expand() {
-        let home = env::var("HOME").unwrap();
+        let home = PathBuf::from(env::var("HOME").unwrap());
 
         // happy path
-        assert_eq!(PathBuf::from(&home).join("foo"), PathBuf::from("~/foo").expand().unwrap());
+        assert_eq!(PathBuf::from("~/").expand().unwrap(), home);
+        assert_eq!(PathBuf::from("~").expand().unwrap(), home);
 
         // More than one ~
         assert!(PathBuf::from("~/foo~").expand().is_err());
@@ -783,12 +869,13 @@ mod tests {
         // empty path - nothing to do but no error
         assert_eq!(PathBuf::from(""), PathBuf::from("").expand().unwrap());
 
-        // home not set
-        {
-            env::remove_var("HOME");
-            assert!(PathBuf::from("~/foo").expand().is_err());
-            env::set_var("HOME", &home);
-        }
+        // can't safely do this without locking as test are run in parallel
+        // // home not set
+        // {
+        //     env::remove_var("HOME");
+        //     assert!(PathBuf::from("~/foo").expand().is_err());
+        //     env::set_var("HOME", &home);
+        // }
     }
 
     #[test]

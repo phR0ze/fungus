@@ -16,11 +16,5 @@ pub use result::*;
 /// Including preamble to have pareity with other libs in rs but its not required, you can
 /// import using `use rs::core::*;` just fine.
 pub mod preamble {
-    use super::*;
-    pub use iter::*;
-    pub use iter_error::*;
-    pub use miscs::*;
-    pub use option::*;
-    pub use path_error::*;
-    pub use result::*;
+    pub use super::*;
 }
