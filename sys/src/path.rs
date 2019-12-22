@@ -374,7 +374,7 @@ pub mod paths {
     /// Returns true if the given path exists and is a symlink. Handles path expansion
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
@@ -400,26 +400,30 @@ pub mod paths {
     /// expansion
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_dir");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let file1 = tmpdir.join("file1");
+    /// let dir1 = tmpdir.join("dir1");
     /// let link1 = tmpdir.join("link1");
-    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
-    /// assert!(sys::touch(&file1).is_ok());
-    /// assert!(sys::symlink(&file1, &link1).is_ok());
-    /// assert_eq!(sys::is_symlink_dir(link1), false);
+    /// assert!(sys::mkdir_p(&dir1).is_ok());
+    /// assert!(sys::symlink(&dir1, &link1).is_ok());
+    /// assert_eq!(sys::is_symlink_dir(link1), true);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn is_symlink_dir<T: AsRef<Path>>(path: T) -> bool {
-        let abs = path.as_ref().abs();
-        if abs.is_ok() {
-            let link = fs::read_link(abs.unwrap());
+        let abs_res = path.as_ref().abs();
+        if abs_res.is_ok() {
+            let abs = abs_res.unwrap();
+            let link = fs::read_link(&abs);
             if link.is_ok() {
-                return link.unwrap().is_dir();
+                let link_res = link.unwrap().abs_from(&abs);
+                if link_res.is_ok() {
+                    let link_abs = link_res.unwrap();
+                    return link_abs.is_dir();
+                }
             }
         }
         false
@@ -429,7 +433,7 @@ pub mod paths {
     /// expansion
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
@@ -444,13 +448,16 @@ pub mod paths {
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
-        let abs = path.as_ref().abs();
-        if abs.is_ok() {
-            let link = fs::read_link(abs.unwrap());
+        let abs_res = path.as_ref().abs();
+        if abs_res.is_ok() {
+            let abs = abs_res.unwrap();
+            let link = fs::read_link(&abs);
             if link.is_ok() {
-                // TODO: this needs to be abs_from(abs)
-                let link_rel = link.unwrap();
-                return link_rel.is_file();
+                let link_res = link.unwrap().abs_from(&abs);
+                if link_res.is_ok() {
+                    let link_abs = link_res.unwrap();
+                    return link_abs.is_file();
+                }
             }
         }
         false
@@ -545,11 +552,12 @@ pub trait PathExt {
     /// given path will be assumed to be a file name.
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo1/bar1").abs_from("/foo2/bar2").unwrap(), PathBuf::from("/foo1/bar1"));
+    /// let home = PathBuf::from("~").abs().unwrap();
+    /// assert_eq!(PathBuf::from("foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
     /// ```
     fn abs_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
 
@@ -812,35 +820,18 @@ impl PathExt for Path {
     fn abs_from<T: AsRef<Path>>(&self, base: T) -> Result<PathBuf> {
         let base = base.as_ref().abs()?;
         if !self.is_absolute() && self != base {
-            let mut first = true;
-            let mut path = base;
+            let mut path = base.trim_last()?;
             let mut components = self.components();
             loop {
                 match components.next() {
                     Some(component) => match component {
-                        Component::ParentDir => {
-                            if first {
-                                first = false;
-                            }
-                            path = path.trim_last()?
-                        }
-                        Component::Normal(x) => {
-                            if first {
-                                first = false;
-                                path = path.trim_last()?
-                            }
-                            path = path.join(x);
-                            break;
-                        }
+                        Component::ParentDir => path = path.trim_last()?,
+                        Component::Normal(x) => return Ok(path.join(x).join(components.collect::<PathBuf>()).clean()?),
                         _ => (),
                     },
                     None => return Err(PathError::empty().into()),
                 }
             }
-            if first {
-                path = path.trim_last()?
-            }
-            return Ok(path.join(components.collect::<PathBuf>()));
         }
         Ok(self.to_path_buf())
     }
@@ -1127,17 +1118,15 @@ mod tests {
 
         // share the same directory
         assert_eq!(PathBuf::from("foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
-        assert_eq!(PathBuf::from("../foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+        assert_eq!(PathBuf::from("./foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
 
-        // assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
-        // assert_eq!(PathBuf::from("~/foo/bar1").relative_from("~/foo/bar2").unwrap(), PathBuf::from("bar1"));
-        // assert_eq!(PathBuf::from("../foo/bar1").relative_from("../foo/bar2").unwrap(), PathBuf::from("bar1"));
+        // share parent directory
+        assert_eq!(PathBuf::from("../foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+        assert_eq!(PathBuf::from("bar2/foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("bar1/bar2/foo2"));
+        assert_eq!(PathBuf::from("../../foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.trim_last().unwrap().join("foo2"));
 
-        // // share parent directory
-        // assert_eq!(PathBuf::from("foo1/bar1").relative_from("foo2/bar2").unwrap(), PathBuf::from("../foo1/bar1"));
-
-        // // share grandparent directory
-        // assert_eq!(PathBuf::from("blah1/foo1/bar1").relative_from("blah2/foo2/bar2").unwrap(), PathBuf::from("../../blah1/foo1/bar1"));
+        // share grandparent directory
+        assert_eq!(PathBuf::from("blah1/bar2/foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("bar1/blah1/bar2/foo2"));
     }
 
     #[test]
@@ -1356,19 +1345,19 @@ mod tests {
 
     #[test]
     fn test_is_symlink_file() {
-        // let setup = Setup::init();
-        // let tmpdir = setup.temp.join("is_symlink_file");
-        // let file1 = tmpdir.join("file1");
-        // let link1 = tmpdir.join("link1");
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("is_symlink_file");
+        let file1 = tmpdir.join("file1");
+        let link1 = tmpdir.join("link1");
 
-        // assert!(crate::remove_all(&tmpdir).is_ok());
-        // assert!(crate::mkdir_p(&tmpdir).is_ok());
-        // assert!(crate::touch(&file1).is_ok());
-        // assert!(crate::symlink(&file1, &link1).is_ok());
-        // assert_eq!(crate::is_symlink_file(link1), true);
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+        assert!(crate::touch(&file1).is_ok());
+        assert!(crate::symlink(&file1, &link1).is_ok());
+        assert_eq!(crate::is_symlink_file(link1), true);
 
-        // // cleanup
-        // assert!(crate::remove_all(&tmpdir).is_ok());
+        // cleanup
+        assert!(crate::remove_all(&tmpdir).is_ok());
     }
 
     #[test]
