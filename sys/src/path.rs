@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use walkdir::WalkDir;
 
 use core::preamble::*;
 
@@ -8,6 +9,7 @@ use core::preamble::*;
 // -------------------------------------------------------------------------------------------------
 pub mod paths {
     use super::*;
+    use std::collections::HashMap;
 
     /// Return the path in an absolute clean form
     ///
@@ -50,6 +52,159 @@ pub mod paths {
         }
 
         Ok(path_buf)
+    }
+
+    /// Returns all directories for the given path recurisely, sorted by filename. Handles path
+    /// expansion. Paths are returned as abs paths. Doesn't include the path itself. Paths are
+    /// guaranteed to be distinct.
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    /// use core::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_dirs");
+    /// let dir1 = tmpdir.join("dir1");
+    /// let dir2 = dir1.join("dir2");
+    /// assert!(sys::mkdir_p(&dir2).is_ok());
+    /// assert_iter_eq(sys::all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+        let abs = path.as_ref().abs()?;
+        if abs.exists() {
+            let mut paths: Vec<PathBuf> = Vec::new();
+            let mut distinct = HashMap::<PathBuf, bool>::new();
+            if abs.is_dir() {
+                let mut first = true;
+                for entry in WalkDir::new(&abs).follow_links(true) {
+                    // Skip the directory itself
+                    if first {
+                        first = false;
+                        continue;
+                    }
+                    let entry = entry?;
+                    let path = entry.path().abs()?;
+
+                    // Ensure the path is a directory and distinct
+                    if path.is_dir() {
+                        if !distinct.contains_key(&path) {
+                            distinct.insert(path.clone(), true);
+                            paths.push(path);
+                        }
+                    }
+                }
+                return Ok(paths);
+            }
+            return Err(PathError::is_not_dir(abs).into());
+        }
+        Err(PathError::does_not_exist(abs).into())
+    }
+
+    /// Returns all files for the given path recursively, sorted by filename. Handles path
+    /// expansion. Paths are returned as abs paths. Doesn't include the path itself. Paths are
+    /// guaranteed to be distinct.
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    /// use core::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_files");
+    /// let file1 = tmpdir.join("file1");
+    /// let dir1 = tmpdir.join("dir1");
+    /// let file2 = dir1.join("file2");
+    /// assert!(sys::mkdir_p(&dir1).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::touch(&file2).is_ok());
+    /// assert_iter_eq(sys::all_files(&tmpdir).unwrap(), vec![file1, file2]);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+        let abs = path.as_ref().abs()?;
+        if abs.exists() {
+            let mut paths: Vec<PathBuf> = Vec::new();
+            let mut distinct = HashMap::<PathBuf, bool>::new();
+            if abs.is_dir() {
+                let mut first = true;
+                for entry in WalkDir::new(&abs).follow_links(true) {
+                    // Skip the directory itself
+                    if first {
+                        first = false;
+                        continue;
+                    }
+                    let entry = entry?;
+                    let path = entry.path().abs()?;
+
+                    // Ensure the path is a directory and distinct
+                    if path.is_file() {
+                        if !distinct.contains_key(&path) {
+                            distinct.insert(path.clone(), true);
+                            paths.push(path);
+                        }
+                    }
+                }
+                return Ok(paths);
+            }
+            return Err(PathError::is_not_dir(abs).into());
+        }
+        Err(PathError::does_not_exist(abs).into())
+    }
+
+    /// Returns all paths for the given path recursively, sorted by filename. Handles path
+    /// expansion. Paths are returned as abs paths. Doesn't include the path itself. Paths are
+    /// guaranteed to be distinct.
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    /// use core::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_paths");
+    /// let file1 = tmpdir.join("file1");
+    /// let dir1 = tmpdir.join("dir1");
+    /// let file2 = dir1.join("file2");
+    /// let file3 = dir1.join("file3");
+    /// assert!(sys::mkdir_p(&dir1).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::touch(&file2).is_ok());
+    /// assert!(sys::touch(&file3).is_ok());
+    /// assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), vec![file1, dir1, file2, file3]);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+        let abs = path.as_ref().abs()?;
+        if abs.exists() {
+            let mut paths: Vec<PathBuf> = Vec::new();
+            let mut distinct = HashMap::<PathBuf, bool>::new();
+            if abs.is_dir() {
+                let mut first = true;
+                for entry in WalkDir::new(&abs).follow_links(true) {
+                    // Skip the directory itself
+                    if first {
+                        first = false;
+                        continue;
+                    }
+                    let entry = entry?;
+                    let path = entry.path().abs()?;
+
+                    // Ensure the path is a directory and distinct
+                    if !distinct.contains_key(&path) {
+                        distinct.insert(path.clone(), true);
+                        paths.push(path);
+                    }
+                }
+                return Ok(paths);
+            }
+            return Err(PathError::is_not_dir(abs).into());
+        }
+        Err(PathError::does_not_exist(abs).into())
     }
 
     /// Returns all directories for the given path, sorted by filename. Handles path expansion.
@@ -138,6 +293,46 @@ pub mod paths {
         false
     }
 
+    /// Returns all files for the given path, sorted by filename. Handles path expansion.
+    /// Paths are returned as abs paths. Doesn't include the path itself only its children nor
+    /// is this recursive.
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    /// use core::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_files");
+    /// let file1 = tmpdir.join("file1");
+    /// let file2 = tmpdir.join("file2");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::touch(&file2).is_ok());
+    /// assert_iter_eq(sys::files(&tmpdir).unwrap(), vec![file1, file2]);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+        let abs = path.as_ref().abs()?;
+        if abs.exists() {
+            if abs.is_dir() {
+                let mut paths: Vec<PathBuf> = Vec::new();
+                for entry in fs::read_dir(abs)? {
+                    let entry = entry?;
+                    let path = entry.path();
+                    if path.is_file() {
+                        paths.push(path.abs()?);
+                    }
+                }
+                paths.sort();
+                return Ok(paths);
+            }
+            return Err(PathError::is_not_dir(abs).into());
+        }
+        Err(PathError::does_not_exist(abs).into())
+    }
+
     /// Returns true if the given path exists and is a directory. Handles path expansion.
     ///
     /// ### Examples
@@ -176,17 +371,110 @@ pub mod paths {
         false
     }
 
+    /// Returns true if the given path exists and is a symlink. Handles path expansion
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::symlink(&file1, &link1).is_ok());
+    /// assert_eq!(sys::is_symlink(link1), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn is_symlink<T: AsRef<Path>>(path: T) -> bool {
+        let abs = path.as_ref().abs();
+        if abs.is_ok() {
+            return fs::read_link(abs.unwrap()).is_ok();
+        }
+        false
+    }
+
+    /// Returns true if the given path exists and is a symlinked directory. Handles path
+    /// expansion
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_dir");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::symlink(&file1, &link1).is_ok());
+    /// assert_eq!(sys::is_symlink_dir(link1), false);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn is_symlink_dir<T: AsRef<Path>>(path: T) -> bool {
+        let abs = path.as_ref().abs();
+        if abs.is_ok() {
+            let link = fs::read_link(abs.unwrap());
+            if link.is_ok() {
+                return link.unwrap().is_dir();
+            }
+        }
+        false
+    }
+
+    /// Returns true if the given path exists and is a symlinked file. Handles path
+    /// expansion
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_file");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::symlink(&file1, &link1).is_ok());
+    /// assert_eq!(sys::is_symlink_file(link1), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
+        let abs = path.as_ref().abs();
+        if abs.is_ok() {
+            let link = fs::read_link(abs.unwrap());
+            if link.is_ok() {
+                // TODO: this needs to be abs_from(abs)
+                let link_rel = link.unwrap();
+                return link_rel.is_file();
+            }
+        }
+        false
+    }
+
     /// Returns a vector of all paths from the given target glob with path expansion and sorted by
     /// name. Doesn't include the target itself only its children nor is this recursive.
     ///
     /// ### Examples
     /// ```
     /// use std::env;
+    /// use std::path::PathBuf;
     /// use sys::preamble::*;
+    /// use core::*;
     ///
-    /// let cwd = env::current_dir().unwrap();
-    /// let paths = sys::glob(&"*").unwrap();
-    /// assert_eq!(&cwd.join(".vscode"), paths.first().unwrap());
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_glob");
+    /// let dir1 = tmpdir.join("dir1");
+    /// let dir2 = tmpdir.join("dir2");
+    /// let file1 = tmpdir.join("file1");
+    /// assert!(sys::mkdir_p(&dir1).is_ok());
+    /// assert!(sys::mkdir_p(&dir2).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert_iter_eq(sys::glob(tmpdir.join("*")).unwrap(), vec![dir1, dir2, file1]);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn glob<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
         let mut paths: Vec<PathBuf> = Vec::new();
@@ -195,6 +483,45 @@ pub mod paths {
             paths.push(x?.abs()?);
         }
         Ok(paths)
+    }
+
+    /// Returns all directories/files for the given path, sorted by filename. Handles path
+    /// expansion. Paths are returned as abs paths. Doesn't include the path itself only
+    /// its children nor is this recursive.
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::env;
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    /// use core::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_paths");
+    /// let dir1 = tmpdir.join("dir1");
+    /// let dir2 = tmpdir.join("dir2");
+    /// let file1 = tmpdir.join("file1");
+    /// assert!(sys::mkdir_p(&dir1).is_ok());
+    /// assert!(sys::mkdir_p(&dir2).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert_iter_eq(sys::paths(&tmpdir).unwrap(), vec![dir1, dir2, file1]);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+        let abs = path.as_ref().abs()?;
+        if abs.exists() {
+            if abs.is_dir() {
+                let mut paths: Vec<PathBuf> = Vec::new();
+                for entry in fs::read_dir(abs)? {
+                    let entry = entry?;
+                    let path = entry.path();
+                    paths.push(path.abs()?);
+                }
+                paths.sort();
+                return Ok(paths);
+            }
+            return Err(PathError::is_not_dir(abs).into());
+        }
+        Err(PathError::does_not_exist(abs).into())
     }
 }
 
@@ -213,6 +540,18 @@ pub trait PathExt {
     /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
     /// ```
     fn abs(&self) -> Result<PathBuf>;
+
+    /// Returns the absolute `Path` based on the given absolute `Path`. The last element of the
+    /// given path will be assumed to be a file name.
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// assert_eq!(PathBuf::from("/foo1/bar1").abs_from("/foo2/bar2").unwrap(), PathBuf::from("/foo1/bar1"));
+    /// ```
+    fn abs_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
 
     /// Return the shortest path equivalent to the path by purely lexical processing and thus does not handle
     /// links correctly in some cases, use canonicalize in those cases. It applies the following rules
@@ -387,6 +726,17 @@ pub trait PathExt {
     /// ```
     fn meta(&self) -> Result<fs::Metadata>;
 
+    /// Returns the `Path` relative to the given `Path`
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
+    /// ```
+    fn relative_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
+
     /// Returns the `Path` as a String
     ///
     /// ### Examples
@@ -457,6 +807,42 @@ pub trait PathExt {
 impl PathExt for Path {
     fn abs(&self) -> Result<PathBuf> {
         paths::abs(self)
+    }
+
+    fn abs_from<T: AsRef<Path>>(&self, base: T) -> Result<PathBuf> {
+        let base = base.as_ref().abs()?;
+        if !self.is_absolute() && self != base {
+            let mut first = true;
+            let mut path = base;
+            let mut components = self.components();
+            loop {
+                match components.next() {
+                    Some(component) => match component {
+                        Component::ParentDir => {
+                            if first {
+                                first = false;
+                            }
+                            path = path.trim_last()?
+                        }
+                        Component::Normal(x) => {
+                            if first {
+                                first = false;
+                                path = path.trim_last()?
+                            }
+                            path = path.join(x);
+                            break;
+                        }
+                        _ => (),
+                    },
+                    None => return Err(PathError::empty().into()),
+                }
+            }
+            if first {
+                path = path.trim_last()?
+            }
+            return Ok(path.join(components.collect::<PathBuf>()));
+        }
+        Ok(self.to_path_buf())
     }
 
     fn clean(&self) -> Result<PathBuf> {
@@ -597,6 +983,40 @@ impl PathExt for Path {
         Ok(meta)
     }
 
+    fn relative_from<T: AsRef<Path>>(&self, base: T) -> Result<PathBuf> {
+        let path = self.abs()?;
+        let base = base.as_ref().abs()?;
+        if path != base {
+            let mut x = path.components();
+            let mut y = base.components();
+            let mut comps: Vec<Component> = vec![];
+            loop {
+                match (x.next(), y.next()) {
+                    (None, None) => break,
+                    (Some(a), None) => {
+                        comps.push(a);
+                        comps.extend(x.by_ref());
+                        break;
+                    }
+                    (None, _) => comps.push(Component::ParentDir),
+                    (Some(a), Some(b)) if comps.is_empty() && a == b => (),
+                    (Some(a), Some(b)) if b == Component::CurDir => comps.push(a),
+                    (Some(_), Some(b)) if b == Component::ParentDir => return Ok(path),
+                    (Some(a), Some(_)) => {
+                        for _ in y {
+                            comps.push(Component::ParentDir);
+                        }
+                        comps.push(a);
+                        comps.extend(x.by_ref());
+                        break;
+                    }
+                }
+            }
+            return Ok(comps.iter().collect::<PathBuf>());
+        }
+        Ok(path)
+    }
+
     fn to_string(&self) -> Result<String> {
         let _str = self.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
         Ok(String::from(_str))
@@ -659,12 +1079,11 @@ mod tests {
 
     // Reusable teset setup
     struct Setup {
-        root: PathBuf,
         temp: PathBuf,
     }
     impl Setup {
         fn init() -> Self {
-            let setup = Self { root: PathBuf::from("tests").abs().unwrap(), temp: PathBuf::from("tests/temp").abs().unwrap() };
+            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
             crate::mkdir_p(&setup.temp).unwrap();
             setup
         }
@@ -700,6 +1119,121 @@ mod tests {
         assert_eq!(crate::abs("~/foo/bar/../.").unwrap(), home.join("foo"));
         assert_eq!(crate::abs("~/foo/bar/../").unwrap(), home.join("foo"));
         assert_eq!(crate::abs("~/foo/bar/../blah").unwrap(), home.join("foo/blah"));
+    }
+
+    #[test]
+    fn test_abs_from() {
+        let home = PathBuf::from("~").abs().unwrap();
+
+        // share the same directory
+        assert_eq!(PathBuf::from("foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+        assert_eq!(PathBuf::from("../foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+
+        // assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
+        // assert_eq!(PathBuf::from("~/foo/bar1").relative_from("~/foo/bar2").unwrap(), PathBuf::from("bar1"));
+        // assert_eq!(PathBuf::from("../foo/bar1").relative_from("../foo/bar2").unwrap(), PathBuf::from("bar1"));
+
+        // // share parent directory
+        // assert_eq!(PathBuf::from("foo1/bar1").relative_from("foo2/bar2").unwrap(), PathBuf::from("../foo1/bar1"));
+
+        // // share grandparent directory
+        // assert_eq!(PathBuf::from("blah1/foo1/bar1").relative_from("blah2/foo2/bar2").unwrap(), PathBuf::from("../../blah1/foo1/bar1"));
+    }
+
+    #[test]
+    fn test_all_dirs() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("all_dirs");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir1.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(crate::mkdir_p(&tmpdir1).is_ok());
+        assert!(crate::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(crate::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(crate::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the all_dirs function gives me the correct dirs in order
+        let dirs = crate::all_dirs(&tmpdir).unwrap();
+        assert_iter_eq(dirs, vec![tmpdir1, tmpdir2]);
+
+        // Clean up
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_all_files() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("all_files");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir1.join("dir2");
+        let tmpfile1 = tmpdir1.join("file1");
+        let tmpfile2 = tmpdir2.join("file2");
+
+        // Create the dirs and files
+        assert!(crate::mkdir_p(&tmpdir1).is_ok());
+        assert!(crate::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(crate::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(crate::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the all_files function gives me the correct files in order
+        let files = crate::all_files(&tmpdir).unwrap();
+        assert_iter_eq(files, vec![tmpfile2, tmpfile1]);
+
+        // Clean up
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_all_paths() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("all_paths");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir1.join("dir2");
+        let tmpfile1 = tmpdir1.join("file1");
+        let tmpfile2 = tmpdir2.join("file2");
+
+        // Create the dirs and files
+        assert!(crate::mkdir_p(&tmpdir1).is_ok());
+        assert!(crate::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(crate::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(crate::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the all_paths function gives me the correct paths in order
+        let paths = crate::all_paths(&tmpdir).unwrap();
+        assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile2, tmpfile1]);
+
+        // Clean up
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
     }
 
     #[test]
@@ -749,33 +1283,156 @@ mod tests {
     }
 
     #[test]
+    fn test_files() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("files");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(crate::mkdir_p(&tmpdir1).is_ok());
+        assert!(crate::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(crate::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(crate::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the files function gives me the correct files without the dirs and in order
+        let files = crate::files(&tmpdir).unwrap();
+        assert_iter_eq(files, vec![tmpfile1, tmpfile2]);
+
+        // Clean up
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
     fn test_is_dir() {
         let setup = Setup::init();
         assert_eq!(crate::is_dir("."), true);
-        assert_eq!(crate::is_dir(setup.root), true);
+        assert_eq!(crate::is_dir(setup.temp), true);
         assert_eq!(crate::is_dir("/foobar"), false);
     }
 
     #[test]
     fn test_is_file() {
         let setup = Setup::init();
-        let tmpfile = setup.temp.join("is_file");
+        let tmpdir = setup.temp.join("is_file");
+        let tmpfile = tmpdir.join("file1");
 
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
         assert!(crate::touch(&tmpfile).is_ok());
         assert_eq!(tmpfile.is_file(), true);
 
         // Clean up
-        assert!(crate::remove(&tmpfile).is_ok());
-        assert_eq!(tmpfile.is_file(), false);
+        assert!(crate::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_is_symlink() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("is_symlink");
+        let file1 = tmpdir.join("file1");
+        let link1 = tmpdir.join("link1");
+
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+        assert!(crate::touch(&file1).is_ok());
+        assert!(crate::symlink(&file1, &link1).is_ok());
+        assert_eq!(crate::is_symlink(link1), true);
+
+        // cleanup
+        assert!(crate::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_is_symlink_file() {
+        // let setup = Setup::init();
+        // let tmpdir = setup.temp.join("is_symlink_file");
+        // let file1 = tmpdir.join("file1");
+        // let link1 = tmpdir.join("link1");
+
+        // assert!(crate::remove_all(&tmpdir).is_ok());
+        // assert!(crate::mkdir_p(&tmpdir).is_ok());
+        // assert!(crate::touch(&file1).is_ok());
+        // assert!(crate::symlink(&file1, &link1).is_ok());
+        // assert_eq!(crate::is_symlink_file(link1), true);
+
+        // // cleanup
+        // assert!(crate::remove_all(&tmpdir).is_ok());
     }
 
     #[test]
     fn test_glob() {
-        let cwd = env::current_dir().unwrap();
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("glob");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
 
-        let paths = crate::glob(&"*").unwrap();
-        assert_eq!(&cwd.join(".vscode"), paths.first().unwrap());
-        assert_eq!(&cwd.join("tests"), paths.last().unwrap());
+        // Create the dirs and files
+        assert!(crate::mkdir_p(&tmpdir1).is_ok());
+        assert!(crate::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(crate::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(crate::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the files function gives me the correct files without the dirs and in order
+        let paths = crate::glob(tmpdir.join("*")).unwrap();
+        assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile1, tmpfile2]);
+
+        // Clean up
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_paths() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("paths");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(crate::mkdir_p(&tmpdir1).is_ok());
+        assert!(crate::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(crate::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(crate::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the paths function gives me all the dirs/files in order
+        let paths = crate::paths(&tmpdir).unwrap();
+        assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile1, tmpfile2]);
+
+        // Clean up
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
     }
 
     // Path tests
@@ -849,7 +1506,7 @@ mod tests {
     #[test]
     fn test_pathext_exists() {
         let setup = Setup::init();
-        assert_eq!(setup.root.exists(), true);
+        assert_eq!(setup.temp.exists(), true);
     }
 
     #[test]
@@ -928,8 +1585,23 @@ mod tests {
     #[test]
     fn test_pathext_meta() {
         let setup = Setup::init();
-        let meta = setup.root.meta().unwrap();
+        let meta = setup.temp.meta().unwrap();
         assert_eq!(meta.is_dir(), true);
+    }
+
+    #[test]
+    fn test_pathext_relative() {
+        // share same directory
+        assert_eq!(PathBuf::from("bar1").relative_from("bar2").unwrap(), PathBuf::from("bar1"));
+        assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
+        assert_eq!(PathBuf::from("~/foo/bar1").relative_from("~/foo/bar2").unwrap(), PathBuf::from("bar1"));
+        assert_eq!(PathBuf::from("../foo/bar1").relative_from("../foo/bar2").unwrap(), PathBuf::from("bar1"));
+
+        // share parent directory
+        assert_eq!(PathBuf::from("foo1/bar1").relative_from("foo2/bar2").unwrap(), PathBuf::from("../foo1/bar1"));
+
+        // share grandparent directory
+        assert_eq!(PathBuf::from("blah1/foo1/bar1").relative_from("blah2/foo2/bar2").unwrap(), PathBuf::from("../../blah1/foo1/bar1"));
     }
 
     #[test]

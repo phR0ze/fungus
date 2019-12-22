@@ -1,14 +1,36 @@
-use std::fs;
-use std::fs::File;
-use std::path::{Path, PathBuf};
-
-use crate::path::PathExt;
-use core::preamble::*;
-
 // File utilities
 // -------------------------------------------------------------------------------------------------
 pub mod files {
-    use super::*;
+    use std::fs;
+    use std::fs::File;
+    use std::os::unix;
+    use std::path::{Path, PathBuf};
+
+    use crate::path::PathExt;
+    use core::preamble::*;
+
+    /// Copies a single file from src to dst, creating destination directories as needed and
+    /// handling path expansion returning an absolute path of the destination.
+    ///
+    /// The dst will be copied to if it is an existing directory.
+    /// The dst will be a clone of the src if it doesn't exist.
+    ///
+    /// ### Examples
+    /// ```
+    /// ```
+    pub fn copy_file<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
+        // Check the source for issues
+        let src_abs = src.as_ref().abs()?;
+        if !src_abs.exists() {
+            return Err(PathError::does_not_exist(src).into());
+        }
+        // if src_abs.is_dir() || src_s
+
+        // Configure and check the destination
+        let dst_abs = src.as_ref().abs()?;
+
+        Ok(dst_abs)
+    }
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
     /// returning an absolute path created.
@@ -79,6 +101,34 @@ pub mod files {
         Ok(())
     }
 
+    /// Creates a new symbolic link. Handles path expansion and returns an absolute path to the
+    /// link while still creating the symbolic link as a relative path to the target.
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_symlink");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::symlink(&file1, &link1).is_ok());
+    /// assert_eq!(link1.exists(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(target: T, link: U) -> Result<PathBuf> {
+        let target_abs = target.as_ref().abs()?;
+        let link_abs = link.as_ref().abs()?;
+        if link_abs.exists() {
+            return Err(PathError::exists_already(target).into());
+        }
+        unix::fs::symlink(target_abs.relative_from(&link_abs)?, &link_abs)?;
+        Ok(link_abs)
+    }
+
     /// Create an empty file similar to the linux touch command. Handles path expansion.
     ///
     /// ### Examples
@@ -118,12 +168,11 @@ mod tests {
 
     // Reusable teset setup
     struct Setup {
-        root: PathBuf,
         temp: PathBuf,
     }
     impl Setup {
         fn init() -> Self {
-            let setup = Self { root: PathBuf::from("tests").abs().unwrap(), temp: PathBuf::from("tests/temp").abs().unwrap() };
+            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
             crate::mkdir_p(&setup.temp).unwrap();
             setup
         }
@@ -160,15 +209,36 @@ mod tests {
     }
 
     #[test]
+    fn test_symlink() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("symlink");
+        let file1 = tmpdir.join("file1");
+        let link1 = tmpdir.join("link1");
+        assert!(crate::remove_all(&tmpdir).is_ok());
+
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+        assert!(crate::touch(&file1).is_ok());
+        assert!(crate::symlink(&file1, &link1).is_ok());
+        assert_eq!(link1.exists(), true);
+
+        // Clean up
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
     fn test_touch() {
         let setup = Setup::init();
-        let tmpfile = setup.temp.join("touch");
+        let tmpdir = setup.temp.join("touch");
+        let tmpfile = tmpdir.join("file1");
+        assert!(crate::remove_all(&tmpdir).is_ok());
 
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
         assert!(crate::touch(&tmpfile).is_ok());
         assert_eq!(tmpfile.exists(), true);
 
         // Clean up
-        assert!(crate::remove(&tmpfile).is_ok());
-        assert_eq!(tmpfile.exists(), false);
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
     }
 }

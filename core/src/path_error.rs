@@ -11,6 +11,9 @@ pub enum PathError {
     /// An error indicating that the path is empty.
     Empty,
 
+    /// An error indicating that the path exists already.
+    ExistsAlready(PathBuf),
+
     /// An error indicating a failure to convert the path to a string.
     FailedToString(PathBuf),
 
@@ -41,6 +44,11 @@ impl PathError {
     /// Return an error indicating that the path is empty
     pub fn empty() -> PathError {
         PathError::Empty
+    }
+
+    /// Return an error indicating that the path exists already
+    pub fn exists_already<T: AsRef<Path>>(path: T) -> PathError {
+        PathError::ExistsAlready(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating a failure to convert the path to a string
@@ -84,6 +92,7 @@ impl fmt::Display for PathError {
         match *self {
             PathError::DoesNotExist(ref path) => write!(f, "path does not exist {}", path.display()),
             PathError::Empty => write!(f, "path empty"),
+            PathError::ExistsAlready(ref path) => write!(f, "path exists already {}", path.display()),
             PathError::FailedToString(ref path) => write!(f, "failed to convert to string for path {}", path.display()),
             PathError::FileNameNotFound(ref path) => write!(f, "filename not found for path {}", path.display()),
             PathError::InvalidExpansion(ref path) => write!(f, "invalid path expansion for path {}", path.display()),
