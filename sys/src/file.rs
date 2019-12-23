@@ -115,17 +115,16 @@ pub mod files {
     /// let link1 = tmpdir.join("link1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
-    /// assert!(sys::symlink(&file1, &link1).is_ok());
+    /// assert!(sys::symlink(&link1, &file1).is_ok());
     /// assert_eq!(link1.exists(), true);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
-    pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(target: T, link: U) -> Result<PathBuf> {
-        let target_abs = target.as_ref().abs()?;
+    pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<PathBuf> {
         let link_abs = link.as_ref().abs()?;
         if link_abs.exists() {
-            return Err(PathError::exists_already(target).into());
+            return Err(PathError::exists_already(link_abs).into());
         }
-        unix::fs::symlink(target_abs.relative_from(&link_abs)?, &link_abs)?;
+        unix::fs::symlink(target, &link_abs)?;
         Ok(link_abs)
     }
 
@@ -218,7 +217,7 @@ mod tests {
 
         assert!(crate::mkdir_p(&tmpdir).is_ok());
         assert!(crate::touch(&file1).is_ok());
-        assert!(crate::symlink(&file1, &link1).is_ok());
+        assert!(crate::symlink(&link1, &file1).is_ok());
         assert_eq!(link1.exists(), true);
 
         // Clean up

@@ -283,14 +283,10 @@ pub mod paths {
     /// assert_eq!(sys::exists("/etc"), true);
     /// ```
     pub fn exists<T: AsRef<Path>>(path: T) -> bool {
-        let abs = path.as_ref().abs();
-        if abs.is_ok() {
-            let meta = fs::metadata(abs.unwrap());
-            if meta.is_ok() {
-                return true;
-            }
+        match metadata(path) {
+            Ok(_) => true,
+            Err(_) => false,
         }
-        false
     }
 
     /// Returns all files for the given path, sorted by filename. Handles path expansion.
@@ -342,14 +338,10 @@ pub mod paths {
     /// assert_eq!(sys::is_dir("/etc"), true);
     /// ```
     pub fn is_dir<T: AsRef<Path>>(path: T) -> bool {
-        let abs = path.as_ref().abs();
-        if abs.is_ok() {
-            let meta = fs::metadata(abs.unwrap());
-            if meta.is_ok() {
-                return meta.unwrap().is_dir();
-            }
+        match metadata(path) {
+            Ok(x) => x.is_dir(),
+            Err(_) => false,
         }
-        false
     }
 
     /// Returns true if the given path exists and is a file. Handles path expansion
@@ -361,14 +353,10 @@ pub mod paths {
     /// assert_eq!(sys::is_file("/etc/hosts"), true);
     /// ```
     pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
-        let abs = path.as_ref().abs();
-        if abs.is_ok() {
-            let meta = fs::metadata(abs.unwrap());
-            if meta.is_ok() {
-                return meta.unwrap().is_file();
-            }
+        match metadata(path) {
+            Ok(x) => x.is_file(),
+            Err(_) => false,
         }
-        false
     }
 
     /// Returns true if the given path exists and is a symlink. Handles path expansion
@@ -384,16 +372,12 @@ pub mod paths {
     /// let link1 = tmpdir.join("link1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
-    /// assert!(sys::symlink(&file1, &link1).is_ok());
+    /// assert!(sys::symlink(&link1, &file1).is_ok());
     /// assert_eq!(sys::is_symlink(link1), true);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn is_symlink<T: AsRef<Path>>(path: T) -> bool {
-        let abs = path.as_ref().abs();
-        if abs.is_ok() {
-            return fs::read_link(abs.unwrap()).is_ok();
-        }
-        false
+        readlink(path).is_ok()
     }
 
     /// Returns true if the given path exists and is a symlinked directory. Handles path
@@ -409,24 +393,15 @@ pub mod paths {
     /// let dir1 = tmpdir.join("dir1");
     /// let link1 = tmpdir.join("link1");
     /// assert!(sys::mkdir_p(&dir1).is_ok());
-    /// assert!(sys::symlink(&dir1, &link1).is_ok());
+    /// assert!(sys::symlink(&link1, &dir1).is_ok());
     /// assert_eq!(sys::is_symlink_dir(link1), true);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn is_symlink_dir<T: AsRef<Path>>(path: T) -> bool {
-        let abs_res = path.as_ref().abs();
-        if abs_res.is_ok() {
-            let abs = abs_res.unwrap();
-            let link = fs::read_link(&abs);
-            if link.is_ok() {
-                let link_res = link.unwrap().abs_from(&abs);
-                if link_res.is_ok() {
-                    let link_abs = link_res.unwrap();
-                    return link_abs.is_dir();
-                }
-            }
+        match readlink(path) {
+            Ok(x) => x.is_dir(),
+            Err(_) => false,
         }
-        false
     }
 
     /// Returns true if the given path exists and is a symlinked file. Handles path
@@ -443,24 +418,15 @@ pub mod paths {
     /// let link1 = tmpdir.join("link1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
-    /// assert!(sys::symlink(&file1, &link1).is_ok());
+    /// assert!(sys::symlink(&link1, &file1).is_ok());
     /// assert_eq!(sys::is_symlink_file(link1), true);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
     pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
-        let abs_res = path.as_ref().abs();
-        if abs_res.is_ok() {
-            let abs = abs_res.unwrap();
-            let link = fs::read_link(&abs);
-            if link.is_ok() {
-                let link_res = link.unwrap().abs_from(&abs);
-                if link_res.is_ok() {
-                    let link_abs = link_res.unwrap();
-                    return link_abs.is_file();
-                }
-            }
+        match readlink(path) {
+            Ok(x) => x.is_file(),
+            Err(_) => false,
         }
-        false
     }
 
     /// Returns a vector of all paths from the given target glob with path expansion and sorted by
@@ -490,6 +456,23 @@ pub mod paths {
             paths.push(x?.abs()?);
         }
         Ok(paths)
+    }
+
+    /// Returns the Metadata object for the `Path` if it exists else an error. Handls path
+    /// expansion.
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::path::Path;
+    /// use sys::preamble::*;
+    ///
+    /// let meta = sys::metadata(Path::new("/etc")).unwrap();
+    /// assert_eq!(meta.is_dir(), true);
+    /// ```
+    pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
+        let abs = path.as_ref().abs()?;
+        let meta = fs::metadata(abs)?;
+        Ok(meta)
     }
 
     /// Returns all directories/files for the given path, sorted by filename. Handles path
@@ -529,6 +512,29 @@ pub mod paths {
             return Err(PathError::is_not_dir(abs).into());
         }
         Err(PathError::does_not_exist(abs).into())
+    }
+
+    /// Returns the absolute path for the given link target. Handles path expansion
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_readlink");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::symlink(&link1, &file1).is_ok());
+    /// assert_eq!(sys::readlink(link1).unwrap(), file1);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn readlink<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+        let abs = path.as_ref().abs()?;
+        let abs = fs::read_link(abs)?;
+        Ok(abs)
     }
 }
 
@@ -698,6 +704,63 @@ pub trait PathExt {
     /// ```
     fn is_file(&self) -> bool;
 
+    /// Returns true if the `Path` exists and is a symlink. Handles path expansion
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::symlink(&link1, &file1).is_ok());
+    /// assert_eq!(link1.is_symlink(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn is_symlink(&self) -> bool;
+
+    /// Returns true if the `Path` exists and is a symlinked directory. Handles path expansion
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_dir");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let dir1 = tmpdir.join("dir1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&dir1).is_ok());
+    /// assert!(sys::symlink(&link1, &dir1).is_ok());
+    /// assert_eq!(link1.is_symlink_dir(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn is_symlink_dir(&self) -> bool;
+
+    /// Returns true if the given `Path` exists and is a symlinked file. Handles path
+    /// expansion
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_file");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::symlink(&link1, &file1).is_ok());
+    /// assert_eq!(link1.is_symlink_file(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn is_symlink_file(&self) -> bool;
+
     /// Returns the last path component.
     ///
     /// ### Examples
@@ -729,10 +792,29 @@ pub trait PathExt {
     /// use std::path::Path;
     /// use sys::preamble::*;
     ///
-    /// let meta = Path::new("/etc").meta().unwrap();
+    /// let meta = Path::new("/etc").metadata().unwrap();
     /// assert_eq!(meta.is_dir(), true);
     /// ```
-    fn meta(&self) -> Result<fs::Metadata>;
+    fn metadata(&self) -> Result<fs::Metadata>;
+
+    /// Returns the absolute path for the link target. Handles path expansion
+    ///
+    /// ### Examples
+    /// ```
+    /// use std::path::PathBuf;
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_readlink");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let link1 = tmpdir.join("link1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::symlink(&link1, &file1).is_ok());
+    /// assert_eq!(link1.readlink().unwrap(), file1);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn readlink(&self) -> Result<PathBuf>;
 
     /// Returns the `Path` relative to the given `Path`
     ///
@@ -959,6 +1041,18 @@ impl PathExt for Path {
         crate::is_file(self)
     }
 
+    fn is_symlink(&self) -> bool {
+        crate::is_symlink(self)
+    }
+
+    fn is_symlink_dir(&self) -> bool {
+        crate::is_symlink_dir(self)
+    }
+
+    fn is_symlink_file(&self) -> bool {
+        crate::is_symlink_file(self)
+    }
+
     fn last(&self) -> Result<Component> {
         self.components().last_result()
     }
@@ -969,9 +1063,13 @@ impl PathExt for Path {
         Ok(String::from(filename))
     }
 
-    fn meta(&self) -> Result<fs::Metadata> {
+    fn metadata(&self) -> Result<fs::Metadata> {
         let meta = fs::metadata(self)?;
         Ok(meta)
+    }
+
+    fn readlink(&self) -> Result<PathBuf> {
+        crate::readlink(self)
     }
 
     fn relative_from<T: AsRef<Path>>(&self, base: T) -> Result<PathBuf> {
@@ -1336,8 +1434,25 @@ mod tests {
         assert!(crate::remove_all(&tmpdir).is_ok());
         assert!(crate::mkdir_p(&tmpdir).is_ok());
         assert!(crate::touch(&file1).is_ok());
-        assert!(crate::symlink(&file1, &link1).is_ok());
+        assert!(crate::symlink(&link1, &file1).is_ok());
         assert_eq!(crate::is_symlink(link1), true);
+
+        // cleanup
+        assert!(crate::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_is_symlink_dir() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("is_symlink_dir");
+        let dir1 = tmpdir.join("dir1");
+        let link1 = tmpdir.join("link1");
+
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&dir1).is_ok());
+        assert!(crate::symlink(&link1, &dir1).is_ok());
+        assert_eq!(crate::is_symlink_dir(&link1), true);
+        assert_eq!(crate::is_symlink_file(&link1), false);
 
         // cleanup
         assert!(crate::remove_all(&tmpdir).is_ok());
@@ -1353,11 +1468,19 @@ mod tests {
         assert!(crate::remove_all(&tmpdir).is_ok());
         assert!(crate::mkdir_p(&tmpdir).is_ok());
         assert!(crate::touch(&file1).is_ok());
-        assert!(crate::symlink(&file1, &link1).is_ok());
-        assert_eq!(crate::is_symlink_file(link1), true);
+        assert!(crate::symlink(&link1, &file1).is_ok());
+        assert_eq!(crate::is_symlink_file(&link1), true);
+        assert_eq!(crate::is_symlink_dir(&link1), false);
 
         // cleanup
         assert!(crate::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_metadata() {
+        let setup = Setup::init();
+        let meta = crate::metadata(setup.temp).unwrap();
+        assert_eq!(meta.is_dir(), true);
     }
 
     #[test]
@@ -1422,6 +1545,25 @@ mod tests {
         // Clean up
         assert!(crate::remove_all(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_readlink() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("readlink");
+        let file1 = tmpdir.join("file1");
+        let link1 = tmpdir.join("link1");
+
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+        assert!(crate::touch(&file1).is_ok());
+        assert!(crate::symlink(&link1, &file1).is_ok());
+        assert_eq!(crate::is_symlink_file(&link1), true);
+        assert_eq!(crate::is_symlink_dir(&link1), false);
+        assert_eq!(crate::readlink(&link1).unwrap(), file1);
+
+        // cleanup
+        assert!(crate::remove_all(&tmpdir).is_ok());
     }
 
     // Path tests
@@ -1574,7 +1716,7 @@ mod tests {
     #[test]
     fn test_pathext_meta() {
         let setup = Setup::init();
-        let meta = setup.temp.meta().unwrap();
+        let meta = setup.temp.metadata().unwrap();
         assert_eq!(meta.is_dir(), true);
     }
 
