@@ -18,5 +18,10 @@ pub use path::paths::*;
 pub mod preamble {
     use super::*;
     pub use path::PathExt;
+    pub use std::env;
+    pub use std::ffi::OsStr;
+    pub use std::fs;
+    pub use std::os::unix::fs::PermissionsExt;
+    pub use std::path::{Component, Path, PathBuf};
     pub use users::*;
 }

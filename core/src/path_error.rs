@@ -29,6 +29,9 @@ pub enum PathError {
     /// An error indicating that the path is not a file.
     IsNotFile(PathBuf),
 
+    /// An error indicating that the path is not a file or symlink to a file.
+    IsNotFileOrSymlinkToFile(PathBuf),
+
     /// An error indicating that the path contains multiple user home symbols i.e. tilda.
     MultipleHomeSymbols(PathBuf),
 
@@ -71,6 +74,11 @@ impl PathError {
         PathError::IsNotFile(path.as_ref().to_path_buf())
     }
 
+    /// Return an error indicating that the path is not a file or symlink to file
+    pub fn is_not_file_or_symlink_to_file<T: AsRef<Path>>(path: T) -> PathError {
+        PathError::IsNotFileOrSymlinkToFile(path.as_ref().to_path_buf())
+    }
+
     /// Return an error indicating that the path failed to expand properly
     pub fn invalid_expansion<T: AsRef<Path>>(path: T) -> PathError {
         PathError::InvalidExpansion(path.as_ref().to_path_buf())
@@ -98,6 +106,7 @@ impl fmt::Display for PathError {
             PathError::InvalidExpansion(ref path) => write!(f, "invalid path expansion for path {}", path.display()),
             PathError::IsNotDir(ref path) => write!(f, "is not a directory {}", path.display()),
             PathError::IsNotFile(ref path) => write!(f, "is not a file {}", path.display()),
+            PathError::IsNotFileOrSymlinkToFile(ref path) => write!(f, "is not a file or a symlink to a file {}", path.display()),
             PathError::MultipleHomeSymbols(ref path) => write!(f, "multiple home symbols for path {}", path.display()),
             PathError::ParentNotFound(ref path) => write!(f, "parent not found for path {}", path.display()),
         }

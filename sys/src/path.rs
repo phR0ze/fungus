@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -15,8 +16,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let home = env::var("HOME").unwrap();
@@ -46,7 +45,7 @@ pub mod paths {
             // Unwrap works here as there will always be Some
             path_buf = match path_buf.first()? {
                 Component::CurDir => curr.join(path_buf),
-                Component::ParentDir => curr.dirname()?.join(path_buf.trim_first()?),
+                Component::ParentDir => curr.dir()?.join(path_buf.trim_first()?),
                 _ => curr.join(path_buf),
             }
         }
@@ -60,8 +59,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     /// use core::*;
     ///
@@ -109,8 +106,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     /// use core::*;
     ///
@@ -161,8 +156,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     /// use core::*;
     ///
@@ -207,14 +200,34 @@ pub mod paths {
         Err(PathError::does_not_exist(abs).into())
     }
 
+    /// Change the `Path` mode to the given mode and return the `Path`
+    ///
+    /// ### Examples
+    /// ```
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_chmod");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert_eq!(file1.mode().unwrap(), 0o100644);
+    /// assert!(sys::chmod(&file1, 0o555).is_ok());
+    /// assert_eq!(file1.mode().unwrap(), 0o100555);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
+        let abs = path.as_ref().abs()?;
+        let perms = fs::Permissions::from_mode(mode);
+        Ok(abs.setperms(perms)?)
+    }
+
     /// Returns all directories for the given path, sorted by filename. Handles path expansion.
     /// Paths are returned as abs paths. Doesn't include the path itself only its children nor
     /// is this recursive.
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     /// use core::*;
     ///
@@ -250,28 +263,26 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
     /// use sys::preamble::*;
     ///
-    /// let dir = env::current_exe().unwrap().dirname().unwrap();
+    /// let dir = env::current_exe().unwrap().dir().unwrap();
     /// assert_eq!(sys::exec_dir().unwrap(), dir);
     /// ```
     pub fn exec_dir() -> Result<PathBuf> {
-        Ok(env::current_exe()?.dirname()?)
+        Ok(env::current_exe()?.dir()?)
     }
 
     /// Returns the current running executable's name.
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
     /// use sys::preamble::*;
     ///
-    /// let name = env::current_exe().unwrap().name().unwrap();
-    /// assert_eq!(sys::exec_name().unwrap(), name);
+    /// let base = env::current_exe().unwrap().base().unwrap();
+    /// assert_eq!(sys::exec_name().unwrap(), base);
     /// ```
     pub fn exec_name() -> Result<String> {
-        Ok(env::current_exe()?.name()?)
+        Ok(env::current_exe()?.base()?)
     }
 
     /// Returns true if the given path exists. Handles path expansion.
@@ -295,8 +306,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     /// use core::*;
     ///
@@ -363,7 +372,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink");
@@ -385,7 +393,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_dir");
@@ -409,7 +416,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_file");
@@ -434,8 +440,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     /// use core::*;
     ///
@@ -463,7 +467,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::Path;
     /// use sys::preamble::*;
     ///
     /// let meta = sys::metadata(Path::new("/etc")).unwrap();
@@ -481,8 +484,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     /// use core::*;
     ///
@@ -518,7 +519,6 @@ pub mod paths {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_readlink");
@@ -545,8 +545,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let home = env::var("HOME").unwrap();
@@ -559,13 +557,40 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let home = PathBuf::from("~").abs().unwrap();
     /// assert_eq!(PathBuf::from("foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
     /// ```
     fn abs_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
+
+    /// Returns the final component of the `Path`, if there is one.
+    ///
+    /// ### Examples
+    /// ```
+    /// use sys::preamble::*;
+    ///
+    /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
+    /// ```
+    fn base(&self) -> Result<String>;
+
+    /// Set the given mode for the `Path` and return the `Path`
+    ///
+    /// ### Examples
+    /// ```
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_chmod");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert_eq!(file1.mode().unwrap(), 0o100644);
+    /// assert!(file1.chmod(0o555).is_ok());
+    /// assert_eq!(file1.mode().unwrap(), 0o100555);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn chmod(&self, mode: u32) -> Result<PathBuf>;
 
     /// Return the shortest path equivalent to the path by purely lexical processing and thus does not handle
     /// links correctly in some cases, use canonicalize in those cases. It applies the following rules
@@ -587,19 +612,17 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
-    /// let dir = PathBuf::from("/foo/bar").dirname().unwrap();
+    /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
     /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
     /// ```
-    fn dirname(&self) -> Result<PathBuf>;
+    fn dir(&self) -> Result<PathBuf>;
 
     /// Returns true if the `Path` is empty.
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("").empty(), true);
@@ -610,7 +633,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::Path;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(Path::new("/etc").exists(), true);
@@ -621,8 +643,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::env;
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let home = env::var("HOME").unwrap();
@@ -634,8 +654,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::ffi::OsStr;
-    /// use std::path::{Component, PathBuf};
     /// use sys::preamble::*;
     ///
     /// let first = Component::Normal(OsStr::new("foo"));
@@ -647,7 +665,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
@@ -660,7 +677,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
@@ -673,7 +689,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
@@ -686,7 +701,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::Path;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(Path::new("/etc").is_dir(), true);
@@ -697,7 +711,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::Path;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(Path::new("/etc/hosts").is_file(), true);
@@ -708,10 +721,9 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_is_symlink");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// let file1 = tmpdir.join("file1");
     /// let link1 = tmpdir.join("link1");
@@ -727,10 +739,9 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_dir");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_is_symlink_dir");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// let dir1 = tmpdir.join("dir1");
     /// let link1 = tmpdir.join("link1");
@@ -746,10 +757,9 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_file");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_is_symlink_file");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// let file1 = tmpdir.join("file1");
     /// let link1 = tmpdir.join("link1");
@@ -765,8 +775,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::ffi::OsStr;
-    /// use std::path::{Component, PathBuf};
     /// use sys::preamble::*;
     ///
     /// let first = Component::Normal(OsStr::new("bar"));
@@ -774,22 +782,10 @@ pub trait PathExt {
     /// ```
     fn last(&self) -> Result<Component>;
 
-    /// Returns the final component of the `Path`, if there is one.
-    ///
-    /// ### Examples
-    /// ```
-    /// use std::path::PathBuf;
-    /// use sys::preamble::*;
-    ///
-    /// assert_eq!("bar", PathBuf::from("/foo/bar").name().unwrap());
-    /// ```
-    fn name(&self) -> Result<String>;
-
     /// Returns the Metadata object for the `Path` if it exists else and error
     ///
     /// ### Examples
     /// ```
-    /// use std::path::Path;
     /// use sys::preamble::*;
     ///
     /// let meta = Path::new("/etc").metadata().unwrap();
@@ -797,14 +793,45 @@ pub trait PathExt {
     /// ```
     fn metadata(&self) -> Result<fs::Metadata>;
 
+    /// Returns the Metadata object for the `Path` if it exists else and error
+    ///
+    /// ### Examples
+    /// ```
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_mode");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert_eq!(file1.mode().unwrap(), 0o100644);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn mode(&self) -> Result<u32>;
+
+    /// Return the permissions for the `Path`
+    ///
+    /// ### Examples
+    /// ```
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_perms");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert_eq!(file1.perms().unwrap().mode(), 0o100644);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn perms(&self) -> Result<fs::Permissions>;
+
     /// Returns the absolute path for the link target. Handles path expansion
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_readlink");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_readlink");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// let file1 = tmpdir.join("file1");
     /// let link1 = tmpdir.join("link1");
@@ -820,18 +847,34 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
     /// ```
     fn relative_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
 
+    /// Set the given permissions on the `Path` and return the `Path`
+    ///
+    /// ### Examples
+    /// ```
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_setperms");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert_eq!(file1.perms().unwrap().mode(), 0o100644);
+    /// assert!(file1.setperms(fs::Permissions::from_mode(0o555)).is_ok());
+    /// assert_eq!(file1.perms().unwrap().mode(), 0o100555);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn setperms(&self, perms: fs::Permissions) -> Result<PathBuf>;
+
     /// Returns the `Path` as a String
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
@@ -842,7 +885,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
@@ -853,7 +895,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
@@ -864,7 +905,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
@@ -875,7 +915,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol().unwrap());
@@ -886,7 +925,6 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/bar").trim_suffix("/bar").unwrap());
@@ -916,6 +954,16 @@ impl PathExt for Path {
             }
         }
         Ok(self.to_path_buf())
+    }
+
+    fn base(&self) -> Result<String> {
+        let os_str = self.file_name().ok_or_else(|| PathError::filename_not_found(self))?;
+        let filename = os_str.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
+        Ok(String::from(filename))
+    }
+
+    fn chmod(&self, mode: u32) -> Result<PathBuf> {
+        Ok(crate::chmod(self, mode)?)
     }
 
     fn clean(&self) -> Result<PathBuf> {
@@ -965,7 +1013,7 @@ impl PathExt for Path {
         Ok(path_buf)
     }
 
-    fn dirname(&self) -> Result<PathBuf> {
+    fn dir(&self) -> Result<PathBuf> {
         let dir = self.parent().ok_or_else(|| PathError::parent_not_found(self))?;
         Ok(dir.to_path_buf())
     }
@@ -1057,15 +1105,18 @@ impl PathExt for Path {
         self.components().last_result()
     }
 
-    fn name(&self) -> Result<String> {
-        let os_str = self.file_name().ok_or_else(|| PathError::filename_not_found(self))?;
-        let filename = os_str.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
-        Ok(String::from(filename))
-    }
-
     fn metadata(&self) -> Result<fs::Metadata> {
         let meta = fs::metadata(self)?;
         Ok(meta)
+    }
+
+    fn mode(&self) -> Result<u32> {
+        let perms = self.perms()?;
+        Ok(perms.mode())
+    }
+
+    fn perms(&self) -> Result<fs::Permissions> {
+        Ok(self.metadata()?.permissions())
     }
 
     fn readlink(&self) -> Result<PathBuf> {
@@ -1104,6 +1155,11 @@ impl PathExt for Path {
             return Ok(comps.iter().collect::<PathBuf>());
         }
         Ok(path)
+    }
+
+    fn setperms(&self, perms: fs::Permissions) -> Result<PathBuf> {
+        fs::set_permissions(&self, perms)?;
+        Ok(self.to_path_buf())
     }
 
     fn to_string(&self) -> Result<String> {
@@ -1182,7 +1238,7 @@ mod tests {
     fn test_abs() {
         let home = PathBuf::from(env::var("HOME").unwrap());
         let cwd = env::current_dir().unwrap();
-        let prev = cwd.dirname().unwrap();
+        let prev = cwd.dir().unwrap();
 
         // expand previous directory and drop trailing slashes
         assert_eq!(crate::abs("..//").unwrap(), prev);
@@ -1365,7 +1421,7 @@ mod tests {
     #[test]
     fn test_exec_name() {
         let exec_path = env::current_exe().unwrap();
-        let name = exec_path.name().unwrap();
+        let name = exec_path.base().unwrap();
         assert_eq!(name, crate::exec_name().unwrap());
     }
 
@@ -1568,6 +1624,22 @@ mod tests {
 
     // Path tests
     // ---------------------------------------------------------------------------------------------
+
+    #[test]
+    fn test_pathext_chmod() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("pathbuf_chmod");
+        let file1 = tmpdir.join("file1");
+
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+        assert!(crate::touch(&file1).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert!(file1.chmod(0o555).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100555);
+        assert!(crate::remove_all(&tmpdir).is_ok());
+    }
+
     #[test]
     fn test_pathext_clean() {
         let tests = vec![
@@ -1621,8 +1693,8 @@ mod tests {
 
     #[test]
     fn test_pathext_dirname() {
-        assert_eq!(PathBuf::from("/").as_path(), PathBuf::from("/foo/").dirname().unwrap());
-        assert_eq!(PathBuf::from("/foo").as_path(), PathBuf::from("/foo/bar").dirname().unwrap());
+        assert_eq!(PathBuf::from("/").as_path(), PathBuf::from("/foo/").dir().unwrap());
+        assert_eq!(PathBuf::from("/foo").as_path(), PathBuf::from("/foo/bar").dir().unwrap());
     }
 
     #[test]
@@ -1710,7 +1782,7 @@ mod tests {
 
     #[test]
     fn test_pathext_name() {
-        assert_eq!("bar", PathBuf::from("/foo/bar").name().unwrap());
+        assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
     }
 
     #[test]
@@ -1718,6 +1790,49 @@ mod tests {
         let setup = Setup::init();
         let meta = setup.temp.metadata().unwrap();
         assert_eq!(meta.is_dir(), true);
+    }
+
+    #[test]
+    fn test_pathext_mode() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("pathbuf_mode");
+        let file1 = tmpdir.join("file1");
+
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+        assert!(crate::touch(&file1).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert!(crate::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_pathext_perms() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("pathbuf_perms");
+        let file1 = tmpdir.join("file1");
+
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+        assert!(crate::touch(&file1).is_ok());
+        assert_eq!(file1.perms().unwrap().mode(), 0o100644);
+        assert!(crate::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_pathext_setperms() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("pathbuf_setperms");
+        let file1 = tmpdir.join("file1");
+
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+        assert!(crate::touch(&file1).is_ok());
+        let mut perms = file1.perms().unwrap();
+        assert_eq!(perms.mode(), 0o100644);
+        perms.set_mode(0o555);
+        assert!(file1.setperms(perms).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100555);
+        assert!(crate::remove_all(&tmpdir).is_ok());
     }
 
     #[test]

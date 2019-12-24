@@ -17,19 +17,63 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
+    /// use sys::preamble::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_copyfile");
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// let file1 = tmpdir.join("file1");
+    /// let file2 = tmpdir.join("file2");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// assert!(sys::mkdir_p(&tmpdir).is_ok());
+    /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(sys::copyfile(&file1, &file2).is_ok());
+    /// assert_eq!(file2.exists(), true);
+    /// assert_eq!(file1.mode().unwrap(), file2.mode().unwrap());
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
-    pub fn copy_file<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
-        // Check the source for issues
-        let src_abs = src.as_ref().abs()?;
-        if !src_abs.exists() {
+    pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
+        // Configure and check source
+        let srcpath = src.as_ref().abs()?;
+        if !srcpath.exists() {
             return Err(PathError::does_not_exist(src).into());
         }
-        // if src_abs.is_dir() || src_s
+        if srcpath.is_dir() || srcpath.is_symlink_dir() {
+            return Err(PathError::is_not_file_or_symlink_to_file(src).into());
+        }
 
         // Configure and check the destination
-        let dst_abs = src.as_ref().abs()?;
+        let mut dstpath = dst.as_ref().abs()?;
+        match dstpath.exists() {
+            // Exists so dst is either a file to overwrite or a dir to copy into
+            true => {
+                if dstpath.is_dir() {
+                    dstpath = dstpath.join(srcpath.base()?)
+                }
+            }
 
-        Ok(dst_abs)
+            // Doesn't exist so dst is a new destination name, ensure all paths exist
+            false => {
+                let srcdir = srcpath.dir()?;
+                let dstdir = dstpath.dir()?;
+                if srcdir != dstdir {
+                    mkdir_p(dstdir)?.chmod(srcdir.mode()?)?;
+                }
+            }
+        }
+
+        // Check for same file
+        if srcpath == dstpath {
+            return Ok(dstpath);
+        }
+
+        // Recreate link or copy file including permissions
+        if srcpath.is_symlink() {
+            symlink(&dstpath, srcpath.readlink()?)?;
+        } else {
+            fs::copy(&srcpath, &dstpath)?;
+        }
+
+        Ok(dstpath)
     }
 
     /// Creates the given directory and any parent directories needed, handling path expansion and
@@ -37,7 +81,6 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_mkdir_p");
@@ -58,7 +101,6 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_remove");
@@ -85,7 +127,6 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_remove_all");
@@ -106,7 +147,6 @@ pub mod files {
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_symlink");
@@ -129,10 +169,10 @@ pub mod files {
     }
 
     /// Create an empty file similar to the linux touch command. Handles path expansion.
+    /// Uses default file creation permissions 0o666 - umask usually ends up being 0o644.
     ///
     /// ### Examples
     /// ```
-    /// use std::path::PathBuf;
     /// use sys::preamble::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_touch");
@@ -175,6 +215,45 @@ mod tests {
             crate::mkdir_p(&setup.temp).unwrap();
             setup
         }
+    }
+
+    #[test]
+    fn test_copyfile() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("copyfile");
+        let file1 = tmpdir.join("file1");
+        let file2 = tmpdir.join("file2");
+        let link1 = tmpdir.join("link1");
+        let link2 = tmpdir.join("link2");
+        let file3 = tmpdir.join("dir1/file3");
+
+        // setup
+        assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(crate::mkdir_p(&tmpdir).is_ok());
+
+        // copy to same dir
+        assert!(crate::touch(&file1).is_ok());
+        assert_eq!(file1.exists(), true);
+        assert_eq!(file2.exists(), false);
+        assert!(crate::copyfile(&file1, &file2).is_ok());
+        assert_eq!(file2.exists(), true);
+        assert_eq!(file1.mode().unwrap(), file2.mode().unwrap());
+
+        // copy a link
+        assert!(crate::symlink(&link1, &file1).is_ok());
+        assert_eq!(link2.exists(), false);
+        assert!(crate::copyfile(&link1, &link2).is_ok());
+        assert_eq!(link2.exists(), true);
+
+        // copy to different dir
+        assert_eq!(file3.exists(), false);
+        assert!(crate::copyfile(&file1, &file3).is_ok());
+        assert_eq!(file3.exists(), true);
+        assert_eq!(tmpdir.mode().unwrap(), file3.dir().unwrap().mode().unwrap());
+        assert_eq!(file1.mode().unwrap(), file3.mode().unwrap());
+
+        // cleanup
+        assert!(crate::remove_all(&tmpdir).is_ok());
     }
 
     #[test]

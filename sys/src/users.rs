@@ -28,6 +28,6 @@ mod tests {
         let home_str = env::var("HOME").unwrap();
         let home_path = PathBuf::from(home_str);
         let home_dir = home_path.parent().unwrap();
-        assert_eq!(home_dir.to_path_buf(), user::home().unwrap().dirname().unwrap());
+        assert_eq!(home_dir.to_path_buf(), user::home().unwrap().dir().unwrap());
     }
 }
