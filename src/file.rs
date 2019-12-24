@@ -19,8 +19,25 @@ use crate::path::PathExt;
 /// use fungus::presys::*;
 /// ```
 pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
-    // Configure and check the destination
+    let mut clone = true;
     let mut dstpath = dst.as_ref().abs()?;
+
+    // Handle globbing
+    let sources = crate::path::glob(&src)?;
+    if sources.len() == 0 {
+        return Err(PathError::does_not_exist(&src).into());
+    }
+
+    // Copy into destination vs clone as destination
+    if dstpath.is_dir() || sources.len() > 1 {
+        clone = false;
+    }
+
+    // Recurse on sources
+    for path in &sources {
+        println!("{:?}", path);
+    }
+
     Ok(dstpath)
 }
 
@@ -54,7 +71,7 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBu
         return Err(PathError::does_not_exist(src).into());
     }
     if srcpath.is_dir() || srcpath.is_symlink_dir() {
-        return Err(PathError::is_not_file_or_symlink_to_file(src).into());
+        return Err(PathError::is_not_file_or_symlink_to_file(&src).into());
     }
 
     // Configure and check the destination
