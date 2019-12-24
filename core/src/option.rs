@@ -12,6 +12,8 @@ impl<T> OptionExt<T> for Option<T> {
     ///
     /// # Examples
     /// ```
+    /// use core::*;
+    ///
     /// let x: Option<u32> = Some(2);
     /// assert!(x.has(&2));
     ///

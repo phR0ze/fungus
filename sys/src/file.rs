@@ -9,11 +9,30 @@ pub mod files {
     use crate::path::PathExt;
     use core::preamble::*;
 
-    /// Copies a single file from src to dst, creating destination directories as needed and
-    /// handling path expansion returning an absolute path of the destination.
+    /// Copies src to dst recursively, creating destination directories as needed and handling path
+    /// expansion and globbing e.g. copy("./*", "../") and returning an absolute path of the
+    /// destination.
     ///
     /// The dst will be copied to if it is an existing directory.
     /// The dst will be a clone of the src if it doesn't exist.
+    /// Doesn't follow links
+    ///
+    /// ### Examples
+    /// ```
+    /// use sys::preamble::*;
+    /// ```
+    pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
+        // Configure and check the destination
+        let mut dstpath = dst.as_ref().abs()?;
+        Ok(dstpath)
+    }
+
+    /// Copies a single file from src to dst, creating destination directories as needed and handling
+    /// path expansion returning an absolute path of the destination.
+    ///
+    /// The dst will be copied to if it is an existing directory.
+    /// The dst will be a clone of the src if it doesn't exist.
+    /// Doesn't follow links
     ///
     /// ### Examples
     /// ```
@@ -245,12 +264,18 @@ mod tests {
         assert!(crate::copyfile(&link1, &link2).is_ok());
         assert_eq!(link2.exists(), true);
 
-        // copy to different dir
+        // copy to dir the doesn't exist
         assert_eq!(file3.exists(), false);
         assert!(crate::copyfile(&file1, &file3).is_ok());
         assert_eq!(file3.exists(), true);
         assert_eq!(tmpdir.mode().unwrap(), file3.dir().unwrap().mode().unwrap());
         assert_eq!(file1.mode().unwrap(), file3.mode().unwrap());
+
+        // empty destination path
+        assert!(crate::copyfile(&file1, "").is_err());
+
+        // empty source path
+        assert!(crate::copyfile("", &file3).is_err());
 
         // cleanup
         assert!(crate::remove_all(&tmpdir).is_ok());

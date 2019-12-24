@@ -10,9 +10,9 @@ use crate::*;
 ///
 /// # Examples
 /// ```
-/// use rs::core::*;
+/// use core::*;
 ///
-/// assert_iter_eq(vec![2, 3].into_iter(), vec![1, 2, 3].into_iter());
+/// assert_iter_eq(vec![1, 2, 3].into_iter(), vec![1, 2, 3].into_iter());
 /// ```
 pub fn assert_iter_eq<T, U>(x: T, y: U)
 where
@@ -50,7 +50,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use rs::core::*;
+    /// use core::*;
     ///
     /// assert_eq!(vec![0, 1, 2].into_iter().consume().next(), None);
     /// ```
@@ -64,10 +64,10 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use rs::core::*;
+    /// use core::*;
     ///
-    /// assert_iter_eq(vec![2, 3], vec![1, 2, 3].into_iter().drop(1)));
-    /// assert_iter_eq(vec![1, 2], vec![1, 2, 3].into_iter().drop(-1)));
+    /// assert_iter_eq(vec![1, 2, 3].into_iter().drop(1), vec![2, 3]);
+    /// assert_iter_eq(vec![1, 2, 3].into_iter().drop(-1), vec![1, 2]);
     /// ```
     fn drop(self, n: isize) -> Self
     where
@@ -81,7 +81,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use rs::core::*;
+    /// use core::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
@@ -94,7 +94,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use rs::core::*;
+    /// use core::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
@@ -107,7 +107,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use rs::core::*;
+    /// use core::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).last().unwrap(), 2);
     /// ```
@@ -120,7 +120,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use rs::core::*;
+    /// use core::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
     /// ```
@@ -135,11 +135,20 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use rs::core::*;
+    /// use core::*;
     ///
-    /// assert_eq!(vec![0, 1, 2].into_iter().slice(2, 1).next(), None);
-    /// assert_eq!(vec![0, 1, 2].into_iter().slice(-1, -2).next(), None);
-    /// assert_eq!(vec![0, 1, 2].into_iter().slice(-1, 2).next(), None);
+    /// let mut iter = vec![0, 1, 2].into_iter().slice(0, 0);
+    /// assert_eq!(iter.next(), Some(0));
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// let mut iter = vec![0, 1, 2].into_iter().slice(-1, -1);
+    /// assert_eq!(iter.next(), Some(2));
+    /// assert_eq!(iter.next(), None);
+    ///
+    /// let mut iter = vec![0, 1, 2].into_iter().slice(-2, -1);
+    /// assert_eq!(iter.next(), Some(1));
+    /// assert_eq!(iter.next(), Some(2));
+    /// assert_eq!(iter.next(), None);
     /// ```
     fn slice(self, left: isize, right: isize) -> Self
     where
