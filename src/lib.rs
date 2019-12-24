@@ -3,6 +3,7 @@ mod iter;
 mod iter_error;
 mod miscs;
 mod option;
+mod os;
 mod path;
 mod path_error;
 mod result;
@@ -33,6 +34,7 @@ pub mod presys {
     pub use crate::path::PathExt;
     pub mod sys {
         pub use crate::file::*;
+        pub use crate::os::*;
         pub use crate::path::*;
     }
     pub use std::env;

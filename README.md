@@ -2,8 +2,11 @@ fungus
 =======================================================
 [![Build Status](https://travis-ci.org/phR0ze/fungus.svg?branch=master)](https://travis-ci.org/phR0ze/fungus)
 [![Coverage Status](https://coveralls.io/repos/github/phR0ze/fungus/badge.svg?branch=master)](https://coveralls.io/github/phR0ze/fungus?branch=master)
+[![Crate](https://img.shields.io/crates/v/fungus.svg)](https://crates.io/crates/fungus)
+<!--[![API](https://docs.rs/fungus/badge.svg)](https://docs.rs/fungus)-->
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![License: Apache2.0](https://img.shields.io/badge/License-APACHE-blue.svg)](https://opensource.org/licenses/MIT)
+<!--[![rust-version-badge]: https://img.shields.io/badge/rust-latest%20stable-blue.svg?style=flat-square-->
 
 Rust utilities to reduce code verbosity
 
