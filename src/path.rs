@@ -580,6 +580,7 @@ pub trait PathExt {
     /// let file1 = tmpdir.join("file1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(file1.chmod(0o644).is_ok());
     /// assert_eq!(file1.mode().unwrap(), 0o100644);
     /// assert!(file1.chmod(0o555).is_ok());
     /// assert_eq!(file1.mode().unwrap(), 0o100555);
@@ -799,6 +800,7 @@ pub trait PathExt {
     /// let file1 = tmpdir.join("file1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(file1.chmod(0o644).is_ok());
     /// assert_eq!(file1.mode().unwrap(), 0o100644);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
@@ -815,6 +817,7 @@ pub trait PathExt {
     /// let file1 = tmpdir.join("file1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(file1.chmod(0o644).is_ok());
     /// assert_eq!(file1.perms().unwrap().mode(), 0o100644);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
@@ -859,6 +862,7 @@ pub trait PathExt {
     /// let file1 = tmpdir.join("file1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
+    /// assert!(file1.chmod(0o644).is_ok());
     /// assert_eq!(file1.perms().unwrap().mode(), 0o100644);
     /// assert!(file1.setperms(fs::Permissions::from_mode(0o555)).is_ok());
     /// assert_eq!(file1.perms().unwrap().mode(), 0o100555);
