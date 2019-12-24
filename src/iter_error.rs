@@ -1,5 +1,5 @@
-use std::fmt;
 use failure::Fail;
+use std::fmt;
 
 /// An error indicating something went wrong with an iterator operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Fail)]
@@ -42,8 +42,7 @@ impl fmt::Display for IterError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::*;
+    use crate::core::*;
 
     fn item_not_found() -> Result<i32> {
         Err(IterError::item_not_found().into())

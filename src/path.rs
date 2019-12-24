@@ -5,7 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 use walkdir::WalkDir;
 
-use core::*;
+use crate::core::*;
 
 /// Return the path in an absolute clean form
 ///
@@ -55,7 +55,7 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use core::*;
+/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_dirs");
 /// let dir1 = tmpdir.join("dir1");
@@ -102,7 +102,7 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use core::*;
+/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_files");
 /// let file1 = tmpdir.join("file1");
@@ -152,7 +152,7 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use core::*;
+/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_paths");
 /// let file1 = tmpdir.join("file1");
@@ -224,7 +224,7 @@ pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use core::*;
+/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_dirs");
 /// let dir1 = tmpdir.join("dir1");
@@ -302,7 +302,7 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use core::*;
+/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_files");
 /// let file1 = tmpdir.join("file1");
@@ -436,7 +436,7 @@ pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use core::*;
+/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_glob");
 /// let dir1 = tmpdir.join("dir1");
@@ -481,7 +481,7 @@ pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use core::*;
+/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_paths");
 /// let dir1 = tmpdir.join("dir1");
@@ -1214,7 +1214,7 @@ impl PathExt for Path {
 //     use std::path::{Component, PathBuf};
 
 //     use crate::*;
-//     use core::*;
+//     use fungus::core::*;
 
 //     // Reusable teset setup
 //     struct Setup {

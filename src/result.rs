@@ -5,8 +5,7 @@ pub type Result<T> = result::Result<T, failure::Error>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::*;
+    use crate::core::*;
     use std::path::PathBuf;
 
     fn parent_not_found() -> Result<PathBuf> {

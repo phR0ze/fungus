@@ -115,8 +115,8 @@ impl fmt::Display for PathError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::*;
+    use crate::core::*;
+    use std::path::PathBuf;
 
     fn path_empty() -> Result<PathBuf> {
         Err(PathError::empty().into())

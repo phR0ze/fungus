@@ -1,6 +1,6 @@
 use chrono;
 use colored::*;
-use core::*;
+use fungus::core::*;
 use log;
 use std::path::PathBuf;
 

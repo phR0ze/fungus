@@ -3,8 +3,8 @@ use std::fs::File;
 use std::os::unix;
 use std::path::{Path, PathBuf};
 
+use crate::core::*;
 use crate::path::PathExt;
-use core::*;
 
 /// Copies src to dst recursively, creating destination directories as needed and handling path
 /// expansion and globbing e.g. copy("./*", "../") and returning an absolute path of the

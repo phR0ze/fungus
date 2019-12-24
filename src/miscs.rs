@@ -1,4 +1,4 @@
-use crate::*;
+use crate::core::*;
 
 /// An error aggregate for common errors in rust
 #[derive(Debug)]
@@ -50,7 +50,7 @@ pub mod misc {
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::*;
+    use crate::core::*;
 
     #[test]
     fn test_abs_indices() {

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::iter::Iterator;
 
-use crate::*;
+use crate::core::*;
 
 // Iterator extensions and utilities
 //--------------------------------------------------------------------------------------------------
@@ -10,7 +10,7 @@ use crate::*;
 ///
 /// # Examples
 /// ```
-/// use core::*;
+/// use fungus::core::*;
 ///
 /// assert_iter_eq(vec![1, 2, 3].into_iter(), vec![1, 2, 3].into_iter());
 /// ```
@@ -50,7 +50,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use core::*;
+    /// use fungus::core::*;
     ///
     /// assert_eq!(vec![0, 1, 2].into_iter().consume().next(), None);
     /// ```
@@ -64,7 +64,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use core::*;
+    /// use fungus::core::*;
     ///
     /// assert_iter_eq(vec![1, 2, 3].into_iter().drop(1), vec![2, 3]);
     /// assert_iter_eq(vec![1, 2, 3].into_iter().drop(-1), vec![1, 2]);
@@ -81,7 +81,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use core::*;
+    /// use fungus::core::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
@@ -94,7 +94,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use core::*;
+    /// use fungus::core::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
@@ -107,7 +107,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use core::*;
+    /// use fungus::core::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).last().unwrap(), 2);
     /// ```
@@ -120,7 +120,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use core::*;
+    /// use fungus::core::*;
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
     /// ```
@@ -135,7 +135,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// # Examples
     /// ```
-    /// use core::*;
+    /// use fungus::core::*;
     ///
     /// let mut iter = vec![0, 1, 2].into_iter().slice(0, 0);
     /// assert_eq!(iter.next(), Some(0));
@@ -278,7 +278,7 @@ mod tests {
     use std::ffi::OsStr;
     use std::path::{Component, PathBuf};
 
-    use crate::*;
+    use crate::core::*;
 
     #[test]
     fn test_slice() {
