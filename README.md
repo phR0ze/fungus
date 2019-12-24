@@ -1,3 +1,2 @@
-# rs
-General purpose reusable Rust utilities
-
+rs - General purpose reusable Rust utilities
+==============================================
