@@ -116,7 +116,7 @@ impl fmt::Display for PathError {
 #[cfg(test)]
 mod tests {
     use crate::core::*;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     fn path_empty() -> Result<PathBuf> {
         Err(PathError::empty().into())
@@ -138,6 +138,17 @@ mod tests {
         assert_ne!(parent_not_found().unwrap_err().downcast_ref::<PathError>(), Some(&PathError::parent_not_found("bar")));
         assert_eq!(parent_not_found().unwrap_err().downcast_ref::<PathError>(), Some(&PathError::parent_not_found("foo")));
         assert_eq!(format!("{}", parent_not_found().unwrap_err().downcast_ref::<PathError>().unwrap()), "parent not found for path foo");
+    }
+
+    #[test]
+    fn test_other_errors() {
+        assert_eq!(PathError::does_not_exist(Path::new("foo")), PathError::DoesNotExist(PathBuf::from("foo")));
+        assert_eq!(PathError::exists_already(Path::new("foo")), PathError::ExistsAlready(PathBuf::from("foo")));
+        assert_eq!(PathError::failed_to_string(Path::new("foo")), PathError::FailedToString(PathBuf::from("foo")));
+        assert_eq!(PathError::filename_not_found(Path::new("foo")), PathError::FileNameNotFound(PathBuf::from("foo")));
+        assert_eq!(PathError::is_not_dir(Path::new("foo")), PathError::IsNotDir(PathBuf::from("foo")));
+        assert_eq!(PathError::is_not_file(Path::new("foo")), PathError::IsNotFile(PathBuf::from("foo")));
+        assert_eq!(PathError::is_not_file_or_symlink_to_file(Path::new("foo")), PathError::IsNotFileOrSymlinkToFile(PathBuf::from("foo")));
     }
 
     #[test]

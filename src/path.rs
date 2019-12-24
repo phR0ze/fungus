@@ -918,7 +918,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo").unwrap(), PathBuf::from("/bar"));
     /// ```
-    fn trim_prefix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf>;
+    fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> Result<PathBuf>;
 
     /// Returns the `Path` with well known protocol prefixes removed.
     ///
@@ -938,7 +938,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar").unwrap(), PathBuf::from("/foo"));
     /// ```
-    fn trim_suffix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf>;
+    fn trim_suffix<T: AsRef<Path>>(&self, value: T) -> Result<PathBuf>;
 }
 
 impl PathExt for Path {
@@ -1190,42 +1190,45 @@ impl PathExt for Path {
         Ok(self.components().drop(-1).as_path().to_path_buf())
     }
 
-    fn trim_prefix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf> {
-        let old = self.to_string()?;
-        let _value = value.as_ref();
-        if old.starts_with(_value) {
-            let new = &old[old.len() - _value.len()..];
-            return Ok(PathBuf::from(new));
+    fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> Result<PathBuf> {
+        let base = self.to_string()?;
+        let prefix = prefix.as_ref().to_string()?;
+        if base.starts_with(&prefix) {
+            if prefix.len() < base.len() {
+                let new = &base[prefix.len()..];
+                return Ok(PathBuf::from(new));
+            }
+            return Ok(PathBuf::new());
         }
-        Ok(PathBuf::from(old))
+        Ok(self.to_path_buf())
     }
 
     fn trim_protocol(&self) -> Result<PathBuf> {
-        let mut s = self.to_string()?;
-        if let Some(i) = s.find("//") {
-            let (prefix, suffix) = s.split_at(i + 2);
+        let mut base = self.to_string()?;
+        if let Some(i) = base.find("//") {
+            let (prefix, suffix) = base.split_at(i + 2);
             let lower = prefix.to_lowercase();
             let lower = lower.trim_start_matches("file://");
             let lower = lower.trim_start_matches("ftp://");
             let lower = lower.trim_start_matches("http://");
             let lower = lower.trim_start_matches("https://");
             if lower != "" {
-                s = format!("{}{}", prefix, suffix);
+                base = format!("{}{}", prefix, suffix);
             } else {
                 return Ok(PathBuf::from(suffix));
             }
         }
-        Ok(PathBuf::from(s))
+        Ok(PathBuf::from(base))
     }
 
-    fn trim_suffix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf> {
-        let old = self.to_string()?;
-        let _value = value.as_ref();
-        if old.ends_with(_value) {
-            let new = &old[..old.len() - _value.len()];
+    fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> Result<PathBuf> {
+        let base = self.to_string()?;
+        let suffix = suffix.as_ref().to_string()?;
+        if base.ends_with(&suffix) {
+            let new = &base[..base.len() - suffix.len()];
             return Ok(PathBuf::from(new));
         }
-        Ok(PathBuf::from(old))
+        Ok(self.to_path_buf())
     }
 }
 
@@ -1890,6 +1893,19 @@ mod tests {
     fn test_pathext_trim_first() {
         assert_eq!(PathBuf::new(), PathBuf::from("/").trim_first().unwrap());
         assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_prefix() {
+        // drop root
+        assert_eq!(PathBuf::from("/").trim_prefix("/").unwrap(), PathBuf::new());
+
+        // drop start
+        assert_eq!(Path::new("/foo/bar").trim_prefix("/foo").unwrap(), PathBuf::from("/bar"));
+
+        // no change
+        assert_eq!(PathBuf::from("/").trim_prefix("").unwrap(), PathBuf::from("/"));
+        assert_eq!(PathBuf::from("/foo").trim_prefix("blah").unwrap(), PathBuf::from("/foo"));
     }
 
     #[test]
