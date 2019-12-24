@@ -1,11 +1,11 @@
-`rs`
+fungus
 =======================================================
-[![Build Status](https://travis-ci.org/phR0ze/rs.svg?branch=master)](https://travis-ci.org/phR0ze/rs)
-[![Coverage Status](https://coveralls.io/repos/github/phR0ze/rs/badge.svg?branch=master)](https://coveralls.io/github/phR0ze/rs?branch=master)
+[![Build Status](https://travis-ci.org/phR0ze/fungus.svg?branch=master)](https://travis-ci.org/phR0ze/fungus)
+[![Coverage Status](https://coveralls.io/repos/github/phR0ze/fungus/badge.svg?branch=master)](https://coveralls.io/github/phR0ze/fungus?branch=master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![License: Apache2.0](https://img.shields.io/badge/License-APACHE-blue.svg)](https://opensource.org/licenses/MIT)
 
-General purpose reusable Rust utilities
+Rust utilities to reduce code verbosity
 
 * [Contribute](#contribute)
   * [Git-Hook Version Increment](#git-hook-version-increment)
@@ -19,7 +19,7 @@ or not the change fits with my goals/ideals for the project.
 Enable the githooks to have automatic version increments
 
 ```bash
-cd ~/Projects/rs
+cd ~/Projects/fungus
 git config core.hooksPath .githooks
 ```
 

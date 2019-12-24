@@ -1,33 +1,27 @@
-use std::io;
+mod file;
+mod path;
+mod users;
+pub use file::files::*;
+pub use path::paths::*;
 
-// Substitute stdout and stderr for testing
-pub struct Stdio<T: io::Write, U: io::Write> {
-    pub out: T,
-    pub err: U,
-}
-impl<T: io::Write, U: io::Write> Stdio<T, U> {
-    pub fn new(out: T, err: U) -> Self {
-        Stdio { out, err }
-    }
-}
-
-#[cfg(test)]
-mod tests {
+/// Import traits and other top level namespace entities.
+///
+/// ### Examples
+/// ```
+/// use std::env;
+/// use std::path::PathBuf;
+/// use sys::preamble::*;
+///
+/// let home = env::var("HOME").unwrap();
+/// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
+/// ```
+pub mod preamble {
     use super::*;
-    use std::io::{self, Write};
-
-    #[test]
-    fn test_stdio() {
-        // real
-        let mut stdio = Stdio::new(io::stdout(), io::stderr());
-        writeln!(stdio.out, "Hello out").unwrap();
-        writeln!(stdio.err, "Hello err").unwrap();
-
-        // buffer
-        let mut stdio = Stdio::new(Vec::new(), Vec::new());
-        writeln!(stdio.out, "Hello out").unwrap();
-        writeln!(stdio.err, "Hello err").unwrap();
-        assert_eq!(stdio.out, b"Hello out\n");
-        assert_eq!(stdio.err, b"Hello err\n");
-    }
+    pub use path::PathExt;
+    pub use std::env;
+    pub use std::ffi::OsStr;
+    pub use std::fs;
+    pub use std::os::unix::fs::PermissionsExt;
+    pub use std::path::{Component, Path, PathBuf};
+    pub use users::*;
 }

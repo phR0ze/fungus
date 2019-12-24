@@ -1,5 +1,3 @@
-use std::env;
-use std::path::PathBuf;
 use sys::preamble::*;
 
 #[test]
