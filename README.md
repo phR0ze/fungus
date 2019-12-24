@@ -1,4 +1,4 @@
-rs - <sub>general purpose reusable Rust utilities</sub>
+rs - <font size="+1">general purpose reusable Rust utilities</font>
 =======================================================
 [![Build Status](https://travis-ci.org/phR0ze/rs.svg?branch=master)](https://travis-ci.org/phR0ze/rs)
 [![Coverage Status](https://coveralls.io/repos/github/phR0ze/rs/badge.svg?branch=master)](https://coveralls.io/github/phR0ze/rs?branch=master)
