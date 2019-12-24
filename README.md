@@ -1,10 +1,11 @@
-rs - `general purpose reusable Rust utilities`
+`rs`
 =======================================================
 [![Build Status](https://travis-ci.org/phR0ze/rs.svg?branch=master)](https://travis-ci.org/phR0ze/rs)
 [![Coverage Status](https://coveralls.io/repos/github/phR0ze/rs/badge.svg?branch=master)](https://coveralls.io/github/phR0ze/rs?branch=master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![License: Apache2.0](https://img.shields.io/badge/License-APACHE-blue.svg)](https://opensource.org/licenses/MIT)
 
+General purpose reusable Rust utilities
 
 * [Contribute](#contribute)
   * [Git-Hook Version Increment](#git-hook-version-increment)
