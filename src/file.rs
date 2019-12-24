@@ -2,6 +2,7 @@ use std::fs;
 use std::fs::File;
 use std::os::unix;
 use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 use crate::core::*;
 use crate::path::PathExt;
@@ -19,26 +20,35 @@ use crate::path::PathExt;
 /// use fungus::presys::*;
 /// ```
 pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
-    let mut clone = true;
-    let mut dstpath = dst.as_ref().abs()?;
+    // let mut clone = true;
+    let dstabs = dst.as_ref().abs()?;
 
-    // Handle globbing
-    let sources = crate::path::glob(&src)?;
-    if sources.len() == 0 {
-        return Err(PathError::does_not_exist(&src).into());
-    }
+    // // Handle globbing
+    // let sources = crate::path::glob(&src)?;
+    // if sources.len() == 0 {
+    //     return Err(PathError::does_not_exist(&src).into());
+    // }
 
-    // Copy into destination vs clone as destination
-    if dstpath.is_dir() || sources.len() > 1 {
-        clone = false;
-    }
+    // // Copy into destination vs clone as destination
+    // if dstabs.is_dir() || sources.len() > 1 {
+    //     clone = false;
+    // }
 
-    // Recurse on sources
-    for path in &sources {
-        println!("{:?}", path);
-    }
+    // // Recurse on sources
+    // for srcroot in sources {
+    //     for entry in WalkDir::new(&srcroot).follow_links(false) {
+    //         let entry = entry?;
+    //         let srcpath = entry.path().abs()?;
 
-    Ok(dstpath)
+    //         // Set proper dst path
+    //         let dstpath = match clone {
+    //             true => dstabs.join(srcpath.trim_prefix(srcroot)?),
+    //             false => dstabs.join(srcpath.trim_prefix(srcroot)?),
+    //         }
+    //     }
+    // }
+
+    Ok(dstabs)
 }
 
 /// Copies a single file from src to dst, creating destination directories as needed and handling
@@ -229,132 +239,130 @@ pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     Ok(abs)
 }
 
-// // Unit tests
-// // -------------------------------------------------------------------------------------------------
-// #[cfg(test)]
-// mod tests {
-//     use std::path::PathBuf;
+// Unit tests
+// -------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use crate::presys::*;
 
-//     use crate::*;
+    // Reusable teset setup
+    struct Setup {
+        temp: PathBuf,
+    }
+    impl Setup {
+        fn init() -> Self {
+            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
+            sys::mkdir_p(&setup.temp).unwrap();
+            setup
+        }
+    }
 
-//     // Reusable teset setup
-//     struct Setup {
-//         temp: PathBuf,
-//     }
-//     impl Setup {
-//         fn init() -> Self {
-//             let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-//             crate::mkdir_p(&setup.temp).unwrap();
-//             setup
-//         }
-//     }
+    #[test]
+    fn test_copyfile() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("copyfile");
+        let file1 = tmpdir.join("file1");
+        let file2 = tmpdir.join("file2");
+        let link1 = tmpdir.join("link1");
+        let link2 = tmpdir.join("link2");
+        let file3 = tmpdir.join("dir1/file3");
 
-//     #[test]
-//     fn test_copyfile() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("copyfile");
-//         let file1 = tmpdir.join("file1");
-//         let file2 = tmpdir.join("file2");
-//         let link1 = tmpdir.join("link1");
-//         let link2 = tmpdir.join("link2");
-//         let file3 = tmpdir.join("dir1/file3");
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
 
-//         // setup
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
+        // copy to same dir
+        assert!(sys::touch(&file1).is_ok());
+        assert_eq!(file1.exists(), true);
+        assert_eq!(file2.exists(), false);
+        assert!(sys::copyfile(&file1, &file2).is_ok());
+        assert_eq!(file2.exists(), true);
+        assert_eq!(file1.mode().unwrap(), file2.mode().unwrap());
 
-//         // copy to same dir
-//         assert!(crate::touch(&file1).is_ok());
-//         assert_eq!(file1.exists(), true);
-//         assert_eq!(file2.exists(), false);
-//         assert!(crate::copyfile(&file1, &file2).is_ok());
-//         assert_eq!(file2.exists(), true);
-//         assert_eq!(file1.mode().unwrap(), file2.mode().unwrap());
+        // copy a link
+        assert!(sys::symlink(&link1, &file1).is_ok());
+        assert_eq!(link2.exists(), false);
+        assert!(sys::copyfile(&link1, &link2).is_ok());
+        assert_eq!(link2.exists(), true);
 
-//         // copy a link
-//         assert!(crate::symlink(&link1, &file1).is_ok());
-//         assert_eq!(link2.exists(), false);
-//         assert!(crate::copyfile(&link1, &link2).is_ok());
-//         assert_eq!(link2.exists(), true);
+        // copy to dir the doesn't exist
+        assert_eq!(file3.exists(), false);
+        assert!(sys::copyfile(&file1, &file3).is_ok());
+        assert_eq!(file3.exists(), true);
+        assert_eq!(tmpdir.mode().unwrap(), file3.dir().unwrap().mode().unwrap());
+        assert_eq!(file1.mode().unwrap(), file3.mode().unwrap());
 
-//         // copy to dir the doesn't exist
-//         assert_eq!(file3.exists(), false);
-//         assert!(crate::copyfile(&file1, &file3).is_ok());
-//         assert_eq!(file3.exists(), true);
-//         assert_eq!(tmpdir.mode().unwrap(), file3.dir().unwrap().mode().unwrap());
-//         assert_eq!(file1.mode().unwrap(), file3.mode().unwrap());
+        // empty destination path
+        assert!(sys::copyfile(&file1, "").is_err());
 
-//         // empty destination path
-//         assert!(crate::copyfile(&file1, "").is_err());
+        // empty source path
+        assert!(sys::copyfile("", &file3).is_err());
 
-//         // empty source path
-//         assert!(crate::copyfile("", &file3).is_err());
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
 
-//         // cleanup
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
+    #[test]
+    fn test_remove() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("remove_dir");
+        let tmpfile = setup.temp.join("remove_file");
 
-//     #[test]
-//     fn test_remove() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("remove_dir");
-//         let tmpfile = setup.temp.join("remove_file");
+        // Remove empty directory
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), true);
+        assert!(sys::remove(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
 
-//         // Remove empty directory
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), true);
-//         assert!(crate::remove(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
+        // Remove file
+        assert!(sys::touch(&tmpfile).is_ok());
+        assert_eq!(tmpfile.exists(), true);
+        assert!(sys::remove(&tmpfile).is_ok());
+        assert_eq!(tmpfile.exists(), false);
+    }
 
-//         // Remove file
-//         assert!(crate::touch(&tmpfile).is_ok());
-//         assert_eq!(tmpfile.exists(), true);
-//         assert!(crate::remove(&tmpfile).is_ok());
-//         assert_eq!(tmpfile.exists(), false);
-//     }
+    #[test]
+    fn test_remove_all() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("remove_all");
 
-//     #[test]
-//     fn test_remove_all() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("remove_all");
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), true);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
 
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), true);
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
+    #[test]
+    fn test_symlink() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("symlink");
+        let file1 = tmpdir.join("file1");
+        let link1 = tmpdir.join("link1");
+        assert!(sys::remove_all(&tmpdir).is_ok());
 
-//     #[test]
-//     fn test_symlink() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("symlink");
-//         let file1 = tmpdir.join("file1");
-//         let link1 = tmpdir.join("link1");
-//         assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&file1).is_ok());
+        assert!(sys::symlink(&link1, &file1).is_ok());
+        assert_eq!(link1.exists(), true);
 
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&file1).is_ok());
-//         assert!(crate::symlink(&link1, &file1).is_ok());
-//         assert_eq!(link1.exists(), true);
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
 
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
+    #[test]
+    fn test_touch() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("touch");
+        let tmpfile = tmpdir.join("file1");
+        assert!(sys::remove_all(&tmpdir).is_ok());
 
-//     #[test]
-//     fn test_touch() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("touch");
-//         let tmpfile = tmpdir.join("file1");
-//         assert!(crate::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&tmpfile).is_ok());
+        assert_eq!(tmpfile.exists(), true);
 
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&tmpfile).is_ok());
-//         assert_eq!(tmpfile.exists(), true);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
-// }
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+}

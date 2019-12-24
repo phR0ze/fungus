@@ -10,20 +10,18 @@ pub fn home() -> Result<PathBuf> {
     Ok(dir)
 }
 
-// // Unit tests
-// // -------------------------------------------------------------------------------------------------
-// #[cfg(test)]
-// mod tests {
-//     use std::env;
-//     use std::path::PathBuf;
+// Unit tests
+// -------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use crate::presys::*;
+    use crate::user;
 
-//     use crate::*;
-
-//     #[test]
-//     fn test_user_home() {
-//         let home_str = env::var("HOME").unwrap();
-//         let home_path = PathBuf::from(home_str);
-//         let home_dir = home_path.parent().unwrap();
-//         assert_eq!(home_dir.to_path_buf(), user::home().unwrap().dir().unwrap());
-//     }
-// }
+    #[test]
+    fn test_user_home() {
+        let home_str = env::var("HOME").unwrap();
+        let home_path = PathBuf::from(home_str);
+        let home_dir = home_path.parent().unwrap();
+        assert_eq!(home_dir.to_path_buf(), user::home().unwrap().dir().unwrap());
+    }
+}

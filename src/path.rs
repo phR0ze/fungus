@@ -876,7 +876,7 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
+    /// assert_eq!(PathBuf::from("/foo").to_string().unwrap(), "/foo".to_string());
     /// ```
     fn to_string(&self) -> Result<String>;
 
@@ -886,7 +886,7 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
+    /// assert_eq!(PathBuf::from("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
     /// ```
     fn trim_ext(&self) -> Result<PathBuf>;
 
@@ -896,7 +896,7 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
+    /// assert_eq!(PathBuf::from("/foo").trim_first().unwrap(), PathBuf::from("foo"));
     /// ```
     fn trim_first(&self) -> Result<PathBuf>;
 
@@ -906,9 +906,19 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
+    /// assert_eq!(PathBuf::from("/foo").trim_last().unwrap(), PathBuf::from("/"));
     /// ```
     fn trim_last(&self) -> Result<PathBuf>;
+
+    /// Returns the `Path` with the given prefix trimmed off else the original `Path`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::presys::*;
+    ///
+    /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo").unwrap(), PathBuf::from("/bar"));
+    /// ```
+    fn trim_prefix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf>;
 
     /// Returns the `Path` with well known protocol prefixes removed.
     ///
@@ -916,17 +926,17 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol().unwrap());
+    /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol().unwrap(), PathBuf::from("foo"));
     /// ```
     fn trim_protocol(&self) -> Result<PathBuf>;
 
-    /// Returns a string slice with the given suffix trimmed off else the original string.
+    /// Returns the `Path` with the given suffix trimmed off else the original `Path`.
     ///
     /// ### Examples
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/bar").trim_suffix("/bar").unwrap());
+    /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar").unwrap(), PathBuf::from("/foo"));
     /// ```
     fn trim_suffix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf>;
 }
@@ -1180,6 +1190,16 @@ impl PathExt for Path {
         Ok(self.components().drop(-1).as_path().to_path_buf())
     }
 
+    fn trim_prefix<T: AsRef<str>>(&self, value: T) -> Result<PathBuf> {
+        let old = self.to_string()?;
+        let _value = value.as_ref();
+        if old.starts_with(_value) {
+            let new = &old[old.len() - _value.len()..];
+            return Ok(PathBuf::from(new));
+        }
+        Ok(PathBuf::from(old))
+    }
+
     fn trim_protocol(&self) -> Result<PathBuf> {
         let mut s = self.to_string()?;
         if let Some(i) = s.find("//") {
@@ -1209,707 +1229,707 @@ impl PathExt for Path {
     }
 }
 
-// // Unit tests
-// // -------------------------------------------------------------------------------------------------
-// #[cfg(test)]
-// mod tests {
-//     use std::env;
-//     use std::ffi::OsStr;
-//     use std::path::{Component, PathBuf};
-
-//     use crate::*;
-//     use fungus::core::*;
-
-//     // Reusable teset setup
-//     struct Setup {
-//         temp: PathBuf,
-//     }
-//     impl Setup {
-//         fn init() -> Self {
-//             let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-//             crate::mkdir_p(&setup.temp).unwrap();
-//             setup
-//         }
-//     }
-
-//     #[test]
-//     fn test_abs() {
-//         let home = PathBuf::from(env::var("HOME").unwrap());
-//         let cwd = env::current_dir().unwrap();
-//         let prev = cwd.dir().unwrap();
-
-//         // expand previous directory and drop trailing slashes
-//         assert_eq!(crate::abs("..//").unwrap(), prev);
-//         assert_eq!(crate::abs("../").unwrap(), prev);
-//         assert_eq!(crate::abs("..").unwrap(), prev);
-
-//         // expand current directory and drop trailing slashes
-//         assert_eq!(crate::abs(".//").unwrap(), cwd);
-//         assert_eq!(crate::abs("./").unwrap(), cwd);
-//         assert_eq!(crate::abs(".").unwrap(), cwd);
-
-//         // home dir
-//         assert_eq!(crate::abs("~").unwrap(), home);
-//         assert_eq!(crate::abs("~/").unwrap(), home);
-
-//         // expand relative directory
-//         assert_eq!(crate::abs("foo").unwrap(), cwd.join("foo"));
-
-//         // expand home path
-//         assert_eq!(crate::abs("~/foo").unwrap(), home.join("foo"));
-
-//         // More complicated
-//         assert_eq!(crate::abs("~/foo/bar/../.").unwrap(), home.join("foo"));
-//         assert_eq!(crate::abs("~/foo/bar/../").unwrap(), home.join("foo"));
-//         assert_eq!(crate::abs("~/foo/bar/../blah").unwrap(), home.join("foo/blah"));
-//     }
-
-//     #[test]
-//     fn test_abs_from() {
-//         let home = PathBuf::from("~").abs().unwrap();
-
-//         // share the same directory
-//         assert_eq!(PathBuf::from("foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
-//         assert_eq!(PathBuf::from("./foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
-
-//         // share parent directory
-//         assert_eq!(PathBuf::from("../foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("foo2"));
-//         assert_eq!(PathBuf::from("bar2/foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("bar1/bar2/foo2"));
-//         assert_eq!(PathBuf::from("../../foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.trim_last().unwrap().join("foo2"));
-
-//         // share grandparent directory
-//         assert_eq!(PathBuf::from("blah1/bar2/foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("bar1/blah1/bar2/foo2"));
-//     }
-
-//     #[test]
-//     fn test_all_dirs() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("all_dirs");
-//         let tmpdir1 = tmpdir.join("dir1");
-//         let tmpdir2 = tmpdir1.join("dir2");
-//         let tmpfile1 = tmpdir.join("file1");
-//         let tmpfile2 = tmpdir.join("file2");
-
-//         // Create the dirs and files
-//         assert!(crate::mkdir_p(&tmpdir1).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir2).is_ok());
-//         assert_eq!(tmpdir.is_dir(), true);
-//         assert_eq!(tmpdir.is_file(), false);
-//         assert_eq!(tmpdir1.is_dir(), true);
-//         assert_eq!(tmpdir2.is_dir(), true);
-//         assert!(crate::touch(&tmpfile1).is_ok());
-//         assert_eq!(tmpfile1.is_dir(), false);
-//         assert_eq!(tmpfile1.is_file(), true);
-//         assert!(crate::touch(&tmpfile2).is_ok());
-//         assert_eq!(tmpfile2.is_dir(), false);
-//         assert_eq!(tmpfile2.is_file(), true);
-
-//         // Validate the the all_dirs function gives me the correct dirs in order
-//         let dirs = crate::all_dirs(&tmpdir).unwrap();
-//         assert_iter_eq(dirs, vec![tmpdir1, tmpdir2]);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
-
-//     #[test]
-//     fn test_all_files() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("all_files");
-//         let tmpdir1 = tmpdir.join("dir1");
-//         let tmpdir2 = tmpdir1.join("dir2");
-//         let tmpfile1 = tmpdir1.join("file1");
-//         let tmpfile2 = tmpdir2.join("file2");
-
-//         // Create the dirs and files
-//         assert!(crate::mkdir_p(&tmpdir1).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir2).is_ok());
-//         assert_eq!(tmpdir.is_dir(), true);
-//         assert_eq!(tmpdir.is_file(), false);
-//         assert_eq!(tmpdir1.is_dir(), true);
-//         assert_eq!(tmpdir2.is_dir(), true);
-//         assert!(crate::touch(&tmpfile1).is_ok());
-//         assert_eq!(tmpfile1.is_dir(), false);
-//         assert_eq!(tmpfile1.is_file(), true);
-//         assert!(crate::touch(&tmpfile2).is_ok());
-//         assert_eq!(tmpfile2.is_dir(), false);
-//         assert_eq!(tmpfile2.is_file(), true);
-
-//         // Validate the the all_files function gives me the correct files in order
-//         let files = crate::all_files(&tmpdir).unwrap();
-//         assert_iter_eq(files, vec![tmpfile2, tmpfile1]);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
-
-//     #[test]
-//     fn test_all_paths() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("all_paths");
-//         let tmpdir1 = tmpdir.join("dir1");
-//         let tmpdir2 = tmpdir1.join("dir2");
-//         let tmpfile1 = tmpdir1.join("file1");
-//         let tmpfile2 = tmpdir2.join("file2");
-
-//         // Create the dirs and files
-//         assert!(crate::mkdir_p(&tmpdir1).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir2).is_ok());
-//         assert_eq!(tmpdir.is_dir(), true);
-//         assert_eq!(tmpdir.is_file(), false);
-//         assert_eq!(tmpdir1.is_dir(), true);
-//         assert_eq!(tmpdir2.is_dir(), true);
-//         assert!(crate::touch(&tmpfile1).is_ok());
-//         assert_eq!(tmpfile1.is_dir(), false);
-//         assert_eq!(tmpfile1.is_file(), true);
-//         assert!(crate::touch(&tmpfile2).is_ok());
-//         assert_eq!(tmpfile2.is_dir(), false);
-//         assert_eq!(tmpfile2.is_file(), true);
-
-//         // Validate the the all_paths function gives me the correct paths in order
-//         let paths = crate::all_paths(&tmpdir).unwrap();
-//         assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile2, tmpfile1]);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
-
-//     #[test]
-//     fn test_dirs() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("dirs");
-//         let tmpdir1 = tmpdir.join("dir1");
-//         let tmpdir2 = tmpdir.join("dir2");
-//         let tmpfile1 = tmpdir.join("file1");
-//         let tmpfile2 = tmpdir.join("file2");
-
-//         // Create the dirs and files
-//         assert!(crate::mkdir_p(&tmpdir1).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir2).is_ok());
-//         assert_eq!(tmpdir.is_dir(), true);
-//         assert_eq!(tmpdir.is_file(), false);
-//         assert_eq!(tmpdir1.is_dir(), true);
-//         assert_eq!(tmpdir2.is_dir(), true);
-//         assert!(crate::touch(&tmpfile1).is_ok());
-//         assert_eq!(tmpfile1.is_dir(), false);
-//         assert_eq!(tmpfile1.is_file(), true);
-//         assert!(crate::touch(&tmpfile2).is_ok());
-//         assert_eq!(tmpfile2.is_dir(), false);
-//         assert_eq!(tmpfile2.is_file(), true);
-
-//         // Validate the the dirs function gives me the correct dirs without the files and in order
-//         let dirs = crate::dirs(&tmpdir).unwrap();
-//         assert_iter_eq(dirs, vec![tmpdir1, tmpdir2]);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
-
-//     #[test]
-//     fn test_exec_dir() {
-//         let cwd = env::current_dir().unwrap();
-//         let dir = cwd.parent().unwrap().join("target/debug/deps");
-//         assert_eq!(dir, crate::exec_dir().unwrap());
-//     }
-
-//     #[test]
-//     fn test_exec_name() {
-//         let exec_path = env::current_exe().unwrap();
-//         let name = exec_path.base().unwrap();
-//         assert_eq!(name, crate::exec_name().unwrap());
-//     }
-
-//     #[test]
-//     fn test_files() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("files");
-//         let tmpdir1 = tmpdir.join("dir1");
-//         let tmpdir2 = tmpdir.join("dir2");
-//         let tmpfile1 = tmpdir.join("file1");
-//         let tmpfile2 = tmpdir.join("file2");
-
-//         // Create the dirs and files
-//         assert!(crate::mkdir_p(&tmpdir1).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir2).is_ok());
-//         assert_eq!(tmpdir.is_dir(), true);
-//         assert_eq!(tmpdir.is_file(), false);
-//         assert_eq!(tmpdir1.is_dir(), true);
-//         assert_eq!(tmpdir2.is_dir(), true);
-//         assert!(crate::touch(&tmpfile1).is_ok());
-//         assert_eq!(tmpfile1.is_dir(), false);
-//         assert_eq!(tmpfile1.is_file(), true);
-//         assert!(crate::touch(&tmpfile2).is_ok());
-//         assert_eq!(tmpfile2.is_dir(), false);
-//         assert_eq!(tmpfile2.is_file(), true);
-
-//         // Validate the the files function gives me the correct files without the dirs and in order
-//         let files = crate::files(&tmpdir).unwrap();
-//         assert_iter_eq(files, vec![tmpfile1, tmpfile2]);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
-
-//     #[test]
-//     fn test_is_dir() {
-//         let setup = Setup::init();
-//         assert_eq!(crate::is_dir("."), true);
-//         assert_eq!(crate::is_dir(setup.temp), true);
-//         assert_eq!(crate::is_dir("/foobar"), false);
-//     }
-
-//     #[test]
-//     fn test_is_file() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("is_file");
-//         let tmpfile = tmpdir.join("file1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&tmpfile).is_ok());
-//         assert_eq!(tmpfile.is_file(), true);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     #[test]
-//     fn test_is_symlink() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("is_symlink");
-//         let file1 = tmpdir.join("file1");
-//         let link1 = tmpdir.join("link1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&file1).is_ok());
-//         assert!(crate::symlink(&link1, &file1).is_ok());
-//         assert_eq!(crate::is_symlink(link1), true);
-
-//         // cleanup
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     #[test]
-//     fn test_is_symlink_dir() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("is_symlink_dir");
-//         let dir1 = tmpdir.join("dir1");
-//         let link1 = tmpdir.join("link1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&dir1).is_ok());
-//         assert!(crate::symlink(&link1, &dir1).is_ok());
-//         assert_eq!(crate::is_symlink_dir(&link1), true);
-//         assert_eq!(crate::is_symlink_file(&link1), false);
-
-//         // cleanup
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     #[test]
-//     fn test_is_symlink_file() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("is_symlink_file");
-//         let file1 = tmpdir.join("file1");
-//         let link1 = tmpdir.join("link1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&file1).is_ok());
-//         assert!(crate::symlink(&link1, &file1).is_ok());
-//         assert_eq!(crate::is_symlink_file(&link1), true);
-//         assert_eq!(crate::is_symlink_dir(&link1), false);
-
-//         // cleanup
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     #[test]
-//     fn test_metadata() {
-//         let setup = Setup::init();
-//         let meta = crate::metadata(setup.temp).unwrap();
-//         assert_eq!(meta.is_dir(), true);
-//     }
-
-//     #[test]
-//     fn test_glob() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("glob");
-//         let tmpdir1 = tmpdir.join("dir1");
-//         let tmpdir2 = tmpdir.join("dir2");
-//         let tmpfile1 = tmpdir.join("file1");
-//         let tmpfile2 = tmpdir.join("file2");
-
-//         // Create the dirs and files
-//         assert!(crate::mkdir_p(&tmpdir1).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir2).is_ok());
-//         assert_eq!(tmpdir.is_dir(), true);
-//         assert_eq!(tmpdir.is_file(), false);
-//         assert_eq!(tmpdir1.is_dir(), true);
-//         assert_eq!(tmpdir2.is_dir(), true);
-//         assert!(crate::touch(&tmpfile1).is_ok());
-//         assert_eq!(tmpfile1.is_dir(), false);
-//         assert_eq!(tmpfile1.is_file(), true);
-//         assert!(crate::touch(&tmpfile2).is_ok());
-//         assert_eq!(tmpfile2.is_dir(), false);
-//         assert_eq!(tmpfile2.is_file(), true);
-
-//         // Validate the the files function gives me the correct files without the dirs and in order
-//         let paths = crate::glob(tmpdir.join("*")).unwrap();
-//         assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile1, tmpfile2]);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
-
-//     #[test]
-//     fn test_paths() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("paths");
-//         let tmpdir1 = tmpdir.join("dir1");
-//         let tmpdir2 = tmpdir.join("dir2");
-//         let tmpfile1 = tmpdir.join("file1");
-//         let tmpfile2 = tmpdir.join("file2");
-
-//         // Create the dirs and files
-//         assert!(crate::mkdir_p(&tmpdir1).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir2).is_ok());
-//         assert_eq!(tmpdir.is_dir(), true);
-//         assert_eq!(tmpdir.is_file(), false);
-//         assert_eq!(tmpdir1.is_dir(), true);
-//         assert_eq!(tmpdir2.is_dir(), true);
-//         assert!(crate::touch(&tmpfile1).is_ok());
-//         assert_eq!(tmpfile1.is_dir(), false);
-//         assert_eq!(tmpfile1.is_file(), true);
-//         assert!(crate::touch(&tmpfile2).is_ok());
-//         assert_eq!(tmpfile2.is_dir(), false);
-//         assert_eq!(tmpfile2.is_file(), true);
-
-//         // Validate the the paths function gives me all the dirs/files in order
-//         let paths = crate::paths(&tmpdir).unwrap();
-//         assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile1, tmpfile2]);
-
-//         // Clean up
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert_eq!(tmpdir.exists(), false);
-//     }
-
-//     #[test]
-//     fn test_readlink() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("readlink");
-//         let file1 = tmpdir.join("file1");
-//         let link1 = tmpdir.join("link1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&file1).is_ok());
-//         assert!(crate::symlink(&link1, &file1).is_ok());
-//         assert_eq!(crate::is_symlink_file(&link1), true);
-//         assert_eq!(crate::is_symlink_dir(&link1), false);
-//         assert_eq!(crate::readlink(&link1).unwrap(), file1);
-
-//         // cleanup
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     // Path tests
-//     // ---------------------------------------------------------------------------------------------
-
-//     #[test]
-//     fn test_pathext_chmod() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("pathbuf_chmod");
-//         let file1 = tmpdir.join("file1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&file1).is_ok());
-//         assert_eq!(file1.mode().unwrap(), 0o100644);
-//         assert!(file1.chmod(0o555).is_ok());
-//         assert_eq!(file1.mode().unwrap(), 0o100555);
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     #[test]
-//     fn test_pathext_clean() {
-//         let tests = vec![
-//             // Root
-//             ("/", "/"),
-//             // Remove trailing slashes
-//             ("/", "//"),
-//             ("/", "///"),
-//             (".", ".//"),
-//             // Remove duplicates and handle rooted parent ref
-//             ("/", "//.."),
-//             ("..", "..//"),
-//             ("/", "/..//"),
-//             ("foo/bar/blah", "foo//bar///blah"),
-//             ("/foo/bar/blah", "/foo//bar///blah"),
-//             // Unneeded current dirs and duplicates
-//             ("/", "/.//./"),
-//             (".", "././/./"),
-//             (".", "./"),
-//             ("/", "/./"),
-//             ("foo", "./foo"),
-//             ("foo/bar", "./foo/./bar"),
-//             ("/foo/bar", "/foo/./bar"),
-//             ("foo/bar", "foo/bar/."),
-//             // Handle parent references
-//             ("/", "/.."),
-//             ("/foo", "/../foo"),
-//             (".", "foo/.."),
-//             ("../foo", "../foo"),
-//             ("/bar", "/foo/../bar"),
-//             ("foo", "foo/bar/.."),
-//             ("bar", "foo/../bar"),
-//             ("/bar", "/foo/../bar"),
-//             (".", "foo/bar/../../"),
-//             ("..", "foo/bar/../../.."),
-//             ("/", "/foo/bar/../../.."),
-//             ("/", "/foo/bar/../../../.."),
-//             ("../..", "foo/bar/../../../.."),
-//             ("blah/bar", "foo/bar/../../blah/bar"),
-//             ("blah", "foo/bar/../../blah/bar/.."),
-//             ("../foo", "../foo"),
-//             ("../foo", "../foo/"),
-//             ("../foo/bar", "../foo/bar"),
-//             ("..", "../foo/.."),
-//             ("~/foo", "~/foo"),
-//         ];
-//         for test in tests {
-//             assert_eq!(PathBuf::from(test.0), PathBuf::from(test.1).clean().unwrap());
-//         }
-//     }
-
-//     #[test]
-//     fn test_pathext_dirname() {
-//         assert_eq!(PathBuf::from("/").as_path(), PathBuf::from("/foo/").dir().unwrap());
-//         assert_eq!(PathBuf::from("/foo").as_path(), PathBuf::from("/foo/bar").dir().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_empty() {
-//         // empty string
-//         assert_eq!(PathBuf::from("").empty(), true);
-
-//         // false
-//         assert_eq!(PathBuf::from("/foo").empty(), false);
-//     }
-
-//     #[test]
-//     fn test_pathext_exists() {
-//         let setup = Setup::init();
-//         assert_eq!(setup.temp.exists(), true);
-//     }
-
-//     #[test]
-//     fn test_pathext_expand() {
-//         let home = PathBuf::from(env::var("HOME").unwrap());
-
-//         // happy path
-//         assert_eq!(PathBuf::from("~/").expand().unwrap(), home);
-//         assert_eq!(PathBuf::from("~").expand().unwrap(), home);
-
-//         // More than one ~
-//         assert!(PathBuf::from("~/foo~").expand().is_err());
-
-//         // invalid path
-//         assert!(PathBuf::from("~foo").expand().is_err());
-
-//         // empty path - nothing to do but no error
-//         assert_eq!(PathBuf::from(""), PathBuf::from("").expand().unwrap());
-
-//         // can't safely do this without locking as test are run in parallel
-//         // // home not set
-//         // {
-//         //     env::remove_var("HOME");
-//         //     assert!(PathBuf::from("~/foo").expand().is_err());
-//         //     env::set_var("HOME", &home);
-//         // }
-//     }
-
-//     #[test]
-//     fn test_pathext_first() {
-//         assert_eq!(Component::RootDir, PathBuf::from("/").first().unwrap());
-//         assert_eq!(Component::CurDir, PathBuf::from(".").first().unwrap());
-//         assert_eq!(Component::ParentDir, PathBuf::from("..").first().unwrap());
-//         assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").first().unwrap());
-//         assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo/bar").first().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_has() {
-//         let path = PathBuf::from("/foo/bar");
-//         assert!(path.has("foo"));
-//         assert!(path.has("/foo"));
-//         assert!(path.has("/"));
-//         assert!(path.has("/ba"));
-//         assert!(!path.has("bob"));
-//     }
-
-//     #[test]
-//     fn test_pathext_has_prefix() {
-//         let path = PathBuf::from("/foo/bar");
-//         assert_eq!(path.has_prefix("/foo"), true);
-//         assert_eq!(path.has_prefix("foo"), false);
-//     }
-
-//     #[test]
-//     fn test_pathext_has_suffix() {
-//         let path = PathBuf::from("/foo/bar");
-//         assert_eq!(path.has_suffix("/foo"), false);
-//         assert_eq!(path.has_suffix("/bar"), true);
-//     }
-
-//     #[test]
-//     fn test_pathext_last() {
-//         assert_eq!(Component::RootDir, PathBuf::from("/").last().unwrap());
-//         assert_eq!(Component::CurDir, PathBuf::from(".").last().unwrap());
-//         assert_eq!(Component::ParentDir, PathBuf::from("..").last().unwrap());
-//         assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").last().unwrap());
-//         assert_eq!(Component::Normal(OsStr::new("bar")), PathBuf::from("/foo/bar").last().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_name() {
-//         assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_meta() {
-//         let setup = Setup::init();
-//         let meta = setup.temp.metadata().unwrap();
-//         assert_eq!(meta.is_dir(), true);
-//     }
-
-//     #[test]
-//     fn test_pathext_mode() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("pathbuf_mode");
-//         let file1 = tmpdir.join("file1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&file1).is_ok());
-//         assert_eq!(file1.mode().unwrap(), 0o100644);
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     #[test]
-//     fn test_pathext_perms() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("pathbuf_perms");
-//         let file1 = tmpdir.join("file1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&file1).is_ok());
-//         assert_eq!(file1.perms().unwrap().mode(), 0o100644);
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     #[test]
-//     fn test_pathext_setperms() {
-//         let setup = Setup::init();
-//         let tmpdir = setup.temp.join("pathbuf_setperms");
-//         let file1 = tmpdir.join("file1");
-
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//         assert!(crate::mkdir_p(&tmpdir).is_ok());
-//         assert!(crate::touch(&file1).is_ok());
-//         let mut perms = file1.perms().unwrap();
-//         assert_eq!(perms.mode(), 0o100644);
-//         perms.set_mode(0o555);
-//         assert!(file1.setperms(perms).is_ok());
-//         assert_eq!(file1.mode().unwrap(), 0o100555);
-//         assert!(crate::remove_all(&tmpdir).is_ok());
-//     }
-
-//     #[test]
-//     fn test_pathext_relative() {
-//         // share same directory
-//         assert_eq!(PathBuf::from("bar1").relative_from("bar2").unwrap(), PathBuf::from("bar1"));
-//         assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
-//         assert_eq!(PathBuf::from("~/foo/bar1").relative_from("~/foo/bar2").unwrap(), PathBuf::from("bar1"));
-//         assert_eq!(PathBuf::from("../foo/bar1").relative_from("../foo/bar2").unwrap(), PathBuf::from("bar1"));
-
-//         // share parent directory
-//         assert_eq!(PathBuf::from("foo1/bar1").relative_from("foo2/bar2").unwrap(), PathBuf::from("../foo1/bar1"));
-
-//         // share grandparent directory
-//         assert_eq!(PathBuf::from("blah1/foo1/bar1").relative_from("blah2/foo2/bar2").unwrap(), PathBuf::from("../../blah1/foo1/bar1"));
-//     }
-
-//     #[test]
-//     fn test_pathext_to_string() {
-//         assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_trim_ext() {
-//         assert_eq!(PathBuf::new(), PathBuf::from("").trim_ext().unwrap());
-//         assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
-//         assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar.exe").trim_ext().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_trim_last() {
-//         assert_eq!(PathBuf::new(), PathBuf::from("/").trim_last().unwrap());
-//         assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_trim_first() {
-//         assert_eq!(PathBuf::new(), PathBuf::from("/").trim_first().unwrap());
-//         assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_trim_protocol() {
-//         // no change
-//         assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_protocol().unwrap());
-
-//         // file://
-//         assert_eq!(PathBuf::from("/foo"), PathBuf::from("file:///foo").trim_protocol().unwrap());
-
-//         // ftp://
-//         assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol().unwrap());
-
-//         // http://
-//         assert_eq!(PathBuf::from("foo"), PathBuf::from("http://foo").trim_protocol().unwrap());
-
-//         // https://
-//         assert_eq!(PathBuf::from("foo"), PathBuf::from("https://foo").trim_protocol().unwrap());
-
-//         // Check case is being considered
-//         assert_eq!(PathBuf::from("Foo"), PathBuf::from("HTTPS://Foo").trim_protocol().unwrap());
-//         assert_eq!(PathBuf::from("Foo"), PathBuf::from("Https://Foo").trim_protocol().unwrap());
-//         assert_eq!(PathBuf::from("FoO"), PathBuf::from("HttpS://FoO").trim_protocol().unwrap());
-
-//         // Check non protocol matches are ignored
-//         assert_eq!(PathBuf::from("foo"), PathBuf::from("foo").trim_protocol().unwrap());
-//         assert_eq!(PathBuf::from("foo/bar"), PathBuf::from("foo/bar").trim_protocol().unwrap());
-//         assert_eq!(PathBuf::from("foo//bar"), PathBuf::from("foo//bar").trim_protocol().unwrap());
-//         assert_eq!(PathBuf::from("ntp:://foo"), PathBuf::from("ntp:://foo").trim_protocol().unwrap());
-//     }
-
-//     #[test]
-//     fn test_pathext_trim_suffix() {
-//         // drop root
-//         assert_eq!(PathBuf::new(), PathBuf::from("/").trim_suffix("/").unwrap());
-
-//         // drop end
-//         assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/").trim_suffix("/").unwrap());
-
-//         // no change
-//         assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_suffix("/").unwrap());
-//     }
-// }
+// Unit tests
+// -------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use crate::core::*;
+    use crate::presys::*;
+
+    // Reusable teset setup
+    struct Setup {
+        temp: PathBuf,
+    }
+    impl Setup {
+        fn init() -> Self {
+            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
+            sys::mkdir_p(&setup.temp).unwrap();
+            setup
+        }
+    }
+
+    #[test]
+    fn test_abs() {
+        let home = PathBuf::from(env::var("HOME").unwrap());
+        let cwd = env::current_dir().unwrap();
+        let prev = cwd.dir().unwrap();
+
+        // expand previous directory and drop trailing slashes
+        assert_eq!(sys::abs("..//").unwrap(), prev);
+        assert_eq!(sys::abs("../").unwrap(), prev);
+        assert_eq!(sys::abs("..").unwrap(), prev);
+
+        // expand current directory and drop trailing slashes
+        assert_eq!(sys::abs(".//").unwrap(), cwd);
+        assert_eq!(sys::abs("./").unwrap(), cwd);
+        assert_eq!(sys::abs(".").unwrap(), cwd);
+
+        // home dir
+        assert_eq!(sys::abs("~").unwrap(), home);
+        assert_eq!(sys::abs("~/").unwrap(), home);
+
+        // expand relative directory
+        assert_eq!(sys::abs("foo").unwrap(), cwd.join("foo"));
+
+        // expand home path
+        assert_eq!(sys::abs("~/foo").unwrap(), home.join("foo"));
+
+        // More complicated
+        assert_eq!(sys::abs("~/foo/bar/../.").unwrap(), home.join("foo"));
+        assert_eq!(sys::abs("~/foo/bar/../").unwrap(), home.join("foo"));
+        assert_eq!(sys::abs("~/foo/bar/../blah").unwrap(), home.join("foo/blah"));
+    }
+
+    #[test]
+    fn test_abs_from() {
+        let home = PathBuf::from("~").abs().unwrap();
+
+        // share the same directory
+        assert_eq!(PathBuf::from("foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+        assert_eq!(PathBuf::from("./foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+
+        // share parent directory
+        assert_eq!(PathBuf::from("../foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+        assert_eq!(PathBuf::from("bar2/foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("bar1/bar2/foo2"));
+        assert_eq!(PathBuf::from("../../foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.trim_last().unwrap().join("foo2"));
+
+        // share grandparent directory
+        assert_eq!(PathBuf::from("blah1/bar2/foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("bar1/blah1/bar2/foo2"));
+    }
+
+    #[test]
+    fn test_all_dirs() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("all_dirs");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir1.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(sys::mkdir_p(&tmpdir1).is_ok());
+        assert!(sys::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(sys::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(sys::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the all_dirs function gives me the correct dirs in order
+        let dirs = sys::all_dirs(&tmpdir).unwrap();
+        assert_iter_eq(dirs, vec![tmpdir1, tmpdir2]);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_all_files() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("all_files");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir1.join("dir2");
+        let tmpfile1 = tmpdir1.join("file1");
+        let tmpfile2 = tmpdir2.join("file2");
+
+        // Create the dirs and files
+        assert!(sys::mkdir_p(&tmpdir1).is_ok());
+        assert!(sys::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(sys::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(sys::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the all_files function gives me the correct files in order
+        let files = sys::all_files(&tmpdir).unwrap();
+        assert_iter_eq(files, vec![tmpfile2, tmpfile1]);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_all_paths() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("all_paths");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir1.join("dir2");
+        let tmpfile1 = tmpdir1.join("file1");
+        let tmpfile2 = tmpdir2.join("file2");
+
+        // Create the dirs and files
+        assert!(sys::mkdir_p(&tmpdir1).is_ok());
+        assert!(sys::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(sys::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(sys::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the all_paths function gives me the correct paths in order
+        let paths = sys::all_paths(&tmpdir).unwrap();
+        assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile2, tmpfile1]);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_dirs() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("dirs");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(sys::mkdir_p(&tmpdir1).is_ok());
+        assert!(sys::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(sys::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(sys::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the dirs function gives me the correct dirs without the files and in order
+        let dirs = sys::dirs(&tmpdir).unwrap();
+        assert_iter_eq(dirs, vec![tmpdir1, tmpdir2]);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_exec_dir() {
+        let cwd = env::current_dir().unwrap();
+        let dir = cwd.join("target/debug/deps");
+        assert_eq!(sys::exec_dir().unwrap(), dir);
+    }
+
+    #[test]
+    fn test_exec_name() {
+        let exec_path = env::current_exe().unwrap();
+        let name = exec_path.base().unwrap();
+        assert_eq!(name, sys::exec_name().unwrap());
+    }
+
+    #[test]
+    fn test_files() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("files");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(sys::mkdir_p(&tmpdir1).is_ok());
+        assert!(sys::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(sys::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(sys::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the files function gives me the correct files without the dirs and in order
+        let files = sys::files(&tmpdir).unwrap();
+        assert_iter_eq(files, vec![tmpfile1, tmpfile2]);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_is_dir() {
+        let setup = Setup::init();
+        assert_eq!(sys::is_dir("."), true);
+        assert_eq!(sys::is_dir(setup.temp), true);
+        assert_eq!(sys::is_dir("/foobar"), false);
+    }
+
+    #[test]
+    fn test_is_file() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("is_file");
+        let tmpfile = tmpdir.join("file1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&tmpfile).is_ok());
+        assert_eq!(tmpfile.is_file(), true);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_is_symlink() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("is_symlink");
+        let file1 = tmpdir.join("file1");
+        let link1 = tmpdir.join("link1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&file1).is_ok());
+        assert!(sys::symlink(&link1, &file1).is_ok());
+        assert_eq!(sys::is_symlink(link1), true);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_is_symlink_dir() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("is_symlink_dir");
+        let dir1 = tmpdir.join("dir1");
+        let link1 = tmpdir.join("link1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&dir1).is_ok());
+        assert!(sys::symlink(&link1, &dir1).is_ok());
+        assert_eq!(sys::is_symlink_dir(&link1), true);
+        assert_eq!(sys::is_symlink_file(&link1), false);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_is_symlink_file() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("is_symlink_file");
+        let file1 = tmpdir.join("file1");
+        let link1 = tmpdir.join("link1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&file1).is_ok());
+        assert!(sys::symlink(&link1, &file1).is_ok());
+        assert_eq!(sys::is_symlink_file(&link1), true);
+        assert_eq!(sys::is_symlink_dir(&link1), false);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_metadata() {
+        let setup = Setup::init();
+        let meta = sys::metadata(setup.temp).unwrap();
+        assert_eq!(meta.is_dir(), true);
+    }
+
+    #[test]
+    fn test_glob() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("glob");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(sys::mkdir_p(&tmpdir1).is_ok());
+        assert!(sys::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(sys::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(sys::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the files function gives me the correct files without the dirs and in order
+        let paths = sys::glob(tmpdir.join("*")).unwrap();
+        assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile1, tmpfile2]);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_paths() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("paths");
+        let tmpdir1 = tmpdir.join("dir1");
+        let tmpdir2 = tmpdir.join("dir2");
+        let tmpfile1 = tmpdir.join("file1");
+        let tmpfile2 = tmpdir.join("file2");
+
+        // Create the dirs and files
+        assert!(sys::mkdir_p(&tmpdir1).is_ok());
+        assert!(sys::mkdir_p(&tmpdir2).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.is_file(), false);
+        assert_eq!(tmpdir1.is_dir(), true);
+        assert_eq!(tmpdir2.is_dir(), true);
+        assert!(sys::touch(&tmpfile1).is_ok());
+        assert_eq!(tmpfile1.is_dir(), false);
+        assert_eq!(tmpfile1.is_file(), true);
+        assert!(sys::touch(&tmpfile2).is_ok());
+        assert_eq!(tmpfile2.is_dir(), false);
+        assert_eq!(tmpfile2.is_file(), true);
+
+        // Validate the the paths function gives me all the dirs/files in order
+        let paths = sys::paths(&tmpdir).unwrap();
+        assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile1, tmpfile2]);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_readlink() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("readlink");
+        let file1 = tmpdir.join("file1");
+        let link1 = tmpdir.join("link1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&file1).is_ok());
+        assert!(sys::symlink(&link1, &file1).is_ok());
+        assert_eq!(sys::is_symlink_file(&link1), true);
+        assert_eq!(sys::is_symlink_dir(&link1), false);
+        assert_eq!(sys::readlink(&link1).unwrap(), file1);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    // Path tests
+    // ---------------------------------------------------------------------------------------------
+
+    #[test]
+    fn test_pathext_chmod() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("pathbuf_chmod");
+        let file1 = tmpdir.join("file1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&file1).is_ok());
+        assert!(file1.chmod(0o644).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert!(file1.chmod(0o555).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100555);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_pathext_clean() {
+        let tests = vec![
+            // Root
+            ("/", "/"),
+            // Remove trailing slashes
+            ("/", "//"),
+            ("/", "///"),
+            (".", ".//"),
+            // Remove duplicates and handle rooted parent ref
+            ("/", "//.."),
+            ("..", "..//"),
+            ("/", "/..//"),
+            ("foo/bar/blah", "foo//bar///blah"),
+            ("/foo/bar/blah", "/foo//bar///blah"),
+            // Unneeded current dirs and duplicates
+            ("/", "/.//./"),
+            (".", "././/./"),
+            (".", "./"),
+            ("/", "/./"),
+            ("foo", "./foo"),
+            ("foo/bar", "./foo/./bar"),
+            ("/foo/bar", "/foo/./bar"),
+            ("foo/bar", "foo/bar/."),
+            // Handle parent references
+            ("/", "/.."),
+            ("/foo", "/../foo"),
+            (".", "foo/.."),
+            ("../foo", "../foo"),
+            ("/bar", "/foo/../bar"),
+            ("foo", "foo/bar/.."),
+            ("bar", "foo/../bar"),
+            ("/bar", "/foo/../bar"),
+            (".", "foo/bar/../../"),
+            ("..", "foo/bar/../../.."),
+            ("/", "/foo/bar/../../.."),
+            ("/", "/foo/bar/../../../.."),
+            ("../..", "foo/bar/../../../.."),
+            ("blah/bar", "foo/bar/../../blah/bar"),
+            ("blah", "foo/bar/../../blah/bar/.."),
+            ("../foo", "../foo"),
+            ("../foo", "../foo/"),
+            ("../foo/bar", "../foo/bar"),
+            ("..", "../foo/.."),
+            ("~/foo", "~/foo"),
+        ];
+        for test in tests {
+            assert_eq!(PathBuf::from(test.0), PathBuf::from(test.1).clean().unwrap());
+        }
+    }
+
+    #[test]
+    fn test_pathext_dirname() {
+        assert_eq!(PathBuf::from("/").as_path(), PathBuf::from("/foo/").dir().unwrap());
+        assert_eq!(PathBuf::from("/foo").as_path(), PathBuf::from("/foo/bar").dir().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_empty() {
+        // empty string
+        assert_eq!(PathBuf::from("").empty(), true);
+
+        // false
+        assert_eq!(PathBuf::from("/foo").empty(), false);
+    }
+
+    #[test]
+    fn test_pathext_exists() {
+        let setup = Setup::init();
+        assert_eq!(setup.temp.exists(), true);
+    }
+
+    #[test]
+    fn test_pathext_expand() {
+        let home = PathBuf::from(env::var("HOME").unwrap());
+
+        // happy path
+        assert_eq!(PathBuf::from("~/").expand().unwrap(), home);
+        assert_eq!(PathBuf::from("~").expand().unwrap(), home);
+
+        // More than one ~
+        assert!(PathBuf::from("~/foo~").expand().is_err());
+
+        // invalid path
+        assert!(PathBuf::from("~foo").expand().is_err());
+
+        // empty path - nothing to do but no error
+        assert_eq!(PathBuf::from(""), PathBuf::from("").expand().unwrap());
+
+        // can't safely do this without locking as test are run in parallel
+        // // home not set
+        // {
+        //     env::remove_var("HOME");
+        //     assert!(PathBuf::from("~/foo").expand().is_err());
+        //     env::set_var("HOME", &home);
+        // }
+    }
+
+    #[test]
+    fn test_pathext_first() {
+        assert_eq!(Component::RootDir, PathBuf::from("/").first().unwrap());
+        assert_eq!(Component::CurDir, PathBuf::from(".").first().unwrap());
+        assert_eq!(Component::ParentDir, PathBuf::from("..").first().unwrap());
+        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").first().unwrap());
+        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo/bar").first().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_has() {
+        let path = PathBuf::from("/foo/bar");
+        assert!(path.has("foo"));
+        assert!(path.has("/foo"));
+        assert!(path.has("/"));
+        assert!(path.has("/ba"));
+        assert!(!path.has("bob"));
+    }
+
+    #[test]
+    fn test_pathext_has_prefix() {
+        let path = PathBuf::from("/foo/bar");
+        assert_eq!(path.has_prefix("/foo"), true);
+        assert_eq!(path.has_prefix("foo"), false);
+    }
+
+    #[test]
+    fn test_pathext_has_suffix() {
+        let path = PathBuf::from("/foo/bar");
+        assert_eq!(path.has_suffix("/foo"), false);
+        assert_eq!(path.has_suffix("/bar"), true);
+    }
+
+    #[test]
+    fn test_pathext_last() {
+        assert_eq!(Component::RootDir, PathBuf::from("/").last().unwrap());
+        assert_eq!(Component::CurDir, PathBuf::from(".").last().unwrap());
+        assert_eq!(Component::ParentDir, PathBuf::from("..").last().unwrap());
+        assert_eq!(Component::Normal(OsStr::new("foo")), PathBuf::from("foo").last().unwrap());
+        assert_eq!(Component::Normal(OsStr::new("bar")), PathBuf::from("/foo/bar").last().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_name() {
+        assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_meta() {
+        let setup = Setup::init();
+        let meta = setup.temp.metadata().unwrap();
+        assert_eq!(meta.is_dir(), true);
+    }
+
+    #[test]
+    fn test_pathext_mode() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("pathbuf_mode");
+        let file1 = tmpdir.join("file1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&file1).is_ok());
+        assert!(file1.chmod(0o644).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_pathext_perms() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("pathbuf_perms");
+        let file1 = tmpdir.join("file1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&file1).is_ok());
+        assert!(file1.chmod(0o644).is_ok());
+        assert_eq!(file1.perms().unwrap().mode(), 0o100644);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_pathext_setperms() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("pathbuf_setperms");
+        let file1 = tmpdir.join("file1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&file1).is_ok());
+        assert!(file1.chmod(0o644).is_ok());
+        let mut perms = file1.perms().unwrap();
+        assert_eq!(perms.mode(), 0o100644);
+        perms.set_mode(0o555);
+        assert!(file1.setperms(perms).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100555);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_pathext_relative() {
+        // share same directory
+        assert_eq!(PathBuf::from("bar1").relative_from("bar2").unwrap(), PathBuf::from("bar1"));
+        assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
+        assert_eq!(PathBuf::from("~/foo/bar1").relative_from("~/foo/bar2").unwrap(), PathBuf::from("bar1"));
+        assert_eq!(PathBuf::from("../foo/bar1").relative_from("../foo/bar2").unwrap(), PathBuf::from("bar1"));
+
+        // share parent directory
+        assert_eq!(PathBuf::from("foo1/bar1").relative_from("foo2/bar2").unwrap(), PathBuf::from("../foo1/bar1"));
+
+        // share grandparent directory
+        assert_eq!(PathBuf::from("blah1/foo1/bar1").relative_from("blah2/foo2/bar2").unwrap(), PathBuf::from("../../blah1/foo1/bar1"));
+    }
+
+    #[test]
+    fn test_pathext_to_string() {
+        assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_ext() {
+        assert_eq!(PathBuf::new(), PathBuf::from("").trim_ext().unwrap());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
+        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar.exe").trim_ext().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_last() {
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_last().unwrap());
+        assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_first() {
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_first().unwrap());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_protocol() {
+        // no change
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_protocol().unwrap());
+
+        // file://
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("file:///foo").trim_protocol().unwrap());
+
+        // ftp://
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol().unwrap());
+
+        // http://
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("http://foo").trim_protocol().unwrap());
+
+        // https://
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("https://foo").trim_protocol().unwrap());
+
+        // Check case is being considered
+        assert_eq!(PathBuf::from("Foo"), PathBuf::from("HTTPS://Foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("Foo"), PathBuf::from("Https://Foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("FoO"), PathBuf::from("HttpS://FoO").trim_protocol().unwrap());
+
+        // Check non protocol matches are ignored
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("foo/bar"), PathBuf::from("foo/bar").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("foo//bar"), PathBuf::from("foo//bar").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("ntp:://foo"), PathBuf::from("ntp:://foo").trim_protocol().unwrap());
+    }
+
+    #[test]
+    fn test_pathext_trim_suffix() {
+        // drop root
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_suffix("/").unwrap());
+
+        // drop end
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/").trim_suffix("/").unwrap());
+
+        // no change
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_suffix("/").unwrap());
+    }
+}
