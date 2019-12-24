@@ -1,10 +1,10 @@
 fungus
 ====================================================================================================
-[![Build Status](https://travis-ci.org/phR0ze/fungus.svg?branch=master)](https://travis-ci.org/phR0ze/fungus)
-[![Coverage Status](https://coveralls.io/repos/github/phR0ze/fungus/badge.svg?branch=master)](https://coveralls.io/github/phR0ze/fungus?branch=master)
-[![Crates.io Version](https://img.shields.io/crates/v/fungus.svg)](https://crates.io/crates/fungus)
-[![Crates.io License](https://img.shields.io/crates/l/fungus.svg)](https://opensource.org/licenses/MIT)
-[![Rust Stable](https://img.shields.io/badge/rust-latest%20stable-blue.svg)](https://github.com/rust-lang/rust/releases)
+[![build-badge](https://travis-ci.org/phR0ze/fungus.svg?branch=master)](https://travis-ci.org/phR0ze/fungus)
+[![coverage-badge](https://coveralls.io/repos/github/phR0ze/fungus/badge.svg?branch=master)](https://coveralls.io/github/phR0ze/fungus?branch=master)
+[![crate-badge](https://img.shields.io/crates/v/fungus.svg)](https://crates.io/crates/fungus)
+[![license-badge](https://img.shields.io/crates/l/fungus.svg)](https://opensource.org/licenses/MIT)
+[![rust-version](https://img.shields.io/badge/rust-latest%20stable-blue.svg)](https://github.com/rust-lang/rust/releases)
 
 <!--[![API](https://docs.rs/fungus/badge.svg)](https://docs.rs/fungus)-->
 
