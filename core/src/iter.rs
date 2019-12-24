@@ -278,7 +278,7 @@ mod tests {
     use std::ffi::OsStr;
     use std::path::{Component, PathBuf};
 
-    use crate::preamble::*;
+    use crate::*;
 
     #[test]
     fn test_slice() {
