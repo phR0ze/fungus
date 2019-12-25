@@ -1113,6 +1113,7 @@ impl PathExt for Path {
     fn last(&self) -> Result<Component> {
         self.components().last_result()
     }
+
     fn metadata(&self) -> Result<fs::Metadata> {
         let meta = fs::metadata(self)?;
         Ok(meta)

@@ -20,33 +20,49 @@ use crate::path::PathExt;
 /// use fungus::presys::*;
 /// ```
 pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
-    // let mut clone = true;
+    let mut clone = true;
     let dstabs = dst.as_ref().abs()?;
 
-    // // Handle globbing
-    // let sources = crate::path::glob(&src)?;
-    // if sources.len() == 0 {
-    //     return Err(PathError::does_not_exist(&src).into());
-    // }
+    // Handle globbing
+    let sources = crate::path::glob(&src)?;
+    if sources.len() == 0 {
+        return Err(PathError::does_not_exist(&src).into());
+    }
 
-    // // Copy into destination vs clone as destination
-    // if dstabs.is_dir() || sources.len() > 1 {
-    //     clone = false;
-    // }
+    // Copy into destination vs clone as destination
+    if dstabs.is_dir() || sources.len() > 1 {
+        clone = false;
+    }
 
-    // // Recurse on sources
-    // for srcroot in sources {
-    //     for entry in WalkDir::new(&srcroot).follow_links(false) {
-    //         let entry = entry?;
-    //         let srcpath = entry.path().abs()?;
+    // Recurse on sources
+    for srcroot in sources {
+        for entry in WalkDir::new(&srcroot).follow_links(false) {
+            let entry = entry?;
+            let srcpath = entry.path().abs()?;
 
-    //         // Set proper dst path
-    //         let dstpath = match clone {
-    //             true => dstabs.join(srcpath.trim_prefix(srcroot)?),
-    //             false => dstabs.join(srcpath.trim_prefix(srcroot)?),
-    //         }
-    //     }
-    // }
+            // Set proper dst path
+            let dstpath = match clone {
+                true => dstabs.join(srcpath.trim_prefix(&srcroot)?).clean()?,
+                false => dstabs.join(srcpath.trim_prefix(srcroot.dir()?)?).clean()?,
+            };
+            match &dstpath {
+                // Create destination directories as needed
+                x if x.is_dir() => {
+                    mkdir_p(dstpath)?;
+                }
+
+                // Copy dir links
+                x if x.is_symlink_dir() => {
+                    symlink(&dstpath, srcpath.readlink()?)?;
+                }
+
+                // Copy file
+                _ => {
+                    copyfile(&srcpath, &dstpath)?;
+                }
+            }
+        }
+    }
 
     Ok(dstabs)
 }
@@ -255,6 +271,41 @@ mod tests {
             sys::mkdir_p(&setup.temp).unwrap();
             setup
         }
+    }
+
+    #[test]
+    fn test_copy() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.join("copy");
+        let file1 = tmpdir.join("file1");
+        let file2 = tmpdir.join("file2");
+        let link1 = tmpdir.join("link1");
+        let link2 = tmpdir.join("link2");
+        let dir1 = tmpdir.join("dir1");
+        let dir1file = dir1.join("file");
+        let dir2 = tmpdir.join("dir2");
+        let dir2file = dir2.join("file");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+
+        // // copy single file
+        // assert!(sys::touch(&file1).is_ok());
+        // assert_eq!(file1.exists(), true);
+        // assert_eq!(file2.exists(), false);
+        // assert!(sys::copy(&file1, &file2).is_ok());
+        // assert_eq!(file2.exists(), true);
+
+        // copy directory with files
+        assert!(sys::mkdir_p(&dir1).is_ok());
+        assert!(sys::touch(&dir1file).is_ok());
+        assert_eq!(dir2file.exists(), false);
+        assert!(sys::copy(&dir1, &dir2).is_ok());
+        assert_eq!(dir2file.exists(), true);
+
+        // cleanup
+        //assert!(sys::remove_all(&tmpdir).is_ok());
     }
 
     #[test]
