@@ -71,7 +71,7 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
             let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(true).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
+            for entry in WalkDir::new(&abs).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 // Skip the directory itself
                 if first {
                     first = false;
@@ -121,7 +121,7 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
             let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(true).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
+            for entry in WalkDir::new(&abs).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 // Skip the directory itself
                 if first {
                     first = false;
@@ -173,7 +173,7 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
             let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(true).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
+            for entry in WalkDir::new(&abs).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 // Skip the directory itself
                 if first {
                     first = false;
@@ -380,7 +380,10 @@ pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn is_symlink<T: AsRef<Path>>(path: T) -> bool {
-    readlink(path).is_ok()
+    match path.as_ref().abs() {
+        Ok(abs) => readlink(abs).is_ok(),
+        Err(_) => false,
+    }
 }
 
 /// Returns true if the given path exists and is a symlinked directory. Handles path
@@ -400,8 +403,14 @@ pub fn is_symlink<T: AsRef<Path>>(path: T) -> bool {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn is_symlink_dir<T: AsRef<Path>>(path: T) -> bool {
-    match readlink(path) {
-        Ok(x) => x.is_dir(),
+    match path.as_ref().abs() {
+        Ok(abs) => match readlink(&abs) {
+            Ok(target) => match target.abs_from(&abs) {
+                Ok(x) => x.is_dir(),
+                Err(_) => false,
+            },
+            Err(_) => false,
+        },
         Err(_) => false,
     }
 }
@@ -424,8 +433,14 @@ pub fn is_symlink_dir<T: AsRef<Path>>(path: T) -> bool {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
-    match readlink(path) {
-        Ok(x) => x.is_file(),
+    match path.as_ref().abs() {
+        Ok(abs) => match readlink(&abs) {
+            Ok(target) => match target.abs_from(&abs) {
+                Ok(x) => x.is_file(),
+                Err(_) => false,
+            },
+            Err(_) => false,
+        },
         Err(_) => false,
     }
 }
@@ -457,7 +472,7 @@ pub fn glob<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
     Ok(paths)
 }
 
-/// Returns the Metadata object for the `Path` if it exists else an error. Handls path
+/// Returns the Metadata object for the `Path` if it exists else an error. Handles path
 /// expansion.
 ///
 /// ### Examples
@@ -468,8 +483,7 @@ pub fn glob<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
 /// assert_eq!(meta.is_dir(), true);
 /// ```
 pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
-    //let abs = path.as_ref().abs()?;
-    let abs = path.as_ref();
+    let abs = path.as_ref().abs()?;
     let meta = fs::metadata(abs)?;
     Ok(meta)
 }
@@ -547,8 +561,8 @@ pub trait PathExt {
     /// ```
     fn abs(&self) -> Result<PathBuf>;
 
-    /// Returns the absolute `Path` based on the given absolute `Path`. The last element of the
-    /// given path will be assumed to be a file name.
+    /// Returns a new absolute [`PathBuf`] based on the given absolute `Path`. The last element of
+    /// the given path will be assumed to be a file name.
     ///
     /// ### Examples
     /// ```
@@ -633,7 +647,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(Path::new("/etc").exists(), true);
     /// ```
-    fn exists<T: AsRef<Path>>(path: T) -> bool;
+    fn exists(&self) -> bool;
 
     /// Expand the path to include the home prefix if necessary
     ///
@@ -1048,8 +1062,8 @@ impl PathExt for Path {
         }
     }
 
-    fn exists<T: AsRef<Path>>(path: T) -> bool {
-        exists(path)
+    fn exists(&self) -> bool {
+        exists(&self)
     }
 
     fn expand(&self) -> Result<PathBuf> {
@@ -1298,23 +1312,6 @@ mod tests {
     }
 
     #[test]
-    fn test_abs_from() {
-        let home = PathBuf::from("~").abs().unwrap();
-
-        // share the same directory
-        assert_eq!(PathBuf::from("foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
-        assert_eq!(PathBuf::from("./foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
-
-        // share parent directory
-        assert_eq!(PathBuf::from("../foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
-        assert_eq!(PathBuf::from("bar2/foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("bar1/bar2/foo2"));
-        assert_eq!(PathBuf::from("../../foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.trim_last().mash("foo2"));
-
-        // share grandparent directory
-        assert_eq!(PathBuf::from("blah1/bar2/foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("bar1/blah1/bar2/foo2"));
-    }
-
-    #[test]
     fn test_all_dirs() {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("all_dirs");
@@ -1322,6 +1319,9 @@ mod tests {
         let tmpdir2 = tmpdir1.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
         let tmpfile2 = tmpdir.mash("file2");
+
+        // invalid target
+        assert!(sys::all_dirs("").is_err());
 
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
@@ -1336,6 +1336,9 @@ mod tests {
         assert!(sys::touch(&tmpfile2).is_ok());
         assert_eq!(tmpfile2.is_dir(), false);
         assert_eq!(tmpfile2.is_file(), true);
+
+        // invalid target
+        assert!(sys::all_dirs(&tmpfile1).is_err());
 
         // Validate the the all_dirs function gives me the correct dirs in order
         let dirs = sys::all_dirs(&tmpdir).unwrap();
@@ -1355,6 +1358,9 @@ mod tests {
         let tmpfile1 = tmpdir1.mash("file1");
         let tmpfile2 = tmpdir2.mash("file2");
 
+        // invalid target
+        assert!(sys::all_files("").is_err());
+
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
         assert!(sys::mkdir_p(&tmpdir2).is_ok());
@@ -1368,6 +1374,9 @@ mod tests {
         assert!(sys::touch(&tmpfile2).is_ok());
         assert_eq!(tmpfile2.is_dir(), false);
         assert_eq!(tmpfile2.is_file(), true);
+
+        // invalid target
+        assert!(sys::all_files(&tmpfile1).is_err());
 
         // Validate the the all_files function gives me the correct files in order
         let files = sys::all_files(&tmpdir).unwrap();
@@ -1387,6 +1396,9 @@ mod tests {
         let tmpfile1 = tmpdir1.mash("file1");
         let tmpfile2 = tmpdir2.mash("file2");
 
+        // invalid target
+        assert!(sys::all_paths("").is_err());
+
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
         assert!(sys::mkdir_p(&tmpdir2).is_ok());
@@ -1400,6 +1412,9 @@ mod tests {
         assert!(sys::touch(&tmpfile2).is_ok());
         assert_eq!(tmpfile2.is_dir(), false);
         assert_eq!(tmpfile2.is_file(), true);
+
+        // invalid target
+        assert!(sys::all_paths(&tmpfile1).is_err());
 
         // Validate the the all_paths function gives me the correct paths in order
         let paths = sys::all_paths(&tmpdir).unwrap();
@@ -1419,6 +1434,9 @@ mod tests {
         let tmpfile1 = tmpdir.mash("file1");
         let tmpfile2 = tmpdir.mash("file2");
 
+        // invalid target
+        assert!(sys::dirs("").is_err());
+
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
         assert!(sys::mkdir_p(&tmpdir2).is_ok());
@@ -1432,6 +1450,9 @@ mod tests {
         assert!(sys::touch(&tmpfile2).is_ok());
         assert_eq!(tmpfile2.is_dir(), false);
         assert_eq!(tmpfile2.is_file(), true);
+
+        // invalid target
+        assert!(sys::dirs(&tmpfile1).is_err());
 
         // Validate the the dirs function gives me the correct dirs without the files and in order
         let dirs = sys::dirs(&tmpdir).unwrap();
@@ -1465,6 +1486,9 @@ mod tests {
         let tmpfile1 = tmpdir.mash("file1");
         let tmpfile2 = tmpdir.mash("file2");
 
+        // invalid target
+        assert!(sys::files("").is_err());
+
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
         assert!(sys::mkdir_p(&tmpdir2).is_ok());
@@ -1478,6 +1502,9 @@ mod tests {
         assert!(sys::touch(&tmpfile2).is_ok());
         assert_eq!(tmpfile2.is_dir(), false);
         assert_eq!(tmpfile2.is_file(), true);
+
+        // invalid target
+        assert!(sys::files(&tmpfile1).is_err());
 
         // Validate the the files function gives me the correct files without the dirs and in order
         let files = sys::files(&tmpdir).unwrap();
@@ -1505,7 +1532,7 @@ mod tests {
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
         assert!(sys::touch(&tmpfile).is_ok());
-        assert_eq!(tmpfile.is_file(), true);
+        assert_eq!(sys::is_file(tmpfile), true);
 
         // Clean up
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1534,12 +1561,21 @@ mod tests {
         let tmpdir = setup.temp.mash("is_symlink_dir");
         let dir1 = tmpdir.mash("dir1");
         let link1 = tmpdir.mash("link1");
+        let link2 = tmpdir.mash("link2");
 
+        // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&dir1).is_ok());
+
+        // test absolute
         assert!(sys::symlink(&link1, &dir1).is_ok());
         assert_eq!(sys::is_symlink_dir(&link1), true);
         assert_eq!(sys::is_symlink_file(&link1), false);
+
+        // test relative
+        assert!(sys::symlink(&link2, "dir1").is_ok());
+        assert_eq!(sys::is_symlink_dir(&link2), true);
+        assert_eq!(sys::is_symlink_file(&link2), false);
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1551,13 +1587,25 @@ mod tests {
         let tmpdir = setup.temp.mash("is_symlink_file");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
+        let link2 = tmpdir.mash("link2");
 
+        // invalid
+        assert_eq!(sys::is_symlink_file(""), false);
+
+        // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
         assert!(sys::touch(&file1).is_ok());
+
+        // test absolute
         assert!(sys::symlink(&link1, &file1).is_ok());
         assert_eq!(sys::is_symlink_file(&link1), true);
         assert_eq!(sys::is_symlink_dir(&link1), false);
+
+        // test relative
+        assert!(sys::symlink(&link2, "file1").is_ok());
+        assert_eq!(sys::is_symlink_file(&link2), true);
+        assert_eq!(sys::is_symlink_dir(&link2), false);
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1611,6 +1659,9 @@ mod tests {
         let tmpfile1 = tmpdir.mash("file1");
         let tmpfile2 = tmpdir.mash("file2");
 
+        // invalid target
+        assert!(sys::paths("").is_err());
+
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
         assert!(sys::mkdir_p(&tmpdir2).is_ok());
@@ -1624,6 +1675,9 @@ mod tests {
         assert!(sys::touch(&tmpfile2).is_ok());
         assert_eq!(tmpfile2.is_dir(), false);
         assert_eq!(tmpfile2.is_file(), true);
+
+        // invalid target
+        assert!(sys::paths(&tmpfile1).is_err());
 
         // Validate the the paths function gives me all the dirs/files in order
         let paths = sys::paths(&tmpdir).unwrap();
@@ -1655,6 +1709,34 @@ mod tests {
 
     // Path tests
     // ---------------------------------------------------------------------------------------------
+
+    #[test]
+    fn test_pathext_abs_from() {
+        let home = PathBuf::from("~").abs().unwrap();
+
+        // invalid
+        assert!(PathBuf::from("foo").abs_from("").is_err());
+
+        // already absolute
+        assert_eq!(PathBuf::from("/foo").abs_from("foo1").unwrap(), PathBuf::from("/foo"));
+
+        // share the same directory
+        assert_eq!(PathBuf::from("foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
+        assert_eq!(PathBuf::from("./foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
+
+        // share parent directory
+        assert_eq!(PathBuf::from("../foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
+        assert_eq!(PathBuf::from("bar2/foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("bar1/bar2/foo2"));
+        assert_eq!(PathBuf::from("../../foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.trim_last().mash("foo2"));
+
+        // share grandparent directory
+        assert_eq!(PathBuf::from("blah1/bar2/foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("bar1/blah1/bar2/foo2"));
+    }
+
+    #[test]
+    fn test_pathext_base() {
+        assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
+    }
 
     #[test]
     fn test_pathext_chmod() {
@@ -1804,6 +1886,53 @@ mod tests {
     }
 
     #[test]
+    fn test_pathext_is_dir() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("pathext_is_dir");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.is_dir(), false);
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_pathext_is_file() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("pathext_is_file");
+        let tmpfile = tmpdir.mash("file1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::touch(&tmpfile).is_ok());
+        assert_eq!(tmpfile.is_file(), true);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_pathext_is_symlink_file() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("pathext_is_symlink_file");
+        let file1 = tmpdir.mash("file1");
+        let link1 = tmpdir.mash("link1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert_eq!(link1.is_symlink_file(), false);
+        assert!(sys::touch(&file1).is_ok());
+        assert!(sys::symlink(&link1, &file1).is_ok());
+        assert_eq!(link1.is_symlink_file(), true);
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_pathext_last() {
         assert_eq!(Component::RootDir, PathBuf::from("/").last().unwrap());
         assert_eq!(Component::CurDir, PathBuf::from(".").last().unwrap());
@@ -1813,8 +1942,17 @@ mod tests {
     }
 
     #[test]
-    fn test_pathext_name() {
-        assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
+    fn test_pathext_metadata() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("pathext_metadata");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(tmpdir.metadata().is_err());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(tmpdir.metadata().is_ok());
+
+        // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
     }
 
     #[test]
@@ -1880,7 +2018,12 @@ mod tests {
     }
 
     #[test]
-    fn test_pathext_relative() {
+    fn test_pathext_relative_from() {
+        let cwd = env::current_dir().unwrap();
+
+        // same directory
+        assert_eq!(PathBuf::from("bar1").relative_from("bar1").unwrap(), cwd.mash("bar1"));
+
         // share same directory
         assert_eq!(PathBuf::from("bar1").relative_from("bar2").unwrap(), PathBuf::from("bar1"));
         assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));

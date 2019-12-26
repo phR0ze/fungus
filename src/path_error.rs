@@ -103,7 +103,7 @@ impl fmt::Display for PathError {
             PathError::ExistsAlready(ref path) => write!(f, "path exists already: {}", path.display()),
             PathError::FailedToString(ref path) => write!(f, "failed to convert to string for path: {}", path.display()),
             PathError::FileNameNotFound(ref path) => write!(f, "filename not found for path: {}", path.display()),
-            PathError::InvalidExpansion(ref path) => write!(f, "invalid path expansion for path: {}", path.display()),
+            PathError::InvalidExpansion(ref path) => write!(f, "invalid expansion for path: {}", path.display()),
             PathError::IsNotDir(ref path) => write!(f, "is not a directory: {}", path.display()),
             PathError::IsNotFile(ref path) => write!(f, "is not a file: {}", path.display()),
             PathError::IsNotFileOrSymlinkToFile(ref path) => write!(f, "is not a file or a symlink to a file: {}", path.display()),
@@ -151,6 +151,8 @@ mod tests {
         assert_eq!(format!("{}", PathError::failed_to_string(PathBuf::from("foo"))), "failed to convert to string for path: foo");
         assert_eq!(PathError::filename_not_found(Path::new("foo")), PathError::FileNameNotFound(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::filename_not_found(PathBuf::from("foo"))), "filename not found for path: foo");
+        assert_eq!(PathError::invalid_expansion(Path::new("foo")), PathError::InvalidExpansion(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::invalid_expansion(PathBuf::from("foo"))), "invalid expansion for path: foo");
         assert_eq!(PathError::is_not_dir(Path::new("foo")), PathError::IsNotDir(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::is_not_dir(PathBuf::from("foo"))), "is not a directory: foo");
         assert_eq!(PathError::is_not_file(Path::new("foo")), PathError::IsNotFile(PathBuf::from("foo")));

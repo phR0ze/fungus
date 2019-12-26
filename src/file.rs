@@ -36,7 +36,7 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
 
     // Recurse on sources
     for srcroot in sources {
-        for entry in WalkDir::new(&srcroot).follow_links(false) {
+        for entry in WalkDir::new(&srcroot).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
             let entry = entry?;
             let srcpath = entry.path().abs()?;
 
@@ -46,14 +46,14 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
                 false => dstabs.mash(srcpath.trim_prefix(srcroot.dir()?)),
             };
             match &srcpath {
+                // Copy dir links needs to be first as is_dir follows links
+                x if x.is_symlink_dir() => {
+                    symlink(&dstpath, srcpath.readlink()?)?;
+                }
+
                 // Create destination directories as needed
                 x if x.is_dir() => {
                     mkdir_p(dstpath)?;
-                }
-
-                // Copy dir links
-                x if x.is_symlink_dir() => {
-                    symlink(&dstpath, srcpath.readlink()?)?;
                 }
 
                 // Copy file
@@ -275,6 +275,53 @@ mod tests {
     }
 
     #[test]
+    fn test_copy_empty() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("copy_empty");
+        let file1 = tmpdir.mash("file1");
+
+        // source doesn't exist
+        assert!(sys::copy("", &file1).is_err());
+        assert_eq!(file1.exists(), false);
+    }
+
+    #[test]
+    fn test_copy_link_dir() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("copy_link_dir");
+        let dirlink = tmpdir.mash("dirlink");
+        let dir1 = tmpdir.mash("dir1");
+        let dir1file = dir1.mash("file");
+        let dir1link = dir1.mash("link");
+        let dir2 = tmpdir.mash("dir2");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+
+        // copy directory with files
+        assert!(sys::mkdir_p(&dirlink).is_ok());
+        assert!(sys::mkdir_p(&dir1).is_ok());
+        assert!(sys::touch(&dir1file).is_ok());
+        assert!(sys::symlink(&dir1link, "../dirlink").is_ok());
+        assert!(sys::copy(&dir1, &dir2).is_ok());
+
+        let paths = vec![
+            tmpdir.mash("dir1"),
+            tmpdir.mash("dir1/file"),
+            tmpdir.mash("dir1/link"),
+            tmpdir.mash("dir2"),
+            tmpdir.mash("dir2/file"),
+            tmpdir.mash("dir2/link"),
+            tmpdir.mash("dirlink"),
+        ];
+        assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), paths);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_copy_dir_copy() {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("copy_dir_copy");
@@ -319,7 +366,9 @@ mod tests {
         assert!(sys::touch(&dir1file).is_ok());
         assert_eq!(dir2file.exists(), false);
         assert!(sys::copy(&dir1, &dir2).is_ok());
-        assert_eq!(dir2file.exists(), true);
+
+        let paths = vec![tmpdir.mash("dir1"), tmpdir.mash("dir1/file"), tmpdir.mash("dir2"), tmpdir.mash("dir2/file")];
+        assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), paths);
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -341,7 +390,9 @@ mod tests {
         assert_eq!(file1.exists(), true);
         assert_eq!(file2.exists(), false);
         assert!(sys::copy(&file1, &file2).is_ok());
-        assert_eq!(file2.exists(), true);
+
+        let paths = vec![tmpdir.mash("file1"), tmpdir.mash("file2")];
+        assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), paths);
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
