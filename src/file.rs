@@ -1,13 +1,156 @@
 use std::fs;
 use std::fs::File;
 use std::os::unix;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::core::*;
 use crate::path::PathExt;
 
-/// Copies src to dst recursively, creating destination directories as needed and handling path
+/// Chmod provides flexible options for changing file permission with optional configuration.
+#[derive(Debug)]
+pub struct Chmod {
+    path: PathBuf,    // path to chmod
+    only_dirs: bool,  // chmod only dirs
+    only_files: bool, // chmod only files
+    recurse: bool,    // chmod recursively
+}
+
+impl Chmod {
+    /// Update the `recurse` option. Default is enabled.
+    /// When `yes` is `true`, source is recursively walked.
+    pub fn recurse(mut self, yes: bool) -> Self {
+        self.recurse = yes;
+        self
+    }
+
+    /// Execute chmod all dirs/files using the given `mode`.
+    pub fn all(mut self, mode: u32) -> Result<Self> {
+        self.only_dirs = false;
+        self.only_files = false;
+        self.e(mode)
+    }
+
+    /// Execute chmod only dirs using the given `mode`.
+    pub fn dirs(mut self, mode: u32) -> Result<Self> {
+        self.only_dirs = true;
+        self.only_files = false;
+        self.e(mode)
+    }
+
+    /// Execute chmod only files using the given `mode`.
+    pub fn files(mut self, mode: u32) -> Result<Self> {
+        self.only_dirs = false;
+        self.only_files = true;
+        self.e(mode)
+    }
+
+    // determine if the mode change is revoking permissions or adding permissions.
+    // only taking into account read/execute on the directory
+    fn revoking(self, old: u32, new: u32) -> bool {
+        old & 0o0500 > new & 0o0500 || old & 0o0050 > new & 0o0050 || old & 0o0005 > new & 0o0005
+    }
+
+    /// Internal implementation that the helper functions call
+    fn e(self, mode: u32) -> Result<Self> {
+        // Handle globbing
+        let sources = crate::path::glob(&self.path)?;
+        if sources.len() == 0 {
+            return Err(PathError::does_not_exist(&self.path).into());
+        }
+
+        // Execute the chmod for all sources
+        for source in sources {
+            // Only check if dir if we are required to
+            let is_dir = match self.only_dirs || self.only_files || self.recurse {
+                true => source.is_dir(),
+                false => false,
+            };
+
+            // Only get old mode if we have to
+            let old_mode = match &self.recurse {
+                true => source.mode()?,
+                false => 0,
+            };
+
+            // We have to be careful of the order of applying permissions or we'll get into a
+            // scenario where we are revoking read/execute on a dir before we get to the
+            // bottom of the stack. Like wise when adding permissions we have to
+            // do it on the way in or we won't be able to read to get there.
+            if (!self.only_dirs && !self.only_files) || (self.only_dirs && is_dir) || (self.only_files && !is_dir) {
+                // Chmod on the way in if not recursing or recursing and adding permissions
+                // if !self.recurse || !is_dir || (self.recurse && !self.revoking(old_mode, mode)) {
+                //     source.setperms(fs::Permissions::from_mode(mode))?;
+                // }
+            }
+            source.setperms(fs::Permissions::from_mode(mode))?;
+        }
+
+        Ok(self)
+    }
+}
+
+/// Wraps `chmod_p` to apply the given `mode` to all files/dirs using recursion and invoking
+/// the mode change when the function returns.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chmod");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::touch(&file1).is_ok());
+/// assert!(sys::chmod(&file1, 0o644).is_ok());
+/// assert_eq!(file1.mode().unwrap(), 0o100644);
+/// assert!(sys::chmod(&file1, 0o555).is_ok());
+/// assert_eq!(file1.mode().unwrap(), 0o100555);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<Chmod> {
+    chmod_p(path)?.all(mode)
+}
+
+/// Change the mode of the `path` providing path expansion, globbing, recursion and error
+/// tracing. Provides more control over options than the `chmod` function. Changes are not
+/// invoked until one of the helper functions are called e.g. `all`, `dirs` or `files`.
+/// Symbolic links will have the target mode changed.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chmod_p");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::touch(&file1).is_ok());
+/// assert!(sys::chmod_p(&file1).unwrap().all(0o644).is_ok());
+/// assert_eq!(file1.mode().unwrap(), 0o100644);
+/// assert!(sys::chmod_p(&file1).unwrap().all(0o555).is_ok());
+/// assert_eq!(file1.mode().unwrap(), 0o100555);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
+    Ok(Chmod { path: path.as_ref().abs()?, only_dirs: false, only_files: false, recurse: true })
+}
+
+/// Change the ownership of the `path` providing path expansion, globbing, recursion and error
+/// tracing.
+///
+//// ### Examples
+/// ```
+/// use fungus::presys::*;
+/// ```
+pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
+    let abs = path.as_ref().abs()?;
+
+    Ok(())
+}
+
+/// Copies src to dst recursively creating destination directories as needed and handling path
 /// expansion and globbing e.g. copy("./*", "../") and returning an absolute path of the
 /// destination.
 ///
@@ -18,6 +161,17 @@ use crate::path::PathExt;
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copy");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// let file2 = tmpdir.mash("file2");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::touch(&file1).is_ok());
+/// assert!(sys::copy(&file1, &file2).is_ok());
+/// assert_eq!(file2.exists(), true);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
     let mut clone = true;
@@ -53,7 +207,7 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
 
                 // Create destination directories as needed
                 x if x.is_dir() => {
-                    mkdir_p(dstpath)?;
+                    mkdir(dstpath)?;
                 }
 
                 // Copy file
@@ -67,8 +221,104 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
     Ok(dstabs)
 }
 
+/// Copyfile provides a flexible options for copying files
+#[derive(Debug)]
+pub struct Copyfile {
+    src: PathBuf,       // source file
+    dst: PathBuf,       // destination path
+    mode: u32,          // mode to chmod the file to
+    mode_set: bool,     // track if the mode was set
+    follow_links: bool, // follow links when copying files
+}
+
+impl Copyfile {
+    /// Update the `follow_links` option. Default is disabled.
+    /// When `yes` is `true`, links are followed.
+    pub fn follow_links(mut self, yes: bool) -> Self {
+        self.follow_links = yes;
+        self
+    }
+
+    /// Update the `mode` option. Default is disabled.
+    pub fn mode(mut self, mode: u32) -> Self {
+        self.mode = mode;
+        self.mode_set = true;
+        self
+    }
+
+    /// Execute the copyfile operation with the current options.
+    pub fn e(mut self) -> Result<Self> {
+        // Configure and check source
+        if !self.src.exists() {
+            return Err(PathError::does_not_exist(&self.src).into());
+        }
+        if self.src.is_dir() || self.src.is_symlink_dir() {
+            return Err(PathError::is_not_file_or_symlink_to_file(&self.src).into());
+        }
+
+        // Configure and check the destination
+        match self.dst.exists() {
+            // Exists so dst is either a file to overwrite or a dir to copy into
+            true => {
+                if self.dst.is_dir() {
+                    self.dst = self.dst.mash(self.src.base()?)
+                }
+            }
+
+            // Doesn't exist so dst is a new destination name, ensure all paths exist
+            false => {
+                let srcdir = self.src.dir()?;
+                let dstdir = self.dst.dir()?;
+                if srcdir != dstdir {
+                    mkdir(dstdir)?.chmod(srcdir.mode()?)?;
+                }
+            }
+        }
+
+        // Check for same file
+        if self.src == self.dst {
+            return Ok(self);
+        }
+
+        // Recreate link or copy file including permissions
+        if self.src.is_symlink() {
+            symlink(&self.dst, self.src.readlink()?)?;
+        } else {
+            fs::copy(&self.src, &self.dst)?;
+            if self.mode_set {
+                chmod_p(&self.dst)?.recurse(false).all(self.mode)?;
+            }
+        }
+
+        Ok(self)
+    }
+}
+
+/// Wraps `copyfile_p` to copy the given `src` to the given `dst`. Disables follow_links
+/// and uses the source mode rather than an optionally set one.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// let file2 = tmpdir.mash("file2");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::touch(&file1).is_ok());
+/// assert!(sys::copyfile(&file1, &file2).is_ok());
+/// assert_eq!(file2.exists(), true);
+/// assert_eq!(file1.mode().unwrap(), file2.mode().unwrap());
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copyfile> {
+    copyfile_p(src, dst)?.e()
+}
+
 /// Copies a single file from src to dst, creating destination directories as needed and handling
-/// path expansion returning an absolute path of the destination.
+/// path expansion and optionally following links.
 ///
 /// The dst will be copied to if it is an existing directory.
 /// The dst will be a clone of the src if it doesn't exist.
@@ -79,60 +329,18 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile");
-/// assert!(sys::mkdir_p(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let file2 = tmpdir.mash("file2");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir_p(&tmpdir).is_ok());
-/// assert!(sys::touch(&file1).is_ok());
-/// assert!(sys::copyfile(&file1, &file2).is_ok());
-/// assert_eq!(file2.exists(), true);
-/// assert_eq!(file1.mode().unwrap(), file2.mode().unwrap());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::touch_p(&file1, 0o644).is_ok());
+/// assert!(sys::copyfile_p(&file1, &file2).unwrap().mode(0o555).e().is_ok());
+/// assert_eq!(file2.mode().unwrap(), 0o100555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
-    // Configure and check source
-    let srcpath = src.as_ref().abs()?;
-    if !srcpath.exists() {
-        return Err(PathError::does_not_exist(src).into());
-    }
-    if srcpath.is_dir() || srcpath.is_symlink_dir() {
-        return Err(PathError::is_not_file_or_symlink_to_file(&src).into());
-    }
-
-    // Configure and check the destination
-    let mut dstpath = dst.as_ref().abs()?;
-    match dstpath.exists() {
-        // Exists so dst is either a file to overwrite or a dir to copy into
-        true => {
-            if dstpath.is_dir() {
-                dstpath = dstpath.mash(srcpath.base()?)
-            }
-        }
-
-        // Doesn't exist so dst is a new destination name, ensure all paths exist
-        false => {
-            let srcdir = srcpath.dir()?;
-            let dstdir = dstpath.dir()?;
-            if srcdir != dstdir {
-                mkdir_p(dstdir)?.chmod(srcdir.mode()?)?;
-            }
-        }
-    }
-
-    // Check for same file
-    if srcpath == dstpath {
-        return Ok(dstpath);
-    }
-
-    // Recreate link or copy file including permissions
-    if srcpath.is_symlink() {
-        symlink(&dstpath, srcpath.readlink()?)?;
-    } else {
-        fs::copy(&srcpath, &dstpath)?;
-    }
-
-    Ok(dstpath)
+pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copyfile> {
+    Ok(Copyfile { src: src.as_ref().abs()?, dst: dst.as_ref().abs()?, mode: 0, mode_set: false, follow_links: false })
 }
 
 /// Creates the given directory and any parent directories needed, handling path expansion and
@@ -142,17 +350,35 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBu
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_mkdir_p");
-/// assert!(sys::mkdir_p(&tmpdir).is_ok());
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_mkdir");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
-pub fn mkdir_p<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+pub fn mkdir<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     let abs = path.as_ref().abs()?;
     if !abs.exists() {
         fs::create_dir_all(&abs)?;
     }
     Ok(abs)
+}
+
+/// Wraps `mkdir` allowing for setting the directory's mode.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_mkdir");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir_p(&tmpdir, 0o555).is_ok());
+/// assert_eq!(tmpdir.mode().unwrap(), 0o40555);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn mkdir_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
+    let path = mkdir(path)?;
+    chmod_p(&path)?.recurse(false).all(mode)?;
+    Ok(path)
 }
 
 /// Removes the given empty directory or file. Handles path expansion. Does
@@ -163,7 +389,7 @@ pub fn mkdir_p<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_remove");
-/// assert!(sys::mkdir_p(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::remove(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
@@ -189,7 +415,7 @@ pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_remove_all");
-/// assert!(sys::mkdir_p(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
@@ -212,7 +438,7 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> Result<()> {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let link1 = tmpdir.mash("link1");
-/// assert!(sys::mkdir_p(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::symlink(&link1, &file1).is_ok());
 /// assert_eq!(link1.exists(), true);
@@ -236,22 +462,35 @@ pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<Pat
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_touch");
 /// let tmpfile = tmpdir.mash("file1");
-/// assert!(sys::mkdir_p(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::touch(&tmpfile).is_ok());
 /// assert_eq!(tmpfile.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert_eq!(tmpdir.exists(), false);
 /// ```
 pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     let abs = path.as_ref().abs()?;
-
-    // create if the file doesn't exist
     if !abs.exists() {
         File::create(&abs)?;
     }
+    Ok(abs)
+}
 
-    // update the access and modification times for the file
-
+/// Wraps `touch` allowing for setting the file's mode.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_touch");
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::touch_p(&tmpfile, 0o555).is_ok());
+/// assert_eq!(tmpfile.mode().unwrap(), 0o100555);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn touch_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
+    let abs = touch(path)?;
+    chmod_p(&abs)?.recurse(false).all(mode)?;
     Ok(abs)
 }
 
@@ -269,9 +508,71 @@ mod tests {
     impl Setup {
         fn init() -> Self {
             let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-            sys::mkdir_p(&setup.temp).unwrap();
+            sys::mkdir(&setup.temp).unwrap();
             setup
         }
+    }
+
+    #[test]
+    fn test_chmod() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("chmod");
+        let file1 = tmpdir.mash("file1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        assert!(sys::touch(&file1).is_ok());
+        assert!(sys::chmod(&file1, 0o644).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert!(sys::chmod(&file1, 0o555).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100555);
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_chmod_p() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("chmod_p");
+        let file1 = tmpdir.mash("file1");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        assert!(sys::touch_p(&file1, 0o644).is_ok());
+        assert!(sys::chmod_p(&file1).unwrap().all(0o555).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100555);
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_chmod_revoking() {
+        // test other octet
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0777, 0o0777), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0776, 0o0775), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0770, 0o0771), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0776, 0o0772), true);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0775, 0o0776), true);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0775, 0o0774), true);
+
+        // Test group octet
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0777, 0o0777), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0767, 0o0757), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0707, 0o0717), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0767, 0o0727), true);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0757, 0o0767), true);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0757, 0o0747), true);
+
+        // Test owner octet
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0777, 0o0777), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0677, 0o0577), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0077, 0o0177), false);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0677, 0o0277), true);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0577, 0o0677), true);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0577, 0o0477), true);
+        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0577, 0o0177), true);
     }
 
     #[test]
@@ -297,11 +598,11 @@ mod tests {
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
 
         // copy directory with files
-        assert!(sys::mkdir_p(&dirlink).is_ok());
-        assert!(sys::mkdir_p(&dir1).is_ok());
+        assert!(sys::mkdir(&dirlink).is_ok());
+        assert!(sys::mkdir(&dir1).is_ok());
         assert!(sys::touch(&dir1file).is_ok());
         assert!(sys::symlink(&dir1link, "../dirlink").is_ok());
         assert!(sys::copy(&dir1, &dir2).is_ok());
@@ -332,12 +633,12 @@ mod tests {
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
 
         // copy directory with files
-        assert!(sys::mkdir_p(&dir1).is_ok());
+        assert!(sys::mkdir(&dir1).is_ok());
         assert!(sys::touch(&dir1file).is_ok());
-        assert!(sys::mkdir_p(&dir2).is_ok());
+        assert!(sys::mkdir(&dir2).is_ok());
         assert_eq!(dir3file.exists(), false);
         assert!(sys::copy(&dir1, &dir2).is_ok());
 
@@ -359,10 +660,10 @@ mod tests {
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
 
         // copy directory with files
-        assert!(sys::mkdir_p(&dir1).is_ok());
+        assert!(sys::mkdir(&dir1).is_ok());
         assert!(sys::touch(&dir1file).is_ok());
         assert_eq!(dir2file.exists(), false);
         assert!(sys::copy(&dir1, &dir2).is_ok());
@@ -383,7 +684,7 @@ mod tests {
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
 
         // copy single file
         assert!(sys::touch(&file1).is_ok());
@@ -410,7 +711,7 @@ mod tests {
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
 
         // copy to same dir
         assert!(sys::touch(&file1).is_ok());
@@ -444,13 +745,53 @@ mod tests {
     }
 
     #[test]
+    fn test_copyfile_p() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("copyfile_p");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // copy to same dir
+        assert!(sys::touch_p(&file1, 0o644).is_ok());
+        assert!(sys::copyfile_p(&file1, &file2).unwrap().mode(0o555).e().is_ok());
+        assert_eq!(file2.mode().unwrap(), 0o100555);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_mkdir_p() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("mkdir_p");
+        let dir1 = setup.temp.mash("dir1");
+        let dir2 = setup.temp.mash("dir2");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::mkdir(&dir1).is_ok());
+        assert_eq!(dir1.mode().unwrap(), 0o40755);
+        assert!(sys::mkdir_p(&dir2, 0o555).is_ok());
+        assert_eq!(dir2.mode().unwrap(), 0o40555);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_remove() {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("remove_dir");
         let tmpfile = setup.temp.mash("remove_file");
 
         // Remove empty directory
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), true);
         assert!(sys::remove(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), false);
@@ -467,7 +808,7 @@ mod tests {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("remove_all");
 
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), true);
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), false);
@@ -481,7 +822,7 @@ mod tests {
         let link1 = tmpdir.mash("link1");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
         assert!(sys::touch(&file1).is_ok());
         assert!(sys::symlink(&link1, &file1).is_ok());
         assert_eq!(link1.exists(), true);
@@ -496,14 +837,33 @@ mod tests {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("touch");
         let tmpfile = tmpdir.mash("file1");
-        assert!(sys::remove_all(&tmpdir).is_ok());
 
-        assert!(sys::mkdir_p(&tmpdir).is_ok());
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
         assert!(sys::touch(&tmpfile).is_ok());
-        assert_eq!(tmpfile.exists(), true);
 
-        // Clean up
+        // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
-        assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_touch_p() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("touch_p");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::touch_p(&tmpfile, 0o555).is_ok());
+        assert_eq!(tmpfile.mode().unwrap(), 0o100555);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
     }
 }
