@@ -71,7 +71,7 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
             let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(true) {
+            for entry in WalkDir::new(&abs).follow_links(true).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 // Skip the directory itself
                 if first {
                     first = false;
@@ -111,7 +111,7 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// assert!(sys::mkdir_p(&dir1).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::touch(&file2).is_ok());
-/// assert_iter_eq(sys::all_files(&tmpdir).unwrap(), vec![file1, file2]);
+/// assert_iter_eq(sys::all_files(&tmpdir).unwrap(), vec![file2, file1]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
@@ -121,7 +121,7 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
             let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(true) {
+            for entry in WalkDir::new(&abs).follow_links(true).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 // Skip the directory itself
                 if first {
                     first = false;
@@ -163,7 +163,7 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::touch(&file2).is_ok());
 /// assert!(sys::touch(&file3).is_ok());
-/// assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), vec![file1, dir1, file2, file3]);
+/// assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), vec![dir1, file2, file3, file1]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
@@ -173,7 +173,7 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
             let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(true) {
+            for entry in WalkDir::new(&abs).follow_links(true).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 // Skip the directory itself
                 if first {
                     first = false;
@@ -780,10 +780,11 @@ pub trait PathExt {
 
     /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
     /// Differs from the `mash` implementation as `mash` drops root prefix of the given `path` if
-    /// it exists and also drops any trailing '/' on the new resulting path.
+    /// it exists and also drops any trailing '/' on the new resulting path. More closely aligns
+    /// with the Golang implementation of join.
     ///
     /// ### Examples
-    /// ```ignore
+    /// ```
     /// use fungus::presys::*;
     ///
     /// assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
@@ -863,7 +864,7 @@ pub trait PathExt {
     /// ```
     fn relative_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
 
-    /// Set the given permissions on the `Path` and return the `Path`
+    /// Set the given [`Permissions`] on the `Path` and return the `Path`
     ///
     /// ### Examples
     /// ```
@@ -882,7 +883,7 @@ pub trait PathExt {
     /// ```
     fn setperms(&self, perms: fs::Permissions) -> Result<PathBuf>;
 
-    /// Returns the `Path` as a String
+    /// Returns a new [`String`] from the `path`.
     ///
     /// ### Examples
     /// ```
@@ -892,7 +893,7 @@ pub trait PathExt {
     /// ```
     fn to_string(&self) -> Result<String>;
 
-    /// Returns the `Path` with the file extension removed
+    /// Returns a new [`PathBuf`] with the file extension trimmed off.
     ///
     /// ### Examples
     /// ```
@@ -902,7 +903,7 @@ pub trait PathExt {
     /// ```
     fn trim_ext(&self) -> PathBuf;
 
-    /// Returns the `Path` with the first component trimmed off
+    /// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
     ///
     /// ### Examples
     /// ```
@@ -912,7 +913,7 @@ pub trait PathExt {
     /// ```
     fn trim_first(&self) -> PathBuf;
 
-    /// Returns the `Path` with the last component trimmed off
+    /// Returns a new [`PathBuf`] with last [`Component`] trimmed off.
     ///
     /// ### Examples
     /// ```
@@ -922,7 +923,7 @@ pub trait PathExt {
     /// ```
     fn trim_last(&self) -> PathBuf;
 
-    /// Returns the `Path` with the given prefix trimmed off else the original `Path`.
+    /// Returns a new [`PathBuf`] with the given prefix trimmed off else the original `path`.
     ///
     /// ### Examples
     /// ```
@@ -932,7 +933,8 @@ pub trait PathExt {
     /// ```
     fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf;
 
-    /// Returns the `Path` with well known protocol prefixes removed.
+    /// Returns a new [`PathBuf`] with well known protocol prefixes trimmed off else the original
+    /// `path`.
     ///
     /// ### Examples
     /// ```
@@ -942,7 +944,7 @@ pub trait PathExt {
     /// ```
     fn trim_protocol(&self) -> PathBuf;
 
-    /// Returns the `Path` with the given suffix trimmed off else the original `Path`.
+    /// Returns a new [`PathBuf`] with the given `suffix` trimmed off else the original `path`.
     ///
     /// ### Examples
     /// ```
@@ -950,7 +952,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
     /// ```
-    fn trim_suffix<T: AsRef<Path>>(&self, value: T) -> PathBuf;
+    fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf;
 }
 
 impl PathExt for Path {

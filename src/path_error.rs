@@ -98,17 +98,17 @@ impl PathError {
 impl fmt::Display for PathError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            PathError::DoesNotExist(ref path) => write!(f, "path does not exist {}", path.display()),
+            PathError::DoesNotExist(ref path) => write!(f, "path does not exist: {}", path.display()),
             PathError::Empty => write!(f, "path empty"),
-            PathError::ExistsAlready(ref path) => write!(f, "path exists already {}", path.display()),
-            PathError::FailedToString(ref path) => write!(f, "failed to convert to string for path {}", path.display()),
-            PathError::FileNameNotFound(ref path) => write!(f, "filename not found for path {}", path.display()),
-            PathError::InvalidExpansion(ref path) => write!(f, "invalid path expansion for path {}", path.display()),
-            PathError::IsNotDir(ref path) => write!(f, "is not a directory {}", path.display()),
-            PathError::IsNotFile(ref path) => write!(f, "is not a file {}", path.display()),
-            PathError::IsNotFileOrSymlinkToFile(ref path) => write!(f, "is not a file or a symlink to a file {}", path.display()),
-            PathError::MultipleHomeSymbols(ref path) => write!(f, "multiple home symbols for path {}", path.display()),
-            PathError::ParentNotFound(ref path) => write!(f, "parent not found for path {}", path.display()),
+            PathError::ExistsAlready(ref path) => write!(f, "path exists already: {}", path.display()),
+            PathError::FailedToString(ref path) => write!(f, "failed to convert to string for path: {}", path.display()),
+            PathError::FileNameNotFound(ref path) => write!(f, "filename not found for path: {}", path.display()),
+            PathError::InvalidExpansion(ref path) => write!(f, "invalid path expansion for path: {}", path.display()),
+            PathError::IsNotDir(ref path) => write!(f, "is not a directory: {}", path.display()),
+            PathError::IsNotFile(ref path) => write!(f, "is not a file: {}", path.display()),
+            PathError::IsNotFileOrSymlinkToFile(ref path) => write!(f, "is not a file or a symlink to a file: {}", path.display()),
+            PathError::MultipleHomeSymbols(ref path) => write!(f, "multiple home symbols for path: {}", path.display()),
+            PathError::ParentNotFound(ref path) => write!(f, "parent not found for path: {}", path.display()),
         }
     }
 }
@@ -137,18 +137,28 @@ mod tests {
         assert!(parent_not_found().is_err());
         assert_ne!(parent_not_found().unwrap_err().downcast_ref::<PathError>(), Some(&PathError::parent_not_found("bar")));
         assert_eq!(parent_not_found().unwrap_err().downcast_ref::<PathError>(), Some(&PathError::parent_not_found("foo")));
-        assert_eq!(format!("{}", parent_not_found().unwrap_err().downcast_ref::<PathError>().unwrap()), "parent not found for path foo");
+        assert_eq!(format!("{}", parent_not_found().unwrap_err().downcast_ref::<PathError>().unwrap()), "parent not found for path: foo");
     }
 
     #[test]
     fn test_other_errors() {
         assert_eq!(PathError::does_not_exist(Path::new("foo")), PathError::DoesNotExist(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::DoesNotExist(PathBuf::from("foo"))), "path does not exist: foo");
+        assert_eq!(format!("{}", PathError::empty()), "path empty");
         assert_eq!(PathError::exists_already(Path::new("foo")), PathError::ExistsAlready(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::ExistsAlready(PathBuf::from("foo"))), "path exists already: foo");
         assert_eq!(PathError::failed_to_string(Path::new("foo")), PathError::FailedToString(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::failed_to_string(PathBuf::from("foo"))), "failed to convert to string for path: foo");
         assert_eq!(PathError::filename_not_found(Path::new("foo")), PathError::FileNameNotFound(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::filename_not_found(PathBuf::from("foo"))), "filename not found for path: foo");
         assert_eq!(PathError::is_not_dir(Path::new("foo")), PathError::IsNotDir(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::is_not_dir(PathBuf::from("foo"))), "is not a directory: foo");
         assert_eq!(PathError::is_not_file(Path::new("foo")), PathError::IsNotFile(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::is_not_file(PathBuf::from("foo"))), "is not a file: foo");
         assert_eq!(PathError::is_not_file_or_symlink_to_file(Path::new("foo")), PathError::IsNotFileOrSymlinkToFile(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::is_not_file_or_symlink_to_file(PathBuf::from("foo"))), "is not a file or a symlink to a file: foo");
+        assert_eq!(PathError::multiple_home_symbols(Path::new("foo")), PathError::MultipleHomeSymbols(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::multiple_home_symbols(PathBuf::from("foo"))), "multiple home symbols for path: foo");
     }
 
     #[test]

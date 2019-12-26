@@ -259,6 +259,7 @@ pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
+    use crate::core::*;
     use crate::presys::*;
 
     // Reusable teset setup
@@ -273,29 +274,56 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_copy_dir() {
-    //     let setup = Setup::init();
-    //     let tmpdir = setup.temp.mash("copy_dir");
-    //     let dir1 = tmpdir.mash("dir1");
-    //     let dir1file = dir1.mash("file");
-    //     let dir2 = tmpdir.mash("dir2");
-    //     let dir2file = dir2.mash("file");
+    #[test]
+    fn test_copy_dir_copy() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("copy_dir_copy");
+        let dir1 = tmpdir.mash("dir1");
+        let dir1file = dir1.mash("file");
+        let dir2 = tmpdir.mash("dir2");
+        let dir3file = tmpdir.mash("dir2/dir1/file");
 
-    //     // setup
-    //     assert!(sys::remove_all(&tmpdir).is_ok());
-    //     assert!(sys::mkdir_p(&tmpdir).is_ok());
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
 
-    //     // copy directory with files
-    //     assert!(sys::mkdir_p(&dir1).is_ok());
-    //     assert!(sys::touch(&dir1file).is_ok());
-    //     assert_eq!(dir2file.exists(), false);
-    //     assert!(sys::copy(&dir1, &dir2).is_ok());
-    //     assert_eq!(dir2file.exists(), true);
+        // copy directory with files
+        assert!(sys::mkdir_p(&dir1).is_ok());
+        assert!(sys::touch(&dir1file).is_ok());
+        assert!(sys::mkdir_p(&dir2).is_ok());
+        assert_eq!(dir3file.exists(), false);
+        assert!(sys::copy(&dir1, &dir2).is_ok());
 
-    //     // cleanup
-    //     //assert!(sys::remove_all(&tmpdir).is_ok());
-    // }
+        let paths = vec![tmpdir.mash("dir1"), tmpdir.mash("dir1/file"), tmpdir.mash("dir2"), tmpdir.mash("dir2/dir1"), tmpdir.mash("dir2/dir1/file")];
+        assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), paths);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_copy_dir_clone() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("copy_dir_clone");
+        let dir1 = tmpdir.mash("dir1");
+        let dir1file = dir1.mash("file");
+        let dir2 = tmpdir.mash("dir2");
+        let dir2file = dir2.mash("file");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir_p(&tmpdir).is_ok());
+
+        // copy directory with files
+        assert!(sys::mkdir_p(&dir1).is_ok());
+        assert!(sys::touch(&dir1file).is_ok());
+        assert_eq!(dir2file.exists(), false);
+        assert!(sys::copy(&dir1, &dir2).is_ok());
+        assert_eq!(dir2file.exists(), true);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
 
     #[test]
     fn test_copy_single_file() {
