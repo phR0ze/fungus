@@ -42,10 +42,10 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
 
             // Set proper dst path
             let dstpath = match clone {
-                true => dstabs.join(srcpath.trim_prefix(&srcroot)?).clean()?,
-                false => dstabs.join(srcpath.trim_prefix(srcroot.dir()?)?).clean()?,
+                true => dstabs.mash(srcpath.trim_prefix(&srcroot)),
+                false => dstabs.mash(srcpath.trim_prefix(srcroot.dir()?)),
             };
-            match &dstpath {
+            match &srcpath {
                 // Create destination directories as needed
                 x if x.is_dir() => {
                     mkdir_p(dstpath)?;
@@ -78,10 +78,10 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_copyfile");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
-/// let file1 = tmpdir.join("file1");
-/// let file2 = tmpdir.join("file2");
+/// let file1 = tmpdir.mash("file1");
+/// let file2 = tmpdir.mash("file2");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
@@ -106,7 +106,7 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBu
         // Exists so dst is either a file to overwrite or a dir to copy into
         true => {
             if dstpath.is_dir() {
-                dstpath = dstpath.join(srcpath.base()?)
+                dstpath = dstpath.mash(srcpath.base()?)
             }
         }
 
@@ -142,7 +142,7 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBu
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_mkdir_p");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_mkdir_p");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
@@ -162,7 +162,7 @@ pub fn mkdir_p<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_remove");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_remove");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::remove(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
@@ -188,7 +188,7 @@ pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_remove_all");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_remove_all");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
@@ -208,10 +208,10 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> Result<()> {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_symlink");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_symlink");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// let file1 = tmpdir.join("file1");
-/// let link1 = tmpdir.join("link1");
+/// let file1 = tmpdir.mash("file1");
+/// let link1 = tmpdir.mash("link1");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::symlink(&link1, &file1).is_ok());
@@ -234,8 +234,8 @@ pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<Pat
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_touch");
-/// let tmpfile = tmpdir.join("file1");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_touch");
+/// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::touch(&tmpfile).is_ok());
 /// assert_eq!(tmpfile.exists(), true);
@@ -273,50 +273,61 @@ mod tests {
         }
     }
 
+    // #[test]
+    // fn test_copy_dir() {
+    //     let setup = Setup::init();
+    //     let tmpdir = setup.temp.mash("copy_dir");
+    //     let dir1 = tmpdir.mash("dir1");
+    //     let dir1file = dir1.mash("file");
+    //     let dir2 = tmpdir.mash("dir2");
+    //     let dir2file = dir2.mash("file");
+
+    //     // setup
+    //     assert!(sys::remove_all(&tmpdir).is_ok());
+    //     assert!(sys::mkdir_p(&tmpdir).is_ok());
+
+    //     // copy directory with files
+    //     assert!(sys::mkdir_p(&dir1).is_ok());
+    //     assert!(sys::touch(&dir1file).is_ok());
+    //     assert_eq!(dir2file.exists(), false);
+    //     assert!(sys::copy(&dir1, &dir2).is_ok());
+    //     assert_eq!(dir2file.exists(), true);
+
+    //     // cleanup
+    //     //assert!(sys::remove_all(&tmpdir).is_ok());
+    // }
+
     #[test]
-    fn test_copy() {
+    fn test_copy_single_file() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("copy");
-        let file1 = tmpdir.join("file1");
-        let file2 = tmpdir.join("file2");
-        let link1 = tmpdir.join("link1");
-        let link2 = tmpdir.join("link2");
-        let dir1 = tmpdir.join("dir1");
-        let dir1file = dir1.join("file");
-        let dir2 = tmpdir.join("dir2");
-        let dir2file = dir2.join("file");
+        let tmpdir = setup.temp.mash("copy_single_file");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
 
-        // // copy single file
-        // assert!(sys::touch(&file1).is_ok());
-        // assert_eq!(file1.exists(), true);
-        // assert_eq!(file2.exists(), false);
-        // assert!(sys::copy(&file1, &file2).is_ok());
-        // assert_eq!(file2.exists(), true);
-
-        // copy directory with files
-        assert!(sys::mkdir_p(&dir1).is_ok());
-        assert!(sys::touch(&dir1file).is_ok());
-        assert_eq!(dir2file.exists(), false);
-        assert!(sys::copy(&dir1, &dir2).is_ok());
-        assert_eq!(dir2file.exists(), true);
+        // copy single file
+        assert!(sys::touch(&file1).is_ok());
+        assert_eq!(file1.exists(), true);
+        assert_eq!(file2.exists(), false);
+        assert!(sys::copy(&file1, &file2).is_ok());
+        assert_eq!(file2.exists(), true);
 
         // cleanup
-        //assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::remove_all(&tmpdir).is_ok());
     }
 
     #[test]
     fn test_copyfile() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("copyfile");
-        let file1 = tmpdir.join("file1");
-        let file2 = tmpdir.join("file2");
-        let link1 = tmpdir.join("link1");
-        let link2 = tmpdir.join("link2");
-        let file3 = tmpdir.join("dir1/file3");
+        let tmpdir = setup.temp.mash("copyfile");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+        let link1 = tmpdir.mash("link1");
+        let link2 = tmpdir.mash("link2");
+        let file3 = tmpdir.mash("dir1/file3");
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -356,8 +367,8 @@ mod tests {
     #[test]
     fn test_remove() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("remove_dir");
-        let tmpfile = setup.temp.join("remove_file");
+        let tmpdir = setup.temp.mash("remove_dir");
+        let tmpfile = setup.temp.mash("remove_file");
 
         // Remove empty directory
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -375,7 +386,7 @@ mod tests {
     #[test]
     fn test_remove_all() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("remove_all");
+        let tmpdir = setup.temp.mash("remove_all");
 
         assert!(sys::mkdir_p(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), true);
@@ -386,9 +397,9 @@ mod tests {
     #[test]
     fn test_symlink() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("symlink");
-        let file1 = tmpdir.join("file1");
-        let link1 = tmpdir.join("link1");
+        let tmpdir = setup.temp.mash("symlink");
+        let file1 = tmpdir.mash("file1");
+        let link1 = tmpdir.mash("link1");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -404,8 +415,8 @@ mod tests {
     #[test]
     fn test_touch() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("touch");
-        let tmpfile = tmpdir.join("file1");
+        let tmpdir = setup.temp.mash("touch");
+        let tmpfile = tmpdir.mash("file1");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
         assert!(sys::mkdir_p(&tmpdir).is_ok());

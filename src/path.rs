@@ -28,7 +28,7 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     let mut path_buf = _path.expand()?;
 
     // Trim protocol prefix if needed
-    path_buf = path_buf.trim_protocol()?;
+    path_buf = path_buf.trim_protocol();
 
     // Clean the resulting path
     path_buf = path_buf.clean()?;
@@ -39,9 +39,9 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 
         // Unwrap works here as there will always be Some
         path_buf = match path_buf.first()? {
-            Component::CurDir => curr.join(path_buf),
-            Component::ParentDir => curr.dir()?.join(path_buf.trim_first()?),
-            _ => curr.join(path_buf),
+            Component::CurDir => curr.mash(path_buf),
+            Component::ParentDir => curr.dir()?.mash(path_buf.trim_first()),
+            _ => curr.mash(path_buf),
         }
     }
 
@@ -57,9 +57,9 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// use fungus::presys::*;
 /// use fungus::core::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_dirs");
-/// let dir1 = tmpdir.join("dir1");
-/// let dir2 = dir1.join("dir2");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_dirs");
+/// let dir1 = tmpdir.mash("dir1");
+/// let dir2 = dir1.mash("dir2");
 /// assert!(sys::mkdir_p(&dir2).is_ok());
 /// assert_iter_eq(sys::all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -104,10 +104,10 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// use fungus::presys::*;
 /// use fungus::core::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_files");
-/// let file1 = tmpdir.join("file1");
-/// let dir1 = tmpdir.join("dir1");
-/// let file2 = dir1.join("file2");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_files");
+/// let file1 = tmpdir.mash("file1");
+/// let dir1 = tmpdir.mash("dir1");
+/// let file2 = dir1.mash("file2");
 /// assert!(sys::mkdir_p(&dir1).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::touch(&file2).is_ok());
@@ -154,11 +154,11 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// use fungus::presys::*;
 /// use fungus::core::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_all_paths");
-/// let file1 = tmpdir.join("file1");
-/// let dir1 = tmpdir.join("dir1");
-/// let file2 = dir1.join("file2");
-/// let file3 = dir1.join("file3");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_paths");
+/// let file1 = tmpdir.mash("file1");
+/// let dir1 = tmpdir.mash("dir1");
+/// let file2 = dir1.mash("file2");
+/// let file3 = dir1.mash("file3");
 /// assert!(sys::mkdir_p(&dir1).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::touch(&file2).is_ok());
@@ -201,9 +201,9 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_chmod");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chmod");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// let file1 = tmpdir.join("file1");
+/// let file1 = tmpdir.mash("file1");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert_eq!(file1.mode().unwrap(), 0o100644);
@@ -226,9 +226,9 @@ pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
 /// use fungus::presys::*;
 /// use fungus::core::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_dirs");
-/// let dir1 = tmpdir.join("dir1");
-/// let dir2 = tmpdir.join("dir2");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_dirs");
+/// let dir1 = tmpdir.mash("dir1");
+/// let dir2 = tmpdir.mash("dir2");
 /// assert!(sys::mkdir_p(&dir1).is_ok());
 /// assert!(sys::mkdir_p(&dir2).is_ok());
 /// assert_iter_eq(sys::dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
@@ -304,9 +304,9 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 /// use fungus::presys::*;
 /// use fungus::core::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_files");
-/// let file1 = tmpdir.join("file1");
-/// let file2 = tmpdir.join("file2");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_files");
+/// let file1 = tmpdir.mash("file1");
+/// let file2 = tmpdir.mash("file2");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::touch(&file2).is_ok());
@@ -369,10 +369,10 @@ pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_is_symlink");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// let file1 = tmpdir.join("file1");
-/// let link1 = tmpdir.join("link1");
+/// let file1 = tmpdir.mash("file1");
+/// let link1 = tmpdir.mash("link1");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::symlink(&link1, &file1).is_ok());
@@ -390,10 +390,10 @@ pub fn is_symlink<T: AsRef<Path>>(path: T) -> bool {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_dir");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_is_symlink_dir");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// let dir1 = tmpdir.join("dir1");
-/// let link1 = tmpdir.join("link1");
+/// let dir1 = tmpdir.mash("dir1");
+/// let link1 = tmpdir.mash("link1");
 /// assert!(sys::mkdir_p(&dir1).is_ok());
 /// assert!(sys::symlink(&link1, &dir1).is_ok());
 /// assert_eq!(sys::is_symlink_dir(link1), true);
@@ -413,10 +413,10 @@ pub fn is_symlink_dir<T: AsRef<Path>>(path: T) -> bool {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_is_symlink_file");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_is_symlink_file");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// let file1 = tmpdir.join("file1");
-/// let link1 = tmpdir.join("link1");
+/// let file1 = tmpdir.mash("file1");
+/// let link1 = tmpdir.mash("link1");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::symlink(&link1, &file1).is_ok());
@@ -438,14 +438,14 @@ pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
 /// use fungus::presys::*;
 /// use fungus::core::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_glob");
-/// let dir1 = tmpdir.join("dir1");
-/// let dir2 = tmpdir.join("dir2");
-/// let file1 = tmpdir.join("file1");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_glob");
+/// let dir1 = tmpdir.mash("dir1");
+/// let dir2 = tmpdir.mash("dir2");
+/// let file1 = tmpdir.mash("file1");
 /// assert!(sys::mkdir_p(&dir1).is_ok());
 /// assert!(sys::mkdir_p(&dir2).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
-/// assert_iter_eq(sys::glob(tmpdir.join("*")).unwrap(), vec![dir1, dir2, file1]);
+/// assert_iter_eq(sys::glob(tmpdir.mash("*")).unwrap(), vec![dir1, dir2, file1]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn glob<T: AsRef<Path>>(pattern: T) -> Result<Vec<PathBuf>> {
@@ -483,10 +483,10 @@ pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
 /// use fungus::presys::*;
 /// use fungus::core::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_paths");
-/// let dir1 = tmpdir.join("dir1");
-/// let dir2 = tmpdir.join("dir2");
-/// let file1 = tmpdir.join("file1");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_paths");
+/// let dir1 = tmpdir.mash("dir1");
+/// let dir2 = tmpdir.mash("dir2");
+/// let file1 = tmpdir.mash("file1");
 /// assert!(sys::mkdir_p(&dir1).is_ok());
 /// assert!(sys::mkdir_p(&dir2).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
@@ -517,10 +517,10 @@ pub fn paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("doc_readlink");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlink");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// let file1 = tmpdir.join("file1");
-/// let link1 = tmpdir.join("link1");
+/// let file1 = tmpdir.mash("file1");
+/// let link1 = tmpdir.mash("link1");
 /// assert!(sys::mkdir_p(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::symlink(&link1, &file1).is_ok());
@@ -555,7 +555,7 @@ pub trait PathExt {
     /// use fungus::presys::*;
     ///
     /// let home = PathBuf::from("~").abs().unwrap();
-    /// assert_eq!(PathBuf::from("foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+    /// assert_eq!(PathBuf::from("foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
     /// ```
     fn abs_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
 
@@ -575,9 +575,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_chmod");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_chmod");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let file1 = tmpdir.join("file1");
+    /// let file1 = tmpdir.mash("file1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
     /// assert!(file1.chmod(0o644).is_ok());
@@ -642,7 +642,7 @@ pub trait PathExt {
     /// use fungus::presys::*;
     ///
     /// let home = env::var("HOME").unwrap();
-    /// assert_eq!(PathBuf::from(&home).join("foo"), PathBuf::from("~/foo").expand().unwrap());
+    /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
     /// ```
     fn expand(&self) -> Result<PathBuf>;
 
@@ -657,7 +657,7 @@ pub trait PathExt {
     /// ```
     fn first(&self) -> Result<Component>;
 
-    /// Returns true if the `Path` as a String contains the given string
+    /// Returns true if the `Path` as a String contains the given path
     ///
     /// ### Examples
     /// ```
@@ -667,9 +667,9 @@ pub trait PathExt {
     /// assert_eq!(path.has("foo"), true);
     /// assert_eq!(path.has("/foo"), true);
     /// ```
-    fn has<T: AsRef<str>>(&self, value: T) -> bool;
+    fn has<T: AsRef<Path>>(&self, path: T) -> bool;
 
-    /// Returns true if the `Path` as a String has the given string prefix
+    /// Returns true if the `Path` as a String has the given prefix
     ///
     /// ### Examples
     /// ```
@@ -679,9 +679,9 @@ pub trait PathExt {
     /// assert_eq!(path.has_prefix("/foo"), true);
     /// assert_eq!(path.has_prefix("foo"), false);
     /// ```
-    fn has_prefix<T: AsRef<str>>(&self, value: T) -> bool;
+    fn has_prefix<T: AsRef<Path>>(&self, prefix: T) -> bool;
 
-    /// Returns true if the `Path` as a String has the given string suffix
+    /// Returns true if the `Path` as a String has the given suffix
     ///
     /// ### Examples
     /// ```
@@ -691,7 +691,7 @@ pub trait PathExt {
     /// assert_eq!(path.has_suffix("/bar"), true);
     /// assert_eq!(path.has_suffix("foo"), false);
     /// ```
-    fn has_suffix<T: AsRef<str>>(&self, value: T) -> bool;
+    fn has_suffix<T: AsRef<Path>>(&self, suffix: T) -> bool;
 
     /// Returns true if the `Path` exists and is a directory. Handles path expansion.
     ///
@@ -719,10 +719,10 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_is_symlink");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_is_symlink");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let file1 = tmpdir.join("file1");
-    /// let link1 = tmpdir.join("link1");
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
     /// assert!(sys::symlink(&link1, &file1).is_ok());
@@ -737,10 +737,10 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_is_symlink_dir");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_is_symlink_dir");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let dir1 = tmpdir.join("dir1");
-    /// let link1 = tmpdir.join("link1");
+    /// let dir1 = tmpdir.mash("dir1");
+    /// let link1 = tmpdir.mash("link1");
     /// assert!(sys::mkdir_p(&dir1).is_ok());
     /// assert!(sys::symlink(&link1, &dir1).is_ok());
     /// assert_eq!(link1.is_symlink_dir(), true);
@@ -755,10 +755,10 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_is_symlink_file");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_is_symlink_file");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let file1 = tmpdir.join("file1");
-    /// let link1 = tmpdir.join("link1");
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
     /// assert!(sys::symlink(&link1, &file1).is_ok());
@@ -778,6 +778,18 @@ pub trait PathExt {
     /// ```
     fn last(&self) -> Result<Component>;
 
+    /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
+    /// Differs from the `mash` implementation as `mash` drops root prefix of the given `path` if
+    /// it exists and also drops any trailing '/' on the new resulting path.
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use fungus::presys::*;
+    ///
+    /// assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
+    /// ```
+    fn mash<T: AsRef<Path>>(&self, path: T) -> PathBuf;
+
     /// Returns the Metadata object for the `Path` if it exists else and error
     ///
     /// ### Examples
@@ -795,9 +807,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_mode");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_mode");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let file1 = tmpdir.join("file1");
+    /// let file1 = tmpdir.mash("file1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
     /// assert!(file1.chmod(0o644).is_ok());
@@ -812,9 +824,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_perms");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_perms");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let file1 = tmpdir.join("file1");
+    /// let file1 = tmpdir.mash("file1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
     /// assert!(file1.chmod(0o644).is_ok());
@@ -829,10 +841,10 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_readlink");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_readlink");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let file1 = tmpdir.join("file1");
-    /// let link1 = tmpdir.join("link1");
+    /// let file1 = tmpdir.mash("file1");
+    /// let link1 = tmpdir.mash("link1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
     /// assert!(sys::symlink(&link1, &file1).is_ok());
@@ -857,9 +869,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().join("pathbuf_doc_setperms");
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_setperms");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
-    /// let file1 = tmpdir.join("file1");
+    /// let file1 = tmpdir.mash("file1");
     /// assert!(sys::mkdir_p(&tmpdir).is_ok());
     /// assert!(sys::touch(&file1).is_ok());
     /// assert!(file1.chmod(0o644).is_ok());
@@ -886,9 +898,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
+    /// assert_eq!(PathBuf::from("foo.exe").trim_ext(), PathBuf::from("foo"));
     /// ```
-    fn trim_ext(&self) -> Result<PathBuf>;
+    fn trim_ext(&self) -> PathBuf;
 
     /// Returns the `Path` with the first component trimmed off
     ///
@@ -896,9 +908,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo").trim_first().unwrap(), PathBuf::from("foo"));
+    /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
     /// ```
-    fn trim_first(&self) -> Result<PathBuf>;
+    fn trim_first(&self) -> PathBuf;
 
     /// Returns the `Path` with the last component trimmed off
     ///
@@ -906,9 +918,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo").trim_last().unwrap(), PathBuf::from("/"));
+    /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
     /// ```
-    fn trim_last(&self) -> Result<PathBuf>;
+    fn trim_last(&self) -> PathBuf;
 
     /// Returns the `Path` with the given prefix trimmed off else the original `Path`.
     ///
@@ -916,9 +928,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo").unwrap(), PathBuf::from("/bar"));
+    /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo"), PathBuf::from("/bar"));
     /// ```
-    fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> Result<PathBuf>;
+    fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf;
 
     /// Returns the `Path` with well known protocol prefixes removed.
     ///
@@ -926,9 +938,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol().unwrap(), PathBuf::from("foo"));
+    /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
     /// ```
-    fn trim_protocol(&self) -> Result<PathBuf>;
+    fn trim_protocol(&self) -> PathBuf;
 
     /// Returns the `Path` with the given suffix trimmed off else the original `Path`.
     ///
@@ -936,9 +948,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::presys::*;
     ///
-    /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar").unwrap(), PathBuf::from("/foo"));
+    /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
     /// ```
-    fn trim_suffix<T: AsRef<Path>>(&self, value: T) -> Result<PathBuf>;
+    fn trim_suffix<T: AsRef<Path>>(&self, value: T) -> PathBuf;
 }
 
 impl PathExt for Path {
@@ -949,13 +961,13 @@ impl PathExt for Path {
     fn abs_from<T: AsRef<Path>>(&self, base: T) -> Result<PathBuf> {
         let base = base.as_ref().abs()?;
         if !self.is_absolute() && self != base {
-            let mut path = base.trim_last()?;
+            let mut path = base.trim_last();
             let mut components = self.components();
             loop {
                 match components.next() {
                     Some(component) => match component {
-                        Component::ParentDir => path = path.trim_last()?,
-                        Component::Normal(x) => return Ok(path.join(x).join(components.collect::<PathBuf>()).clean()?),
+                        Component::ParentDir => path = path.trim_last(),
+                        Component::Normal(x) => return Ok(path.mash(x).mash(components.collect::<PathBuf>()).clean()?),
                         _ => (),
                     },
                     None => return Err(PathError::empty().into()),
@@ -1058,7 +1070,7 @@ impl PathExt for Path {
             }
 
             // Replace prefix with home directory
-            1 => expanded = crate::user::home()?.join(&path_str[2..]),
+            1 => expanded = crate::user::home()?.mash(&path_str[2..]),
             _ => (),
         }
 
@@ -1069,24 +1081,24 @@ impl PathExt for Path {
         self.components().first_result()
     }
 
-    fn has<T: AsRef<str>>(&self, value: T) -> bool {
-        match self.to_string() {
-            Ok(s) => s.contains(value.as_ref()),
-            Err(_) => false,
+    fn has<T: AsRef<Path>>(&self, path: T) -> bool {
+        match (self.to_string(), path.as_ref().to_string()) {
+            (Ok(base), Ok(path)) => base.contains(&path),
+            _ => false,
         }
     }
 
-    fn has_prefix<T: AsRef<str>>(&self, value: T) -> bool {
-        match self.to_string() {
-            Ok(s) => s.starts_with(value.as_ref()),
-            Err(_) => false,
+    fn has_prefix<T: AsRef<Path>>(&self, prefix: T) -> bool {
+        match (self.to_string(), prefix.as_ref().to_string()) {
+            (Ok(base), Ok(prefix)) => base.starts_with(&prefix),
+            _ => false,
         }
     }
 
-    fn has_suffix<T: AsRef<str>>(&self, value: T) -> bool {
-        match self.to_string() {
-            Ok(s) => s.ends_with(value.as_ref()),
-            Err(_) => false,
+    fn has_suffix<T: AsRef<Path>>(&self, suffix: T) -> bool {
+        match (self.to_string(), suffix.as_ref().to_string()) {
+            (Ok(base), Ok(suffix)) => base.ends_with(&suffix),
+            _ => false,
         }
     }
 
@@ -1112,6 +1124,10 @@ impl PathExt for Path {
 
     fn last(&self) -> Result<Component> {
         self.components().last_result()
+    }
+
+    fn mash<T: AsRef<Path>>(&self, path: T) -> PathBuf {
+        self.join(path.as_ref().trim_prefix("/")).components().collect::<PathBuf>()
     }
 
     fn metadata(&self) -> Result<fs::Metadata> {
@@ -1176,60 +1192,55 @@ impl PathExt for Path {
         Ok(String::from(_str))
     }
 
-    fn trim_ext(&self) -> Result<PathBuf> {
+    fn trim_ext(&self) -> PathBuf {
         match self.file_stem() {
-            Some(val) => Ok(self.trim_last()?.join(val)),
-            None => Ok(self.to_path_buf()),
+            Some(val) => self.trim_last().mash(val),
+            None => self.to_path_buf(),
         }
     }
 
-    fn trim_first(&self) -> Result<PathBuf> {
-        Ok(self.components().drop(1).as_path().to_path_buf())
+    fn trim_first(&self) -> PathBuf {
+        self.components().drop(1).as_path().to_path_buf()
     }
 
-    fn trim_last(&self) -> Result<PathBuf> {
-        Ok(self.components().drop(-1).as_path().to_path_buf())
+    fn trim_last(&self) -> PathBuf {
+        self.components().drop(-1).as_path().to_path_buf()
     }
 
-    fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> Result<PathBuf> {
-        let base = self.to_string()?;
-        let prefix = prefix.as_ref().to_string()?;
-        if base.starts_with(&prefix) {
-            if prefix.len() < base.len() {
-                let new = &base[prefix.len()..];
-                return Ok(PathBuf::from(new));
-            }
-            return Ok(PathBuf::new());
+    fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf {
+        match (self.to_string(), prefix.as_ref().to_string()) {
+            (Ok(base), Ok(prefix)) if base.starts_with(&prefix) => PathBuf::from(&base[prefix.len()..]),
+            _ => self.to_path_buf(),
         }
-        Ok(self.to_path_buf())
     }
 
-    fn trim_protocol(&self) -> Result<PathBuf> {
-        let mut base = self.to_string()?;
-        if let Some(i) = base.find("//") {
-            let (prefix, suffix) = base.split_at(i + 2);
-            let lower = prefix.to_lowercase();
-            let lower = lower.trim_start_matches("file://");
-            let lower = lower.trim_start_matches("ftp://");
-            let lower = lower.trim_start_matches("http://");
-            let lower = lower.trim_start_matches("https://");
-            if lower != "" {
-                base = format!("{}{}", prefix, suffix);
-            } else {
-                return Ok(PathBuf::from(suffix));
-            }
+    fn trim_protocol(&self) -> PathBuf {
+        match self.to_string() {
+            Ok(base) => match base.find("//") {
+                Some(i) => {
+                    let (prefix, suffix) = base.split_at(i + 2);
+                    let lower = prefix.to_lowercase();
+                    let lower = lower.trim_start_matches("file://");
+                    let lower = lower.trim_start_matches("ftp://");
+                    let lower = lower.trim_start_matches("http://");
+                    let lower = lower.trim_start_matches("https://");
+                    if lower != "" {
+                        PathBuf::from(format!("{}{}", prefix, suffix))
+                    } else {
+                        PathBuf::from(suffix)
+                    }
+                }
+                _ => PathBuf::from(base),
+            },
+            _ => self.to_path_buf(),
         }
-        Ok(PathBuf::from(base))
     }
 
-    fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> Result<PathBuf> {
-        let base = self.to_string()?;
-        let suffix = suffix.as_ref().to_string()?;
-        if base.ends_with(&suffix) {
-            let new = &base[..base.len() - suffix.len()];
-            return Ok(PathBuf::from(new));
+    fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf {
+        match (self.to_string(), suffix.as_ref().to_string()) {
+            (Ok(base), Ok(suffix)) if base.ends_with(&suffix) => PathBuf::from(&base[..base.len() - suffix.len()]),
+            _ => self.to_path_buf(),
         }
-        Ok(self.to_path_buf())
     }
 }
 
@@ -1273,15 +1284,15 @@ mod tests {
         assert_eq!(sys::abs("~/").unwrap(), home);
 
         // expand relative directory
-        assert_eq!(sys::abs("foo").unwrap(), cwd.join("foo"));
+        assert_eq!(sys::abs("foo").unwrap(), cwd.mash("foo"));
 
         // expand home path
-        assert_eq!(sys::abs("~/foo").unwrap(), home.join("foo"));
+        assert_eq!(sys::abs("~/foo").unwrap(), home.mash("foo"));
 
         // More complicated
-        assert_eq!(sys::abs("~/foo/bar/../.").unwrap(), home.join("foo"));
-        assert_eq!(sys::abs("~/foo/bar/../").unwrap(), home.join("foo"));
-        assert_eq!(sys::abs("~/foo/bar/../blah").unwrap(), home.join("foo/blah"));
+        assert_eq!(sys::abs("~/foo/bar/../.").unwrap(), home.mash("foo"));
+        assert_eq!(sys::abs("~/foo/bar/../").unwrap(), home.mash("foo"));
+        assert_eq!(sys::abs("~/foo/bar/../blah").unwrap(), home.mash("foo/blah"));
     }
 
     #[test]
@@ -1289,26 +1300,26 @@ mod tests {
         let home = PathBuf::from("~").abs().unwrap();
 
         // share the same directory
-        assert_eq!(PathBuf::from("foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
-        assert_eq!(PathBuf::from("./foo2").abs_from(home.join("foo1").abs().unwrap()).unwrap(), home.join("foo2"));
+        assert_eq!(PathBuf::from("foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
+        assert_eq!(PathBuf::from("./foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
 
         // share parent directory
-        assert_eq!(PathBuf::from("../foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("foo2"));
-        assert_eq!(PathBuf::from("bar2/foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("bar1/bar2/foo2"));
-        assert_eq!(PathBuf::from("../../foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.trim_last().unwrap().join("foo2"));
+        assert_eq!(PathBuf::from("../foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
+        assert_eq!(PathBuf::from("bar2/foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("bar1/bar2/foo2"));
+        assert_eq!(PathBuf::from("../../foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.trim_last().mash("foo2"));
 
         // share grandparent directory
-        assert_eq!(PathBuf::from("blah1/bar2/foo2").abs_from(home.join("bar1/foo1").abs().unwrap()).unwrap(), home.join("bar1/blah1/bar2/foo2"));
+        assert_eq!(PathBuf::from("blah1/bar2/foo2").abs_from(home.mash("bar1/foo1").abs().unwrap()).unwrap(), home.mash("bar1/blah1/bar2/foo2"));
     }
 
     #[test]
     fn test_all_dirs() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("all_dirs");
-        let tmpdir1 = tmpdir.join("dir1");
-        let tmpdir2 = tmpdir1.join("dir2");
-        let tmpfile1 = tmpdir.join("file1");
-        let tmpfile2 = tmpdir.join("file2");
+        let tmpdir = setup.temp.mash("all_dirs");
+        let tmpdir1 = tmpdir.mash("dir1");
+        let tmpdir2 = tmpdir1.mash("dir2");
+        let tmpfile1 = tmpdir.mash("file1");
+        let tmpfile2 = tmpdir.mash("file2");
 
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
@@ -1336,11 +1347,11 @@ mod tests {
     #[test]
     fn test_all_files() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("all_files");
-        let tmpdir1 = tmpdir.join("dir1");
-        let tmpdir2 = tmpdir1.join("dir2");
-        let tmpfile1 = tmpdir1.join("file1");
-        let tmpfile2 = tmpdir2.join("file2");
+        let tmpdir = setup.temp.mash("all_files");
+        let tmpdir1 = tmpdir.mash("dir1");
+        let tmpdir2 = tmpdir1.mash("dir2");
+        let tmpfile1 = tmpdir1.mash("file1");
+        let tmpfile2 = tmpdir2.mash("file2");
 
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
@@ -1368,11 +1379,11 @@ mod tests {
     #[test]
     fn test_all_paths() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("all_paths");
-        let tmpdir1 = tmpdir.join("dir1");
-        let tmpdir2 = tmpdir1.join("dir2");
-        let tmpfile1 = tmpdir1.join("file1");
-        let tmpfile2 = tmpdir2.join("file2");
+        let tmpdir = setup.temp.mash("all_paths");
+        let tmpdir1 = tmpdir.mash("dir1");
+        let tmpdir2 = tmpdir1.mash("dir2");
+        let tmpfile1 = tmpdir1.mash("file1");
+        let tmpfile2 = tmpdir2.mash("file2");
 
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
@@ -1400,11 +1411,11 @@ mod tests {
     #[test]
     fn test_dirs() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("dirs");
-        let tmpdir1 = tmpdir.join("dir1");
-        let tmpdir2 = tmpdir.join("dir2");
-        let tmpfile1 = tmpdir.join("file1");
-        let tmpfile2 = tmpdir.join("file2");
+        let tmpdir = setup.temp.mash("dirs");
+        let tmpdir1 = tmpdir.mash("dir1");
+        let tmpdir2 = tmpdir.mash("dir2");
+        let tmpfile1 = tmpdir.mash("file1");
+        let tmpfile2 = tmpdir.mash("file2");
 
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
@@ -1432,7 +1443,7 @@ mod tests {
     #[test]
     fn test_exec_dir() {
         let cwd = env::current_dir().unwrap();
-        let dir = cwd.join("target/debug/deps");
+        let dir = cwd.mash("target/debug/deps");
         assert_eq!(sys::exec_dir().unwrap(), dir);
     }
 
@@ -1446,11 +1457,11 @@ mod tests {
     #[test]
     fn test_files() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("files");
-        let tmpdir1 = tmpdir.join("dir1");
-        let tmpdir2 = tmpdir.join("dir2");
-        let tmpfile1 = tmpdir.join("file1");
-        let tmpfile2 = tmpdir.join("file2");
+        let tmpdir = setup.temp.mash("files");
+        let tmpdir1 = tmpdir.mash("dir1");
+        let tmpdir2 = tmpdir.mash("dir2");
+        let tmpfile1 = tmpdir.mash("file1");
+        let tmpfile2 = tmpdir.mash("file2");
 
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
@@ -1486,8 +1497,8 @@ mod tests {
     #[test]
     fn test_is_file() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("is_file");
-        let tmpfile = tmpdir.join("file1");
+        let tmpdir = setup.temp.mash("is_file");
+        let tmpfile = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -1501,9 +1512,9 @@ mod tests {
     #[test]
     fn test_is_symlink() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("is_symlink");
-        let file1 = tmpdir.join("file1");
-        let link1 = tmpdir.join("link1");
+        let tmpdir = setup.temp.mash("is_symlink");
+        let file1 = tmpdir.mash("file1");
+        let link1 = tmpdir.mash("link1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -1518,9 +1529,9 @@ mod tests {
     #[test]
     fn test_is_symlink_dir() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("is_symlink_dir");
-        let dir1 = tmpdir.join("dir1");
-        let link1 = tmpdir.join("link1");
+        let tmpdir = setup.temp.mash("is_symlink_dir");
+        let dir1 = tmpdir.mash("dir1");
+        let link1 = tmpdir.mash("link1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&dir1).is_ok());
@@ -1535,9 +1546,9 @@ mod tests {
     #[test]
     fn test_is_symlink_file() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("is_symlink_file");
-        let file1 = tmpdir.join("file1");
-        let link1 = tmpdir.join("link1");
+        let tmpdir = setup.temp.mash("is_symlink_file");
+        let file1 = tmpdir.mash("file1");
+        let link1 = tmpdir.mash("link1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -1560,11 +1571,11 @@ mod tests {
     #[test]
     fn test_glob() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("glob");
-        let tmpdir1 = tmpdir.join("dir1");
-        let tmpdir2 = tmpdir.join("dir2");
-        let tmpfile1 = tmpdir.join("file1");
-        let tmpfile2 = tmpdir.join("file2");
+        let tmpdir = setup.temp.mash("glob");
+        let tmpdir1 = tmpdir.mash("dir1");
+        let tmpdir2 = tmpdir.mash("dir2");
+        let tmpfile1 = tmpdir.mash("file1");
+        let tmpfile2 = tmpdir.mash("file2");
 
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
@@ -1581,7 +1592,7 @@ mod tests {
         assert_eq!(tmpfile2.is_file(), true);
 
         // Validate the the files function gives me the correct files without the dirs and in order
-        let paths = sys::glob(tmpdir.join("*")).unwrap();
+        let paths = sys::glob(tmpdir.mash("*")).unwrap();
         assert_iter_eq(paths, vec![tmpdir1, tmpdir2, tmpfile1, tmpfile2]);
 
         // Clean up
@@ -1592,11 +1603,11 @@ mod tests {
     #[test]
     fn test_paths() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("paths");
-        let tmpdir1 = tmpdir.join("dir1");
-        let tmpdir2 = tmpdir.join("dir2");
-        let tmpfile1 = tmpdir.join("file1");
-        let tmpfile2 = tmpdir.join("file2");
+        let tmpdir = setup.temp.mash("paths");
+        let tmpdir1 = tmpdir.mash("dir1");
+        let tmpdir2 = tmpdir.mash("dir2");
+        let tmpfile1 = tmpdir.mash("file1");
+        let tmpfile2 = tmpdir.mash("file2");
 
         // Create the dirs and files
         assert!(sys::mkdir_p(&tmpdir1).is_ok());
@@ -1624,9 +1635,9 @@ mod tests {
     #[test]
     fn test_readlink() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("readlink");
-        let file1 = tmpdir.join("file1");
-        let link1 = tmpdir.join("link1");
+        let tmpdir = setup.temp.mash("readlink");
+        let file1 = tmpdir.mash("file1");
+        let link1 = tmpdir.mash("link1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -1646,8 +1657,8 @@ mod tests {
     #[test]
     fn test_pathext_chmod() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("pathbuf_chmod");
-        let file1 = tmpdir.join("file1");
+        let tmpdir = setup.temp.mash("pathbuf_chmod");
+        let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -1805,6 +1816,15 @@ mod tests {
     }
 
     #[test]
+    fn test_pathext_mash() {
+        // strips off root on path
+        assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
+
+        // strips off trailing slashes
+        assert_eq!(Path::new("/foo").mash("bar/"), PathBuf::from("/foo/bar"));
+    }
+
+    #[test]
     fn test_pathext_meta() {
         let setup = Setup::init();
         let meta = setup.temp.metadata().unwrap();
@@ -1814,8 +1834,8 @@ mod tests {
     #[test]
     fn test_pathext_mode() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("pathbuf_mode");
-        let file1 = tmpdir.join("file1");
+        let tmpdir = setup.temp.mash("pathbuf_mode");
+        let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -1828,8 +1848,8 @@ mod tests {
     #[test]
     fn test_pathext_perms() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("pathbuf_perms");
-        let file1 = tmpdir.join("file1");
+        let tmpdir = setup.temp.mash("pathbuf_perms");
+        let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -1842,8 +1862,8 @@ mod tests {
     #[test]
     fn test_pathext_setperms() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.join("pathbuf_setperms");
-        let file1 = tmpdir.join("file1");
+        let tmpdir = setup.temp.mash("pathbuf_setperms");
+        let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir_p(&tmpdir).is_ok());
@@ -1879,74 +1899,74 @@ mod tests {
 
     #[test]
     fn test_pathext_trim_ext() {
-        assert_eq!(PathBuf::new(), PathBuf::from("").trim_ext().unwrap());
-        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext().unwrap());
-        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar.exe").trim_ext().unwrap());
+        assert_eq!(PathBuf::new(), PathBuf::from("").trim_ext());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext());
+        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar.exe").trim_ext());
     }
 
     #[test]
     fn test_pathext_trim_last() {
-        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_last().unwrap());
-        assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last().unwrap());
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_last());
+        assert_eq!(PathBuf::from("/"), PathBuf::from("/foo").trim_last());
     }
 
     #[test]
     fn test_pathext_trim_first() {
-        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_first().unwrap());
-        assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first().unwrap());
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_first());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("/foo").trim_first());
     }
 
     #[test]
     fn test_pathext_trim_prefix() {
         // drop root
-        assert_eq!(PathBuf::from("/").trim_prefix("/").unwrap(), PathBuf::new());
+        assert_eq!(PathBuf::from("/").trim_prefix("/"), PathBuf::new());
 
         // drop start
-        assert_eq!(Path::new("/foo/bar").trim_prefix("/foo").unwrap(), PathBuf::from("/bar"));
+        assert_eq!(Path::new("/foo/bar").trim_prefix("/foo"), PathBuf::from("/bar"));
 
         // no change
-        assert_eq!(PathBuf::from("/").trim_prefix("").unwrap(), PathBuf::from("/"));
-        assert_eq!(PathBuf::from("/foo").trim_prefix("blah").unwrap(), PathBuf::from("/foo"));
+        assert_eq!(PathBuf::from("/").trim_prefix(""), PathBuf::from("/"));
+        assert_eq!(PathBuf::from("/foo").trim_prefix("blah"), PathBuf::from("/foo"));
     }
 
     #[test]
     fn test_pathext_trim_protocol() {
         // no change
-        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_protocol());
 
         // file://
-        assert_eq!(PathBuf::from("/foo"), PathBuf::from("file:///foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("file:///foo").trim_protocol());
 
         // ftp://
-        assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("ftp://foo").trim_protocol());
 
         // http://
-        assert_eq!(PathBuf::from("foo"), PathBuf::from("http://foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("http://foo").trim_protocol());
 
         // https://
-        assert_eq!(PathBuf::from("foo"), PathBuf::from("https://foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("https://foo").trim_protocol());
 
         // Check case is being considered
-        assert_eq!(PathBuf::from("Foo"), PathBuf::from("HTTPS://Foo").trim_protocol().unwrap());
-        assert_eq!(PathBuf::from("Foo"), PathBuf::from("Https://Foo").trim_protocol().unwrap());
-        assert_eq!(PathBuf::from("FoO"), PathBuf::from("HttpS://FoO").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("Foo"), PathBuf::from("HTTPS://Foo").trim_protocol());
+        assert_eq!(PathBuf::from("Foo"), PathBuf::from("Https://Foo").trim_protocol());
+        assert_eq!(PathBuf::from("FoO"), PathBuf::from("HttpS://FoO").trim_protocol());
 
         // Check non protocol matches are ignored
-        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo").trim_protocol().unwrap());
-        assert_eq!(PathBuf::from("foo/bar"), PathBuf::from("foo/bar").trim_protocol().unwrap());
-        assert_eq!(PathBuf::from("foo//bar"), PathBuf::from("foo//bar").trim_protocol().unwrap());
-        assert_eq!(PathBuf::from("ntp:://foo"), PathBuf::from("ntp:://foo").trim_protocol().unwrap());
+        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo").trim_protocol());
+        assert_eq!(PathBuf::from("foo/bar"), PathBuf::from("foo/bar").trim_protocol());
+        assert_eq!(PathBuf::from("foo//bar"), PathBuf::from("foo//bar").trim_protocol());
+        assert_eq!(PathBuf::from("ntp:://foo"), PathBuf::from("ntp:://foo").trim_protocol());
     }
 
     #[test]
     fn test_pathext_trim_suffix() {
         // drop root
-        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_suffix("/").unwrap());
+        assert_eq!(PathBuf::new(), PathBuf::from("/").trim_suffix("/"));
 
         // drop end
-        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/").trim_suffix("/").unwrap());
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo/").trim_suffix("/"));
 
         // no change
-        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_suffix("/").unwrap());
+        assert_eq!(PathBuf::from("/foo"), PathBuf::from("/foo").trim_suffix("/"));
     }
 }
