@@ -9,19 +9,19 @@ use crate::core::*;
 use crate::path::PathExt;
 
 /// Chmod provides flexible options for changing file permission with optional configuration.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Chmod {
-    path: PathBuf,    // path to chmod
-    only_dirs: bool,  // chmod only dirs
-    only_files: bool, // chmod only files
-    recurse: bool,    // chmod recursively
+    path: PathBuf,     // path to chmod
+    only_dirs: bool,   // chmod only dirs
+    only_files: bool,  // chmod only files
+    recurse_set: bool, // chmod recursively
 }
 
 impl Chmod {
     /// Update the `recurse` option. Default is enabled.
     /// When `yes` is `true`, source is recursively walked.
     pub fn recurse(mut self, yes: bool) -> Self {
-        self.recurse = yes;
+        self.recurse_set = yes;
         self
     }
 
@@ -46,14 +46,10 @@ impl Chmod {
         self.e(mode)
     }
 
-    // determine if the mode change is revoking permissions or adding permissions.
-    // only taking into account read/execute on the directory
-    fn revoking(self, old: u32, new: u32) -> bool {
-        old & 0o0500 > new & 0o0500 || old & 0o0050 > new & 0o0050 || old & 0o0005 > new & 0o0005
-    }
-
     /// Internal implementation that the helper functions call
     fn e(self, mode: u32) -> Result<Self> {
+        let (recurse, dirs, files) = ((&self).recurse_set, (&self).only_dirs, (&self).only_files);
+
         // Handle globbing
         let sources = crate::path::glob(&self.path)?;
         if sources.len() == 0 {
@@ -62,29 +58,37 @@ impl Chmod {
 
         // Execute the chmod for all sources
         for source in sources {
-            // Only check if dir if we are required to
-            let is_dir = match self.only_dirs || self.only_files || self.recurse {
-                true => source.is_dir(),
-                false => false,
+            let (is_dir, old_mode) = match dirs || files || recurse {
+                true => (source.is_dir(), source.mode()?),
+                false => (false, 0),
             };
 
-            // Only get old mode if we have to
-            let old_mode = match &self.recurse {
-                true => source.mode()?,
-                false => 0,
-            };
-
-            // We have to be careful of the order of applying permissions or we'll get into a
-            // scenario where we are revoking read/execute on a dir before we get to the
-            // bottom of the stack. Like wise when adding permissions we have to
-            // do it on the way in or we won't be able to read to get there.
-            if (!self.only_dirs && !self.only_files) || (self.only_dirs && is_dir) || (self.only_files && !is_dir) {
-                // Chmod on the way in if not recursing or recursing and adding permissions
-                // if !self.recurse || !is_dir || (self.recurse && !self.revoking(old_mode, mode)) {
-                //     source.setperms(fs::Permissions::from_mode(mode))?;
-                // }
+            // Grant permissions on the way in
+            if (!dirs && !files) || (dirs && is_dir) || (files && !is_dir) {
+                if !recurse || !is_dir || (recurse && !revoking_mode(old_mode, mode)) {
+                    source.setperms(fs::Permissions::from_mode(mode))?;
+                }
             }
-            source.setperms(fs::Permissions::from_mode(mode))?;
+
+            // Handle recursion
+            if recurse && is_dir {
+                for path in crate::path::paths(&source)? {
+                    let modder = chmod_p(path)?.recurse(recurse);
+                    let result = match (dirs, files) {
+                        (true, false) => modder.dirs(mode),
+                        (false, true) => modder.files(mode),
+                        _ => modder.all(mode),
+                    };
+                    result?;
+                }
+            }
+
+            // Revoke permissions on the way out
+            if (!dirs && !files) || (dirs && is_dir) || (files && !is_dir) {
+                if recurse && is_dir && revoking_mode(old_mode, mode) {
+                    source.setperms(fs::Permissions::from_mode(mode))?;
+                }
+            }
         }
 
         Ok(self)
@@ -92,9 +96,7 @@ impl Chmod {
 }
 
 /// Wraps `chmod_p` to apply the given `mode` to all files/dirs using recursion and invoking
-/// the mode change when the function returns.
-///
-/// ### Examples
+/// the mode change when yes: bool
 /// ```
 /// use fungus::presys::*;
 ///
@@ -134,7 +136,7 @@ pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<Chmod> {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
-    Ok(Chmod { path: path.as_ref().abs()?, only_dirs: false, only_files: false, recurse: true })
+    Ok(Chmod { path: path.as_ref().abs()?, only_dirs: false, only_files: false, recurse_set: true })
 }
 
 /// Change the ownership of the `path` providing path expansion, globbing, recursion and error
@@ -427,6 +429,19 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> Result<()> {
     Ok(())
 }
 
+/// Returns true if the new mode is revoking permissions as compared to the old mode as pertains
+/// directory read/execute permissions. This is useful when recursively modifying file permissions.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// assert_eq!(sys::revoking_mode(0o0777, 0o0777), false);
+/// ```
+pub fn revoking_mode(old: u32, new: u32) -> bool {
+    old & 0o0500 > new & 0o0500 || old & 0o0050 > new & 0o0050 || old & 0o0005 > new & 0o0005
+}
+
 /// Creates a new symbolic link. Handles path expansion and returns an absolute path to the
 /// link while still creating the symbolic link as a relative path to the target.
 ///
@@ -535,44 +550,54 @@ mod tests {
     fn test_chmod_p() {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("chmod_p");
-        let file1 = tmpdir.mash("file1");
+        let dir1 = tmpdir.mash("dir1");
+        let file1 = dir1.mash("file1");
+        let dir2 = dir1.mash("dir2");
+        let file2 = dir2.mash("file2");
+        let file3 = tmpdir.mash("file3");
 
+        // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
-        assert!(sys::mkdir(&tmpdir).is_ok());
-
+        assert!(sys::mkdir(&dir2).is_ok());
         assert!(sys::touch_p(&file1, 0o644).is_ok());
-        assert!(sys::chmod_p(&file1).unwrap().all(0o555).is_ok());
-        assert_eq!(file1.mode().unwrap(), 0o100555);
+        assert!(sys::touch_p(&file2, 0o644).is_ok());
 
+        // all files
+        assert!(sys::chmod_p(&dir1).unwrap().all(0o600).is_ok());
+        assert_eq!(dir1.mode().unwrap(), 0o40600);
+
+        // now fix dirs only to allow for listing directries
+        assert!(sys::chmod_p(&dir1).unwrap().dirs(0o755).is_ok());
+        assert_eq!(dir1.mode().unwrap(), 0o40755);
+        assert_eq!(file1.mode().unwrap(), 0o100600);
+        assert_eq!(dir2.mode().unwrap(), 0o40755);
+        assert_eq!(file2.mode().unwrap(), 0o100600);
+
+        // now change just the files back to 644
+        assert!(sys::chmod_p(&dir1).unwrap().files(0o644).is_ok());
+        assert_eq!(dir1.mode().unwrap(), 0o40755);
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert_eq!(dir2.mode().unwrap(), 0o40755);
+        assert_eq!(file2.mode().unwrap(), 0o100644);
+
+        // try globbing
+        assert!(sys::touch_p(&file3, 0o644).is_ok());
+        assert!(sys::chmod_p(tmpdir.mash("*3")).unwrap().files(0o555).is_ok());
+        assert_eq!(dir1.mode().unwrap(), 0o40755);
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert_eq!(dir2.mode().unwrap(), 0o40755);
+        assert_eq!(file2.mode().unwrap(), 0o100644);
+        assert_eq!(file2.mode().unwrap(), 0o100644);
+        assert_eq!(file3.mode().unwrap(), 0o100555);
+
+        // doesn't exist
+        assert!(sys::chmod_p("bogus").unwrap().all(0o644).is_err());
+
+        // no path given
+        assert!(sys::chmod_p("").is_err());
+
+        // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
-    }
-
-    #[test]
-    fn test_chmod_revoking() {
-        // test other octet
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0777, 0o0777), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0776, 0o0775), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0770, 0o0771), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0776, 0o0772), true);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0775, 0o0776), true);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0775, 0o0774), true);
-
-        // Test group octet
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0777, 0o0777), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0767, 0o0757), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0707, 0o0717), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0767, 0o0727), true);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0757, 0o0767), true);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0757, 0o0747), true);
-
-        // Test owner octet
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0777, 0o0777), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0677, 0o0577), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0077, 0o0177), false);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0677, 0o0277), true);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0577, 0o0677), true);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0577, 0o0477), true);
-        assert_eq!(sys::chmod_p("x").unwrap().revoking(0o0577, 0o0177), true);
     }
 
     #[test]
@@ -812,6 +837,34 @@ mod tests {
         assert_eq!(tmpdir.exists(), true);
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_revoking() {
+        // test other octet
+        assert_eq!(sys::revoking_mode(0o0777, 0o0777), false);
+        assert_eq!(sys::revoking_mode(0o0776, 0o0775), false);
+        assert_eq!(sys::revoking_mode(0o0770, 0o0771), false);
+        assert_eq!(sys::revoking_mode(0o0776, 0o0772), true);
+        assert_eq!(sys::revoking_mode(0o0775, 0o0776), true);
+        assert_eq!(sys::revoking_mode(0o0775, 0o0774), true);
+
+        // Test group octet
+        assert_eq!(sys::revoking_mode(0o0777, 0o0777), false);
+        assert_eq!(sys::revoking_mode(0o0767, 0o0757), false);
+        assert_eq!(sys::revoking_mode(0o0707, 0o0717), false);
+        assert_eq!(sys::revoking_mode(0o0767, 0o0727), true);
+        assert_eq!(sys::revoking_mode(0o0757, 0o0767), true);
+        assert_eq!(sys::revoking_mode(0o0757, 0o0747), true);
+
+        // Test owner octet
+        assert_eq!(sys::revoking_mode(0o0777, 0o0777), false);
+        assert_eq!(sys::revoking_mode(0o0677, 0o0577), false);
+        assert_eq!(sys::revoking_mode(0o0077, 0o0177), false);
+        assert_eq!(sys::revoking_mode(0o0677, 0o0277), true);
+        assert_eq!(sys::revoking_mode(0o0577, 0o0677), true);
+        assert_eq!(sys::revoking_mode(0o0577, 0o0477), true);
+        assert_eq!(sys::revoking_mode(0o0577, 0o0177), true);
     }
 
     #[test]
