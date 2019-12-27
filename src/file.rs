@@ -1,7 +1,10 @@
 #[cfg(feature = "chown")]
 use libc;
+#[cfg(feature = "chown")]
 use std::ffi::CString;
+#[cfg(feature = "chown")]
 use std::io;
+#[cfg(feature = "chown")]
 use std::os::unix::ffi::OsStrExt;
 
 use std::fs;

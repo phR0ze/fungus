@@ -1,6 +1,6 @@
 [package]
 name = "fungus"
-version = "0.0.25"
+version = "0.0.26"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -27,7 +27,7 @@ walkdir = "2.2.9"
 libc = { version = "0.2.66", optional = true }
 
 [features]
-default = ["chown", "user"]
+default = ["user"]
 
 # chown functions: ["chown", "lchown"] depend on libc
 chown = ["libc"]

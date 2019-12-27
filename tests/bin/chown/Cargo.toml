@@ -1,0 +1,11 @@
+[package]
+name = "chown"
+version = "0.1.0"
+authors = ["phR0ze"]
+edition = "2018"
+
+[dependencies.fungus]
+features = ["chown", "user"]
+
+[patch.crates-io]
+fungus = { path = "../../../" }

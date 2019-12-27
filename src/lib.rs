@@ -7,6 +7,7 @@ mod os;
 mod path;
 mod path_error;
 mod result;
+mod user_error;
 
 /// Export user module
 pub mod user;
@@ -19,6 +20,7 @@ pub mod core {
     pub use crate::option::*;
     pub use crate::path_error::*;
     pub use crate::result::*;
+    pub use crate::user_error::*;
 }
 
 /// Import sys module
