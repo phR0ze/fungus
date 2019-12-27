@@ -70,13 +70,7 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut paths: Vec<PathBuf> = Vec::new();
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
-            let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
-                // Skip the directory itself
-                if first {
-                    first = false;
-                    continue;
-                }
+            for entry in WalkDir::new(&abs).min_depth(1).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 let path = entry?.into_path();
 
                 // Ensure the path is a directory and distinct
@@ -119,13 +113,7 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut paths: Vec<PathBuf> = Vec::new();
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
-            let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
-                // Skip the directory itself
-                if first {
-                    first = false;
-                    continue;
-                }
+            for entry in WalkDir::new(&abs).min_depth(1).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 let path = entry?.into_path();
 
                 // Ensure the path is a directory and distinct
@@ -170,13 +158,7 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         let mut paths: Vec<PathBuf> = Vec::new();
         let mut distinct = HashMap::<PathBuf, bool>::new();
         if abs.is_dir() {
-            let mut first = true;
-            for entry in WalkDir::new(&abs).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
-                // Skip the directory itself
-                if first {
-                    first = false;
-                    continue;
-                }
+            for entry in WalkDir::new(&abs).min_depth(1).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
                 let path = entry?.into_path();
 
                 // Ensure the path is a directory and distinct

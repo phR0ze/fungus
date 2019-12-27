@@ -1,7 +1,12 @@
+#[cfg(feature = "chown")]
+use libc;
+use std::ffi::CString;
+use std::io;
+use std::os::unix::ffi::OsStrExt;
+
 use std::fs;
 use std::fs::File;
 use std::os::unix;
-use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -145,13 +150,23 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
 }
 
 /// Change the ownership of the `path` providing path expansion, globbing, recursion and error
-/// tracing.
+/// tracing. Does not follow links.
 ///
 //// ### Examples
-/// ```
+/// ```ignore
 /// use fungus::presys::*;
+/// use fungus::user;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chown");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// assert!(sys::touch(&file1).is_ok());
+/// assert!(sys::chown(&file1, user::getuid(), user::getgid()).is_ok());
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
+#[cfg(feature = "chown")]
+pub fn lchown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
     let path = path.as_ref().abs()?;
 
     // Handle globbing
@@ -164,7 +179,11 @@ pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
     for source in sources {
         for entry in WalkDir::new(&source).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
             let srcpath = entry?.into_path();
-            // chown
+            let osstr = CString::new(srcpath.as_os_str().as_bytes())?;
+            let ret = unsafe { libc::lchown(osstr.as_ptr(), uid, gid) };
+            if ret != 0 {
+                return Err(io::Error::last_os_error().into());
+            }
         }
     }
     Ok(())
