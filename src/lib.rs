@@ -40,6 +40,8 @@ pub mod presys {
     pub use std::env;
     pub use std::ffi::OsStr;
     pub use std::fs;
+    pub use std::fs::File;
+    pub use std::os::unix::fs::MetadataExt;
     pub use std::os::unix::fs::PermissionsExt;
     pub use std::path::{Component, Path, PathBuf};
 }

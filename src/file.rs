@@ -1,6 +1,7 @@
 use std::fs;
 use std::fs::File;
 use std::os::unix;
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -11,45 +12,56 @@ use crate::path::PathExt;
 /// Chmod provides flexible options for changing file permission with optional configuration.
 #[derive(Debug, Clone)]
 pub struct Chmod {
-    path: PathBuf,     // path to chmod
-    only_dirs: bool,   // chmod only dirs
-    only_files: bool,  // chmod only files
-    recurse_set: bool, // chmod recursively
+    mode: u32,       // mode to use
+    path: PathBuf,   // path to chmod
+    dirs: bool,      // chmod only dirs
+    files: bool,     // chmod only files
+    recursive: bool, // chmod recursively
 }
 
 impl Chmod {
-    /// Update the `recurse` option. Default is enabled.
-    /// When `yes` is `true`, source is recursively walked.
-    pub fn recurse(mut self, yes: bool) -> Self {
-        self.recurse_set = yes;
+    /// Target all files and directories. Default is enabled.
+    pub fn all(&mut self) -> &mut Self {
+        self.dirs = false;
+        self.files = false;
         self
     }
 
-    /// Execute chmod all dirs/files using the given `mode`.
-    pub fn all(mut self, mode: u32) -> Result<Self> {
-        self.only_dirs = false;
-        self.only_files = false;
-        self.e(mode)
+    /// Target only directories. Default is disabled.
+    pub fn dirs(&mut self) -> &mut Self {
+        self.dirs = true;
+        self.files = false;
+        self
     }
 
-    /// Execute chmod only dirs using the given `mode`.
-    pub fn dirs(mut self, mode: u32) -> Result<Self> {
-        self.only_dirs = true;
-        self.only_files = false;
-        self.e(mode)
+    /// Target only files. Default is disabled.
+    pub fn files(&mut self) -> &mut Self {
+        self.dirs = false;
+        self.files = true;
+        self
     }
 
-    /// Execute chmod only files using the given `mode`.
-    pub fn files(mut self, mode: u32) -> Result<Self> {
-        self.only_dirs = false;
-        self.only_files = true;
-        self.e(mode)
+    /// Update the `mode` option. Default is 0o666
+    pub fn mode(&mut self, mode: u32) -> &mut Self {
+        self.mode = mode;
+        self
     }
 
-    /// Internal implementation that the helper functions call
-    fn e(self, mode: u32) -> Result<Self> {
-        let (recurse, dirs, files) = ((&self).recurse_set, (&self).only_dirs, (&self).only_files);
+    /// Update the `path` option.
+    pub fn path<T: AsRef<Path>>(&mut self, path: T) -> &mut Self {
+        self.path = path.as_ref().to_path_buf();
+        self
+    }
 
+    /// Update the `recurse` option. Default is enabled.
+    /// When `yes` is `true`, source is recursively walked.
+    pub fn recurse(&mut self, yes: bool) -> &mut Self {
+        self.recursive = yes;
+        self
+    }
+
+    /// Execute the [`Chmod`] options against the set `path` with the set `mode`.
+    pub fn chmod(&self) -> Result<()> {
         // Handle globbing
         let sources = crate::path::glob(&self.path)?;
         if sources.len() == 0 {
@@ -58,45 +70,38 @@ impl Chmod {
 
         // Execute the chmod for all sources
         for source in sources {
-            let (is_dir, old_mode) = match dirs || files || recurse {
+            let (is_dir, old_mode) = match self.dirs || self.files || self.recursive {
                 true => (source.is_dir(), source.mode()?),
                 false => (false, 0),
             };
 
             // Grant permissions on the way in
-            if (!dirs && !files) || (dirs && is_dir) || (files && !is_dir) {
-                if !recurse || !is_dir || (recurse && !revoking_mode(old_mode, mode)) {
-                    source.setperms(fs::Permissions::from_mode(mode))?;
+            if (!self.dirs && !self.files) || (self.dirs && is_dir) || (self.files && !is_dir) {
+                if !self.recursive || !is_dir || (self.recursive && !revoking_mode(old_mode, self.mode)) {
+                    source.setperms(fs::Permissions::from_mode(self.mode))?;
                 }
             }
 
             // Handle recursion
-            if recurse && is_dir {
+            if self.recursive && is_dir {
                 for path in crate::path::paths(&source)? {
-                    let modder = chmod_p(path)?.recurse(recurse);
-                    let result = match (dirs, files) {
-                        (true, false) => modder.dirs(mode),
-                        (false, true) => modder.files(mode),
-                        _ => modder.all(mode),
-                    };
-                    result?;
+                    self.clone().path(path).chmod()?;
                 }
             }
 
             // Revoke permissions on the way out
-            if (!dirs && !files) || (dirs && is_dir) || (files && !is_dir) {
-                if recurse && is_dir && revoking_mode(old_mode, mode) {
-                    source.setperms(fs::Permissions::from_mode(mode))?;
+            if (!self.dirs && !self.files) || (self.dirs && is_dir) || (self.files && !is_dir) {
+                if self.recursive && is_dir && revoking_mode(old_mode, self.mode) {
+                    source.setperms(fs::Permissions::from_mode(self.mode))?;
                 }
             }
         }
-
-        Ok(self)
+        Ok(())
     }
 }
 
 /// Wraps `chmod_p` to apply the given `mode` to all files/dirs using recursion and invoking
-/// the mode change when yes: bool
+/// the mode change on the close of this function call.
 /// ```
 /// use fungus::presys::*;
 ///
@@ -111,13 +116,13 @@ impl Chmod {
 /// assert_eq!(file1.mode().unwrap(), 0o100555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<Chmod> {
-    chmod_p(path)?.all(mode)
+pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<()> {
+    chmod_p(path)?.mode(mode).chmod()
 }
 
-/// Change the mode of the `path` providing path expansion, globbing, recursion and error
-/// tracing. Provides more control over options than the `chmod` function. Changes are not
-/// invoked until one of the helper functions are called e.g. `all`, `dirs` or `files`.
+/// Create [`Chmod`] options providing path expansion, globbing, recursion and error
+/// tracing while setting the `mode`. This function provides more control over options
+/// than the `chmod` function. Changes are not invoked until the `chmod` method is called.
 /// Symbolic links will have the target mode changed.
 ///
 /// ### Examples
@@ -129,14 +134,14 @@ pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<Chmod> {
 /// let file1 = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
-/// assert!(sys::chmod_p(&file1).unwrap().all(0o644).is_ok());
+/// assert!(sys::chmod_p(&file1).unwrap().mode(0o644).chmod().is_ok());
 /// assert_eq!(file1.mode().unwrap(), 0o100644);
-/// assert!(sys::chmod_p(&file1).unwrap().all(0o555).is_ok());
+/// assert!(sys::chmod_p(&file1).unwrap().mode(0o555).chmod().is_ok());
 /// assert_eq!(file1.mode().unwrap(), 0o100555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
-    Ok(Chmod { path: path.as_ref().abs()?, only_dirs: false, only_files: false, recurse_set: true })
+    Ok(Chmod { path: path.as_ref().abs()?, mode: 0o666, dirs: false, files: false, recursive: true })
 }
 
 /// Change the ownership of the `path` providing path expansion, globbing, recursion and error
@@ -147,8 +152,21 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
 /// use fungus::presys::*;
 /// ```
 pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
-    let abs = path.as_ref().abs()?;
+    let path = path.as_ref().abs()?;
 
+    // Handle globbing
+    let sources = crate::path::glob(&path)?;
+    if sources.len() == 0 {
+        return Err(PathError::does_not_exist(&path).into());
+    }
+
+    // Execute the chmod for all sources
+    for source in sources {
+        for entry in WalkDir::new(&source).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
+            let srcpath = entry?.into_path();
+            // chown
+        }
+    }
     Ok(())
 }
 
@@ -165,11 +183,10 @@ pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copy");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let file2 = tmpdir.mash("file2");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::copy(&file1, &file2).is_ok());
 /// assert_eq!(file2.exists(), true);
@@ -193,8 +210,7 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
     // Recurse on sources
     for srcroot in sources {
         for entry in WalkDir::new(&srcroot).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
-            let entry = entry?;
-            let srcpath = entry.path().abs()?;
+            let srcpath = entry?.into_path();
 
             // Set proper dst path
             let dstpath = match clone {
@@ -228,28 +244,26 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
 pub struct Copyfile {
     src: PathBuf,       // source file
     dst: PathBuf,       // destination path
-    mode: u32,          // mode to chmod the file to
-    mode_set: bool,     // track if the mode was set
+    mode: Option<u32>,  // mode to chmod the file to if set
     follow_links: bool, // follow links when copying files
 }
 
 impl Copyfile {
-    /// Update the `follow_links` option. Default is disabled.
+    /// Update the `follow` option. Default is disabled.
     /// When `yes` is `true`, links are followed.
-    pub fn follow_links(mut self, yes: bool) -> Self {
+    pub fn follow(&mut self, yes: bool) -> &mut Self {
         self.follow_links = yes;
         self
     }
 
     /// Update the `mode` option. Default is disabled.
-    pub fn mode(mut self, mode: u32) -> Self {
-        self.mode = mode;
-        self.mode_set = true;
+    pub fn mode(&mut self, mode: u32) -> &mut Self {
+        self.mode = Some(mode);
         self
     }
 
     /// Execute the copyfile operation with the current options.
-    pub fn e(mut self) -> Result<Self> {
+    pub fn copy(&mut self) -> Result<PathBuf> {
         // Configure and check source
         if !self.src.exists() {
             return Err(PathError::does_not_exist(&self.src).into());
@@ -279,7 +293,7 @@ impl Copyfile {
 
         // Check for same file
         if self.src == self.dst {
-            return Ok(self);
+            return Ok(self.dst.clone());
         }
 
         // Recreate link or copy file including permissions
@@ -287,12 +301,12 @@ impl Copyfile {
             symlink(&self.dst, self.src.readlink()?)?;
         } else {
             fs::copy(&self.src, &self.dst)?;
-            if self.mode_set {
-                chmod_p(&self.dst)?.recurse(false).all(self.mode)?;
+            if let Some(mode) = self.mode {
+                chmod_p(&self.dst)?.mode(mode).recurse(false).chmod()?;
             }
         }
 
-        Ok(self)
+        Ok(self.dst.clone())
     }
 }
 
@@ -304,19 +318,19 @@ impl Copyfile {
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let file2 = tmpdir.mash("file2");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::touch(&file1).is_ok());
 /// assert!(sys::copyfile(&file1, &file2).is_ok());
 /// assert_eq!(file2.exists(), true);
 /// assert_eq!(file1.mode().unwrap(), file2.mode().unwrap());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copyfile> {
-    copyfile_p(src, dst)?.e()
+pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
+    copyfile_p(src, dst)?.copy()?;
+    Ok(())
 }
 
 /// Copies a single file from src to dst, creating destination directories as needed and handling
@@ -331,18 +345,17 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copyfi
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let file2 = tmpdir.mash("file2");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::touch_p(&file1, 0o644).is_ok());
-/// assert!(sys::copyfile_p(&file1, &file2).unwrap().mode(0o555).e().is_ok());
+/// assert!(sys::copyfile_p(&file1, &file2).unwrap().mode(0o555).copy().is_ok());
 /// assert_eq!(file2.mode().unwrap(), 0o100555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copyfile> {
-    Ok(Copyfile { src: src.as_ref().abs()?, dst: dst.as_ref().abs()?, mode: 0, mode_set: false, follow_links: false })
+    Ok(Copyfile { src: src.as_ref().abs()?, dst: dst.as_ref().abs()?, mode: None, follow_links: false })
 }
 
 /// Creates the given directory and any parent directories needed, handling path expansion and
@@ -353,9 +366,10 @@ pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copy
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_mkdir");
-/// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert_eq!(tmpdir.exists(), false);
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert_eq!(tmpdir.exists(), true);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn mkdir<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     let abs = path.as_ref().abs()?;
@@ -379,7 +393,7 @@ pub fn mkdir<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// ```
 pub fn mkdir_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
     let path = mkdir(path)?;
-    chmod_p(&path)?.recurse(false).all(mode)?;
+    chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
     Ok(path)
 }
 
@@ -505,7 +519,7 @@ pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// ```
 pub fn touch_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
     let abs = touch(path)?;
-    chmod_p(&abs)?.recurse(false).all(mode)?;
+    chmod_p(&abs)?.recurse(false).mode(mode).chmod()?;
     Ok(abs)
 }
 
@@ -563,18 +577,18 @@ mod tests {
         assert!(sys::touch_p(&file2, 0o644).is_ok());
 
         // all files
-        assert!(sys::chmod_p(&dir1).unwrap().all(0o600).is_ok());
+        assert!(sys::chmod_p(&dir1).unwrap().mode(0o600).chmod().is_ok());
         assert_eq!(dir1.mode().unwrap(), 0o40600);
 
         // now fix dirs only to allow for listing directries
-        assert!(sys::chmod_p(&dir1).unwrap().dirs(0o755).is_ok());
+        assert!(sys::chmod_p(&dir1).unwrap().mode(0o755).dirs().chmod().is_ok());
         assert_eq!(dir1.mode().unwrap(), 0o40755);
         assert_eq!(file1.mode().unwrap(), 0o100600);
         assert_eq!(dir2.mode().unwrap(), 0o40755);
         assert_eq!(file2.mode().unwrap(), 0o100600);
 
         // now change just the files back to 644
-        assert!(sys::chmod_p(&dir1).unwrap().files(0o644).is_ok());
+        assert!(sys::chmod_p(&dir1).unwrap().mode(0o644).files().chmod().is_ok());
         assert_eq!(dir1.mode().unwrap(), 0o40755);
         assert_eq!(file1.mode().unwrap(), 0o100644);
         assert_eq!(dir2.mode().unwrap(), 0o40755);
@@ -582,7 +596,7 @@ mod tests {
 
         // try globbing
         assert!(sys::touch_p(&file3, 0o644).is_ok());
-        assert!(sys::chmod_p(tmpdir.mash("*3")).unwrap().files(0o555).is_ok());
+        assert!(sys::chmod_p(tmpdir.mash("*3")).unwrap().mode(0o555).files().chmod().is_ok());
         assert_eq!(dir1.mode().unwrap(), 0o40755);
         assert_eq!(file1.mode().unwrap(), 0o100644);
         assert_eq!(dir2.mode().unwrap(), 0o40755);
@@ -591,7 +605,7 @@ mod tests {
         assert_eq!(file3.mode().unwrap(), 0o100555);
 
         // doesn't exist
-        assert!(sys::chmod_p("bogus").unwrap().all(0o644).is_err());
+        assert!(sys::chmod_p("bogus").unwrap().mode(0o644).chmod().is_err());
 
         // no path given
         assert!(sys::chmod_p("").is_err());
@@ -782,7 +796,7 @@ mod tests {
 
         // copy to same dir
         assert!(sys::touch_p(&file1, 0o644).is_ok());
-        assert!(sys::copyfile_p(&file1, &file2).unwrap().mode(0o555).e().is_ok());
+        assert!(sys::copyfile_p(&file1, &file2).unwrap().mode(0o555).copy().is_ok());
         assert_eq!(file2.mode().unwrap(), 0o100555);
 
         // cleanup

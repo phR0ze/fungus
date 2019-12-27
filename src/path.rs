@@ -77,8 +77,7 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
                     first = false;
                     continue;
                 }
-                let entry = entry?;
-                let path = entry.path().abs()?;
+                let path = entry?.into_path();
 
                 // Ensure the path is a directory and distinct
                 if path.is_dir() {
@@ -127,8 +126,7 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
                     first = false;
                     continue;
                 }
-                let entry = entry?;
-                let path = entry.path().abs()?;
+                let path = entry?.into_path();
 
                 // Ensure the path is a directory and distinct
                 if path.is_file() {
@@ -179,8 +177,7 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
                     first = false;
                     continue;
                 }
-                let entry = entry?;
-                let path = entry.path().abs()?;
+                let path = entry?.into_path();
 
                 // Ensure the path is a directory and distinct
                 if !distinct.contains_key(&path) {
