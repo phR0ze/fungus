@@ -150,6 +150,27 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
 }
 
 /// Change the ownership of the `path` providing path expansion, globbing, recursion and error
+/// tracing. Follows links.
+///
+//// ### Examples
+/// ```ignore
+/// use fungus::presys::*;
+/// use fungus::user;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chown");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// assert!(sys::touch(&file1).is_ok());
+/// assert!(sys::chown(&file1, user::getuid(), user::getgid()).is_ok());
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+#[cfg(feature = "chown")]
+pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
+    chown_p(path, uid, gid, true)
+}
+
+/// Change the ownership of the `path` providing path expansion, globbing, recursion and error
 /// tracing. Does not follow links.
 ///
 //// ### Examples
@@ -167,6 +188,12 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
 /// ```
 #[cfg(feature = "chown")]
 pub fn lchown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
+    chown_p(path, uid, gid, false)
+}
+
+/// Private implementation of chown
+#[cfg(feature = "chown")]
+fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<()> {
     let path = path.as_ref().abs()?;
 
     // Handle globbing
@@ -180,7 +207,13 @@ pub fn lchown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
         for entry in WalkDir::new(&source).follow_links(false).sort_by(|x, y| x.file_name().cmp(y.file_name())) {
             let srcpath = entry?.into_path();
             let osstr = CString::new(srcpath.as_os_str().as_bytes())?;
-            let ret = unsafe { libc::lchown(osstr.as_ptr(), uid, gid) };
+            let ret = unsafe {
+                if follow {
+                    libc::chown(osstr.as_ptr(), uid, gid)
+                } else {
+                    libc::lchown(osstr.as_ptr(), uid, gid)
+                }
+            };
             if ret != 0 {
                 return Err(io::Error::last_os_error().into());
             }
@@ -826,8 +859,8 @@ mod tests {
     fn test_mkdir_p() {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("mkdir_p");
-        let dir1 = setup.temp.mash("dir1");
-        let dir2 = setup.temp.mash("dir2");
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = tmpdir.mash("dir2");
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
