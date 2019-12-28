@@ -1,11 +1,11 @@
 #[cfg(feature = "user")]
+use crate::core::*;
+#[cfg(feature = "user")]
 use libc;
 #[cfg(feature = "user")]
 use std::ffi::{CStr, OsStr};
 #[cfg(feature = "user")]
 use std::os::unix::ffi::OsStrExt;
-
-use crate::core::*;
 
 /// Convert libc::c_chart into a Rust String. Returns an empty string if `ptr` is null or if the
 /// String conversion fails.

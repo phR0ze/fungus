@@ -175,6 +175,23 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
     Err(PathError::does_not_exist(abs).into())
 }
 
+/// Returns the current working directory. Just wraps the Rust env function but I kept forgetting
+/// where it was located.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+/// use fungus::core::*;
+///
+/// println!("current working directory: {:?}", sys::cwd().unwrap());
+/// ```
+pub fn cwd() -> Result<PathBuf> {
+    match env::current_dir() {
+        Ok(cwd) => Ok(cwd),
+        Err(err) => Err(err.into()),
+    }
+}
+
 /// Returns all directories for the given path, sorted by filename. Handles path expansion.
 /// Paths are returned as abs paths. Doesn't include the path itself only its children nor
 /// is this recursive.

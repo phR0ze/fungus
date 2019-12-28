@@ -11,7 +11,6 @@ use std::env;
 use std::path::PathBuf;
 
 use crate::core::*;
-use crate::presys::*;
 
 /// User provides options for a specific user.
 #[cfg(feature = "user")]

@@ -1,6 +1,5 @@
 use failure::Fail;
 use std::fmt;
-use std::path::{Path, PathBuf};
 
 // An error indicating that something went wrong with a user operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Fail)]
