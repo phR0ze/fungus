@@ -1,13 +1,9 @@
 #[cfg(feature = "user")]
 use libc;
 #[cfg(feature = "user")]
-use std::ffi::{CStr, CString, OsStr, OsString};
-#[cfg(feature = "user")]
 use std::io;
 #[cfg(feature = "user")]
 use std::mem;
-#[cfg(feature = "user")]
-use std::os::unix::ffi::OsStrExt;
 #[cfg(feature = "user")]
 use std::ptr;
 
@@ -15,51 +11,26 @@ use std::env;
 use std::path::PathBuf;
 
 use crate::core::*;
+use crate::presys::*;
 
 /// User provides options for a specific user.
 #[cfg(feature = "user")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct User {
-    uid: u32,  // user id
-    gid: u32,  // user group id
-    euid: u32, // effective user id
-    egid: u32, // effective user group id
-    ruid: u32, // real user id behind sudo
-    rgid: u32, // real user group id behind sudo
+    pub uid: u32,           // user id
+    pub gid: u32,           // user group id
+    pub name: String,       // user name
+    pub home: PathBuf,      // user home
+    pub shell: PathBuf,     // user shell
+    pub ruid: u32,          // real user id behind sudo
+    pub rgid: u32,          // real user group id behind sudo
+    pub realname: String,   // real user name behind sudo
+    pub realhome: PathBuf,  // real user home behind sudo
+    pub realshell: PathBuf, // real user shell behind sudo
 }
 
 #[cfg(feature = "user")]
 impl User {
-    /// Get the user's id
-    pub fn uid(&self) -> u32 {
-        self.uid
-    }
-
-    /// Get the user's group id
-    pub fn gid(&self) -> u32 {
-        self.gid
-    }
-
-    /// Get the user's effective id
-    pub fn euid(&self) -> u32 {
-        self.euid
-    }
-
-    /// Get the user's effective group id
-    pub fn egid(&self) -> u32 {
-        self.egid
-    }
-
-    /// Get the user's real id
-    pub fn ruid(&self) -> u32 {
-        self.ruid
-    }
-
-    /// Get the user's real group id
-    pub fn rgid(&self) -> u32 {
-        self.rgid
-    }
-
     /// Returns true if the user is root
     pub fn is_root(&self) -> bool {
         self.uid == 0
@@ -68,11 +39,31 @@ impl User {
 
 /// Get the current user
 #[cfg(feature = "user")]
-pub fn current() -> User {
-    let uid = unsafe { libc::getuid() };
-    let gid = unsafe { libc::getgid() };
-    let (ruid, rgid) = realids(uid, gid);
-    User { uid: uid, gid: gid, euid: unsafe { libc::geteuid() }, egid: unsafe { libc::getegid() }, ruid: ruid, rgid: rgid }
+pub fn current() -> Result<User> {
+    let user = lookup(unsafe { libc::getuid() })?;
+    // if user.home.empty() {
+    //     user.home = home()?;
+    // }
+    Ok(user)
+}
+
+/// Switches back to the original user under the sudo mask with no way to go back.
+///
+/// ### Examples
+/// ```ignore
+/// use fungus::user;
+///
+/// user::drop_sudo().unwrap();
+/// ```
+#[cfg(feature = "user")]
+pub fn drop_sudo() -> Result<()> {
+    match getuid() {
+        0 => {
+            let (ruid, rgid) = getrids(0, 0);
+            switchuser(ruid, ruid, ruid, rgid, rgid, rgid)
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Returns the full path to the current user's home directory.
@@ -115,69 +106,51 @@ pub fn getgid() -> u32 {
     unsafe { libc::getgid() }
 }
 
-/// Returns the effective user ID for the current user.
+/// Returns the user effective ID for the current user.
 ///
 /// ### Examples
 /// ```
 /// use fungus::user;
 ///
-/// println!("effective user id of the current user: {:?}", user::geteuid());
+/// println!("user effective id of the current user: {:?}", user::geteuid());
 /// ```
 #[cfg(feature = "user")]
 pub fn geteuid() -> u32 {
     unsafe { libc::geteuid() }
 }
 
-/// Returns the effective group ID for the current user.
+/// Returns the group effective ID for the current user.
 ///
 /// ### Examples
 /// ```
 /// use fungus::user;
 ///
-/// println!("effective group id of the current user: {:?}", user::getegid());
+/// println!("group effective id of the current user: {:?}", user::getegid());
 /// ```
 #[cfg(feature = "user")]
 pub fn getegid() -> u32 {
     unsafe { libc::getegid() }
 }
 
-/// Returns the real user ID for the current user.
+/// Returns the real IDs for the given user.
 ///
 /// ### Examples
 /// ```
 /// use fungus::user;
 ///
-/// println!("real user id of the current user: {:?}", user::getruid());
+/// println!("real user ids of the given user: {:?}", user::getrids(0, 0));
 /// ```
 #[cfg(feature = "user")]
-pub fn getruid() -> u32 {
-    if is_root() {
-        match env::var("SUDO_UID") {
-            Ok(uid) => uid.parse::<u32>().unwrap(),
-            Err(_) => getuid(),
-        }
-    } else {
-        getuid()
-    }
-}
-
-/// Returns the real group ID for the current user.
-///
-/// ### Examples
-/// ```
-/// use fungus::user;
-///
-/// println!("real group id of the current user: {:?}", user::getrgid());
-/// ```
-#[cfg(feature = "user")]
-pub fn getrgid() -> u32 {
-    if is_root() {
-        match env::var("SUDO_GID") {
-            Ok(gid) => gid.parse::<u32>().unwrap(),
-            Err(_) => getgid(),
-        }
-    } else {
-        getgid()
+pub fn getrids(uid: u32, gid: u32) -> (u32, u32) {
+    match uid {
+        0 => match (env::var("SUDO_UID"), env::var("SUDO_GID")) {
+            (Ok(u), Ok(g)) => match (u.parse::<u32>(), g.parse::<u32>()) {
+                (Ok(u), Ok(g)) => (u, g),
+                _ => (uid, gid),
+            },
+            _ => (uid, gid),
+        },
+        _ => (uid, gid),
     }
 }
 
@@ -187,7 +160,7 @@ pub fn getrgid() -> u32 {
 /// ```
 /// use fungus::user;
 ///
-/// user::is_root();
+/// println!("is the user root: {:?}", user::is_root());
 /// ```
 #[cfg(feature = "user")]
 pub fn is_root() -> bool {
@@ -195,12 +168,19 @@ pub fn is_root() -> bool {
 }
 
 /// Lookup a user by user id
+///
+/// ### Examples
+/// ```ignore
+/// use fungus::user;
+///
+/// println!("lookup the given user: {:?}", user::lookup(1000).unwrap);
+/// ```
 #[cfg(feature = "user")]
 pub fn lookup(uid: u32) -> Result<User> {
     // Get the libc::passwd by user id
-    let mut buf = Vec::with_capacity(1024);
-    let mut passwd = unsafe { mem::zeroed::<libc::passwd>() };
+    let mut buf = vec![0; 2048];
     let mut res = ptr::null_mut::<libc::passwd>();
+    let mut passwd = unsafe { mem::zeroed::<libc::passwd>() };
     unsafe {
         libc::getpwuid_r(uid, &mut passwd, buf.as_mut_ptr(), buf.len(), &mut res);
     }
@@ -208,13 +188,51 @@ pub fn lookup(uid: u32) -> Result<User> {
         return Err(UserError::does_not_exist_by_id(uid).into());
     }
 
-    // Create a user object from the libc::passwd object
-    let name = String::from(unsafe {
-        OsStr::from_bytes(CStr::from_ptr(passwd.pw_name).to_bytes()).to_os_string().to_str().ok_or_else(|| UserError::failed_to_string(uid))?
-    });
+    // Convert libc::passwd object into a User object
+    //----------------------------------------------------------------------------------------------
+    let gid = passwd.pw_gid;
 
-    let (ruid, rgid) = realids(uid, passwd.pw_gid);
-    Ok(User { uid: uid, gid: passwd.pw_gid, euid: unsafe { libc::geteuid() }, egid: unsafe { libc::getegid() }, ruid: ruid, rgid: rgid })
+    // User name for the lookedup user. We always want this and it should always exist.
+    let username = unsafe { crate::libc::to_string(passwd.pw_name)? };
+
+    // Will almost always be a single 'x' as the passwd is in the shadow database
+    //let userpwd = unsafe { crate::libc::to_string(passwd.pw_passwd)? };
+
+    // User home directory e.g. '/home/<user>'. Might be a null pointer indicating the system default should be used
+    let userhome = unsafe { crate::libc::to_string(passwd.pw_dir) }.unwrap_or_default();
+
+    // User shell e.g. '/bin/bash'. Might be a null pointer indicating the system default should be used
+    let usershell = unsafe { crate::libc::to_string(passwd.pw_shell) }.unwrap_or_default();
+
+    // A string container user contextual information, possibly real name or phone number.
+    //let usergecos = unsafe { crate::libc::to_string(passwd.pw_gecos)? };
+
+    // Get the user's real ids as well if applicable
+    let (ruid, rgid) = getrids(uid, gid);
+    let realuser = if uid != ruid {
+        lookup(ruid)?
+    } else {
+        User {
+            uid: uid,
+            gid: gid,
+            name: username.to_string(),
+            home: PathBuf::from(&userhome),
+            shell: PathBuf::from(&usershell),
+            ..Default::default()
+        }
+    };
+    Ok(User {
+        uid: uid,
+        gid: gid,
+        name: username.to_string(),
+        home: PathBuf::from(&userhome),
+        shell: PathBuf::from(&usershell),
+        ruid: ruid,
+        rgid: rgid,
+        realname: realuser.name,
+        realhome: realuser.home,
+        realshell: realuser.shell,
+    })
 }
 
 /// Lookup a user by user name
@@ -227,14 +245,34 @@ pub fn lookup_by_name<T: AsRef<str>>(name: T) -> User {
 /// Returns the current user's name.
 ///
 /// ### Examples
-/// ```
+/// ```ignore
 /// use fungus::user;
 ///
 /// println!("current user name: {:?}", user::name().unwrap());
 /// ```
 #[cfg(feature = "user")]
 pub fn name() -> Result<String> {
-    panic!("Not implemented");
+    Ok(lookup(unsafe { libc::getuid() })?.name)
+}
+
+/// Switches back to the original user under the sudo mask. Preserves the ability to raise sudo
+/// again.
+///
+/// ### Examples
+/// ```ignore
+/// use fungus::user;
+///
+/// user::pause_sudo().unwrap();
+/// ```
+#[cfg(feature = "user")]
+pub fn pause_sudo() -> Result<()> {
+    match getuid() {
+        0 => {
+            let (ruid, rgid) = getrids(0, 0);
+            switchuser(ruid, ruid, 0, rgid, rgid, 0)
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Set the user ID for the current user.
@@ -301,15 +339,40 @@ pub fn setegid(egid: u32) -> Result<()> {
     }
 }
 
-// Private helper function to get the real ids for the given user
-fn realids(uid: u32, gid: u32) -> (u32, u32) {
-    if uid == 0 {
-        match (env::var("SUDO_UID"), env::var("SUDO_GID")) {
-            (Ok(suid), Ok(sgid)) => (suid.parse::<u32>().unwrap(), sgid.parse::<u32>().unwrap()),
-            _ => (uid, gid),
-        }
-    } else {
-        (uid, gid)
+/// Switches back to sudo root. Returns and error if not allowed.
+///
+/// ### Examples
+/// ```ignore
+/// use fungus::user;
+///
+/// user:sudo().unwrap();
+/// ```
+#[cfg(feature = "user")]
+pub fn sudo() -> Result<()> {
+    switchuser(0, 0, 0, 0, 0, 0)
+}
+
+/// Switches to another use by setting the real, effective and saved user and group ids.
+///
+/// ### Examples
+/// ```ignore
+/// use fungus::user;
+///
+/// // Switch to user 1000 but preserve root priviledeges to switch again
+/// user::switchuser(1000, 1000, 0, 1000, 1000, 0);
+///
+/// // Switch to user 1000 and drop root priviledges permanantely
+/// user::switchuser(1000, 1000, 1000, 1000, 1000, 1000);
+/// ```
+#[cfg(feature = "user")]
+pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u32) -> Result<()> {
+    // Best practice to drop the group first
+    match unsafe { libc::setresgid(rgid, egid, sgid) } {
+        0 => match unsafe { libc::setresuid(ruid, euid, suid) } {
+            0 => Ok(()),
+            _ => Err(io::Error::last_os_error().into()),
+        },
+        _ => Err(io::Error::last_os_error().into()),
     }
 }
 

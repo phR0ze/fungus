@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 use walkdir::WalkDir;
@@ -402,6 +403,18 @@ pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
     }
 }
 
+/// Returns the group ID of the owner of this file. Handles path expansion.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// assert_eq!(sys::gid("/etc").unwrap(), 0);
+/// ```
+pub fn gid<T: AsRef<Path>>(path: T) -> Result<u32> {
+    Ok(metadata(path)?.gid())
+}
+
 /// Returns a vector of all paths from the given target glob with path expansion and sorted by
 /// name. Doesn't include the target itself only its children nor is this recursive.
 ///
@@ -502,6 +515,18 @@ pub fn readlink<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     let abs = path.as_ref().abs()?;
     let abs = fs::read_link(abs)?;
     Ok(abs)
+}
+
+/// Returns the user ID of the owner of this file. Handles path expansion.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// assert_eq!(sys::uid("/etc").unwrap(), 0);
+/// ```
+pub fn uid<T: AsRef<Path>>(path: T) -> Result<u32> {
+    Ok(metadata(path)?.uid())
 }
 
 // Path extensions
@@ -627,6 +652,16 @@ pub trait PathExt {
     /// assert_eq!(PathBuf::from("foo/bar").first().unwrap(), first);
     /// ```
     fn first(&self) -> Result<Component>;
+
+    /// Returns the group ID of the owner of this file.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::presys::*;
+    ///
+    /// assert_eq!(Path::new("/etc").gid().unwrap(), 0);
+    /// ```
+    fn gid(&self) -> Result<u32>;
 
     /// Returns true if the `Path` as a String contains the given path
     ///
@@ -924,6 +959,16 @@ pub trait PathExt {
     /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
     /// ```
     fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf;
+
+    /// Returns the user ID of the owner of this file.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::presys::*;
+    ///
+    /// assert_eq!(Path::new("/etc").uid().unwrap(), 0);
+    /// ```
+    fn uid(&self) -> Result<u32>;
 }
 
 impl PathExt for Path {
@@ -1014,10 +1059,7 @@ impl PathExt for Path {
     }
 
     fn empty(&self) -> bool {
-        match self.to_string() {
-            Ok(s) => s == "",
-            Err(_) => false,
-        }
+        self == PathBuf::new()
     }
 
     fn exists(&self) -> bool {
@@ -1053,6 +1095,10 @@ impl PathExt for Path {
 
     fn first(&self) -> Result<Component> {
         self.components().first_result()
+    }
+
+    fn gid(&self) -> Result<u32> {
+        gid(&self)
     }
 
     fn has<T: AsRef<Path>>(&self, path: T) -> bool {
@@ -1215,6 +1261,10 @@ impl PathExt for Path {
             (Ok(base), Ok(suffix)) if base.ends_with(&suffix) => PathBuf::from(&base[..base.len() - suffix.len()]),
             _ => self.to_path_buf(),
         }
+    }
+
+    fn uid(&self) -> Result<u32> {
+        uid(&self)
     }
 }
 
