@@ -452,6 +452,48 @@ pub fn mkdir_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Move a file or directory handling path expansion and globbing. Replaces destination files if
+/// exist but always moves `src` into `dst` if `dst` is an existing directory.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copy");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// let file2 = tmpdir.mash("file2");
+/// assert!(sys::touch(&file1).is_ok());
+/// assert!(sys::move_p(&file1, &file2).is_ok());
+/// assert_eq!(file1.exists(), false);
+/// assert_eq!(file2.exists(), true);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
+    let src = src.as_ref().abs()?;
+
+    // Handle globbing
+    let sources = crate::path::glob(&src)?;
+    if sources.len() == 0 {
+        return Err(PathError::does_not_exist(&src).into());
+    }
+
+    // Test if dst exists and is a directory
+    let dst = dst.as_ref().abs()?;
+    let dst_is_dir = dst.is_dir();
+
+    // Execute the move for all sources
+    for source in sources {
+        let dstpath = match dst_is_dir {
+            true => dst.mash(src.base()?),
+            false => dst.to_path_buf(),
+        };
+        fs::rename(source, dstpath)?;
+    }
+    Ok(())
+}
+
 /// Removes the given empty directory or file. Handles path expansion. Does
 /// not follow symbolic links but rather removes the links themselves.
 ///
@@ -873,6 +915,52 @@ mod tests {
         assert_eq!(dir1.mode().unwrap(), 0o40755);
         assert!(sys::mkdir_p(&dir2, 0o555).is_ok());
         assert_eq!(dir2.mode().unwrap(), 0o40555);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_move_p() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("move_p");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+        let dir1 = tmpdir.mash("dir1");
+        let dir2 = tmpdir.mash("dir2");
+        let dir3 = tmpdir.mash("dir3");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&dir1).is_ok());
+
+        // move file1 to file2 in the same dir
+        assert!(sys::touch(&file1).is_ok());
+        assert_eq!(file1.exists(), true);
+        assert_eq!(file2.exists(), false);
+        assert!(sys::move_p(&file1, &file2).is_ok());
+        assert_eq!(file1.exists(), false);
+        assert_eq!(file2.exists(), true);
+
+        // move file2 into dir1
+        assert!(sys::move_p(&file2, &dir1).is_ok());
+        assert_eq!(file2.exists(), false);
+        assert_eq!(dir1.mash("file2").exists(), true);
+
+        // move dir1 to dir2
+        assert!(sys::move_p(&dir1, &dir2).is_ok());
+        assert_eq!(dir1.exists(), false);
+        assert_eq!(dir2.exists(), true);
+        assert_eq!(dir2.mash("file2").exists(), true);
+
+        // move dir2 into dir3
+        assert!(sys::mkdir(&dir3).is_ok());
+        assert!(sys::move_p(&dir2, &dir3).is_ok());
+        assert_eq!(dir1.exists(), false);
+        assert_eq!(dir2.exists(), false);
+        assert_eq!(dir3.exists(), true);
+        assert_eq!(dir3.mash("dir2").exists(), true);
+        assert_eq!(dir3.mash("dir2/file2").exists(), true);
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
