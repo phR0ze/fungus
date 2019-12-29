@@ -7,10 +7,9 @@ use std::io;
 #[cfg(feature = "chown")]
 use std::os::unix::ffi::OsStrExt;
 
-use std::fs;
-use std::fs::File;
-use std::os::unix;
-use std::os::unix::fs::PermissionsExt;
+use std::fs::{self, File};
+use std::io::{self, prelude::*, BufRead, BufReader};
+use std::os::unix::{self, fs::PermissionsExt};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -427,11 +426,11 @@ pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copy
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn mkdir<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
-    let abs = path.as_ref().abs()?;
-    if !abs.exists() {
-        fs::create_dir_all(&abs)?;
+    let path = path.as_ref().abs()?;
+    if !path.exists() {
+        fs::create_dir_all(&path)?;
     }
-    Ok(abs)
+    Ok(path)
 }
 
 /// Wraps `mkdir` allowing for setting the directory's mode.
@@ -507,14 +506,14 @@ pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
 pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
-    let abs = path.as_ref().abs()?;
-    let wrapped_meta = fs::metadata(&abs);
+    let path = path.as_ref().abs()?;
+    let wrapped_meta = fs::metadata(&path);
     if wrapped_meta.is_ok() {
         let meta = wrapped_meta.unwrap();
         if meta.is_file() {
-            fs::remove_file(abs)?;
+            fs::remove_file(path)?;
         } else if meta.is_dir() {
-            fs::remove_dir(abs)?;
+            fs::remove_dir(path)?;
         }
     }
     Ok(())
@@ -533,11 +532,98 @@ pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
 pub fn remove_all<T: AsRef<Path>>(path: T) -> Result<()> {
-    let abs = path.as_ref().abs()?;
-    if abs.exists() {
-        fs::remove_dir_all(abs)?;
+    let path = path.as_ref().abs()?;
+    if path.exists() {
+        fs::remove_dir_all(path)?;
     }
     Ok(())
+}
+
+/// Returns the contents of the `path` as a `Vec<u8>`.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readbytes");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
+/// assert_eq!(str::from_utf8(&sys::readbytes(&tmpfile).unwrap()).unwrap(), "this is a test");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn readbytes<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
+    let path = path.as_ref().abs()?;
+    match std::fs::read(path) {
+        Ok(data) => Ok(data),
+        Err(err) => Err(err.into()),
+    }
+}
+
+/// Returns an Iterator to the Reader of the lines of the file.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+/// use fungus::core::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlines");
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
+/// assert_iter_eq(sys::readlines(&tmpfile).unwrap().collect::<io::Result<Vec<String>>>().unwrap(), vec![String::from("this is a test")]);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn readlines<T: AsRef<Path>>(path: T) -> Result<io::Lines<BufReader<File>>> {
+    let path = path.as_ref().abs()?;
+    let file = File::open(path)?;
+    Ok(BufReader::new(file).lines())
+}
+
+/// Returns all lines from teh file as a `Vec<String>`.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+/// use fungus::core::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlines_p");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
+/// assert_iter_eq(sys::readlines_p(&tmpfile).unwrap(), vec![String::from("this is a test")]);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn readlines_p<T: AsRef<Path>>(path: T) -> Result<Vec<String>> {
+    match readlines(path)?.collect::<io::Result<Vec<String>>>() {
+        Ok(data) => Ok(data),
+        Err(err) => Err(err.into()),
+    }
+}
+
+/// Returns the contents of the `path` as a `String`.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readstring");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
+/// assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn readstring<T: AsRef<Path>>(path: T) -> Result<String> {
+    let path = path.as_ref().abs()?;
+    match std::fs::read_to_string(path) {
+        Ok(data) => Ok(data),
+        Err(err) => Err(err.into()),
+    }
 }
 
 /// Returns true if the new mode is revoking permissions as compared to the old mode as pertains
@@ -571,12 +657,12 @@ pub fn revoking_mode(old: u32, new: u32) -> bool {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<PathBuf> {
-    let link_abs = link.as_ref().abs()?;
-    if link_abs.exists() {
-        return Err(PathError::exists_already(link_abs).into());
+    let path = link.as_ref().abs()?;
+    if path.exists() {
+        return Err(PathError::exists_already(path).into());
     }
-    unix::fs::symlink(target, &link_abs)?;
-    Ok(link_abs)
+    unix::fs::symlink(target, &path)?;
+    Ok(path)
 }
 
 /// Create an empty file similar to the linux touch command. Handles path expansion.
@@ -587,6 +673,7 @@ pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<Pat
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_touch");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::touch(&tmpfile).is_ok());
@@ -594,11 +681,11 @@ pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<Pat
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
-    let abs = path.as_ref().abs()?;
-    if !abs.exists() {
-        File::create(&abs)?;
+    let path = path.as_ref().abs()?;
+    if !path.exists() {
+        File::create(&path)?;
     }
-    Ok(abs)
+    Ok(path)
 }
 
 /// Wraps `touch` allowing for setting the file's mode.
@@ -608,6 +695,7 @@ pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// use fungus::presys::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_touch");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::touch_p(&tmpfile, 0o555).is_ok());
@@ -615,9 +703,61 @@ pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn touch_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
-    let abs = touch(path)?;
-    chmod_p(&abs)?.recurse(false).mode(mode).chmod()?;
-    Ok(abs)
+    let path = touch(path)?;
+    chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
+    Ok(path)
+}
+
+/// Write `[u8]` data to a file which means `str` or `String`. Handles path expansion.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_write");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
+/// assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> Result<()> {
+    let path = path.as_ref().abs()?;
+    let mut f = File::create(path)?;
+    f.write(data.as_ref())?;
+
+    // Works better than f.flush()?
+    f.sync_all()?;
+    Ok(())
+}
+
+/// Wraps `writebytes` allowing for setting the file's mode.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_write_p");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write_p(&tmpfile, "this is a test", 0o666).is_ok());
+/// assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
+/// assert_eq!(tmpfile.mode().unwrap(), 0o100666);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn write_p<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U, mode: u32) -> Result<()> {
+    let path = path.as_ref().abs()?;
+    {
+        let mut f = File::create(&path)?;
+        f.write(data.as_ref())?;
+        f.sync_all()?; // Works better than f.flush()?
+    }
+
+    // Set the mode for the file
+    chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
+    Ok(())
 }
 
 // Unit tests
@@ -967,6 +1107,78 @@ mod tests {
     }
 
     #[test]
+    fn test_readbytes() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("readbytes");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::write(&tmpfile, "this is a test").is_ok());
+        assert_eq!(str::from_utf8(&sys::readbytes(&tmpfile).unwrap()).unwrap(), "this is a test");
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_readlines() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("readlines");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::write(&tmpfile, "this is a test").is_ok());
+        assert_iter_eq(sys::readlines(&tmpfile).unwrap().collect::<io::Result<Vec<String>>>().unwrap(), vec![String::from("this is a test")]);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_readlines_p() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("readlines_p");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::write(&tmpfile, "this is a test").is_ok());
+        assert_iter_eq(sys::readlines_p(&tmpfile).unwrap(), vec![String::from("this is a test")]);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_readstring() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("readstring");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::write(&tmpfile, "this is a test").is_ok());
+        assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_remove() {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("remove_dir");
@@ -1072,6 +1284,43 @@ mod tests {
         // test
         assert!(sys::touch_p(&tmpfile, 0o555).is_ok());
         assert_eq!(tmpfile.mode().unwrap(), 0o100555);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_write() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("write");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::write(&tmpfile, "this is a test").is_ok());
+        assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_write_p() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("write_p");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::write_p(&tmpfile, "this is a test", 0o666).is_ok());
+        assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
+        assert_eq!(tmpfile.mode().unwrap(), 0o100666);
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());

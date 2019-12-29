@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::os::unix::fs::MetadataExt;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use walkdir::WalkDir;
 

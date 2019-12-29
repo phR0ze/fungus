@@ -40,11 +40,12 @@ pub mod presys {
         pub use crate::os::*;
         pub use crate::path::*;
     }
+
     pub use std::env;
     pub use std::ffi::OsStr;
-    pub use std::fs;
-    pub use std::fs::File;
-    pub use std::os::unix::fs::MetadataExt;
-    pub use std::os::unix::fs::PermissionsExt;
+    pub use std::fs::{self, File};
+    pub use std::io::{self, prelude::*, BufRead, BufReader};
+    pub use std::os::unix::fs::{MetadataExt, PermissionsExt};
     pub use std::path::{Component, Path, PathBuf};
+    pub use std::str;
 }
