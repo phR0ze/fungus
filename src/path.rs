@@ -11,21 +11,21 @@ use crate::core::*;
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// let home = env::var("HOME").unwrap();
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
 pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
-    let _path = path.as_ref();
+    let path = path.as_ref();
 
     // Check for empty string
-    if _path.empty() {
+    if path.empty() {
         return Err(PathError::empty().into());
     }
 
     // Expand home directory
-    let mut path_buf = _path.expand()?;
+    let mut path_buf = path.expand()?;
 
     // Trim protocol prefix if needed
     path_buf = path_buf.trim_protocol();
@@ -35,13 +35,21 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 
     // Expand relative directories if needed
     if !path_buf.is_absolute() {
-        let curr = env::current_dir()?;
-
-        // Unwrap works here as there will always be Some
-        path_buf = match path_buf.first()? {
-            Component::CurDir => curr.mash(path_buf),
-            Component::ParentDir => curr.dir()?.mash(path_buf.trim_first()),
-            _ => curr.mash(path_buf),
+        let mut curr = env::current_dir()?;
+        loop {
+            match path_buf.first() {
+                Ok(path) => match path {
+                    Component::CurDir => {
+                        path_buf = path_buf.trim_first();
+                    }
+                    Component::ParentDir => {
+                        curr = curr.dir()?;
+                        path_buf = path_buf.trim_first();
+                    }
+                    _ => return Ok(curr.mash(path_buf)),
+                },
+                _ => return Ok(curr),
+            }
         }
     }
 
@@ -54,9 +62,9 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_dirs");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_all_dirs");
 /// let dir1 = tmpdir.mash("dir1");
 /// let dir2 = dir1.mash("dir2");
 /// assert!(sys::mkdir(&dir2).is_ok());
@@ -93,9 +101,9 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_files");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_all_files");
 /// let file1 = tmpdir.mash("file1");
 /// let dir1 = tmpdir.mash("dir1");
 /// let file2 = dir1.mash("file2");
@@ -135,9 +143,9 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_paths");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_all_paths");
 /// let file1 = tmpdir.mash("file1");
 /// let dir1 = tmpdir.mash("dir1");
 /// let file2 = dir1.mash("file2");
@@ -176,7 +184,7 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// println!("current working directory: {:?}", sys::cwd().unwrap());
 /// ```
@@ -193,9 +201,9 @@ pub fn cwd() -> Result<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_dirs");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_dirs");
 /// let dir1 = tmpdir.mash("dir1");
 /// let dir2 = tmpdir.mash("dir2");
 /// assert!(sys::mkdir(&dir1).is_ok());
@@ -223,37 +231,11 @@ pub fn dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
     Err(PathError::does_not_exist(abs).into())
 }
 
-/// Returns the full path to the directory of the current running executable.
-///
-/// ### Examples
-/// ```
-/// use fungus::presys::*;
-///
-/// let dir = env::current_exe().unwrap().dir().unwrap();
-/// assert_eq!(sys::exec_dir().unwrap(), dir);
-/// ```
-pub fn exec_dir() -> Result<PathBuf> {
-    Ok(env::current_exe()?.dir()?)
-}
-
-/// Returns the current running executable's name.
-///
-/// ### Examples
-/// ```
-/// use fungus::presys::*;
-///
-/// let base = env::current_exe().unwrap().base().unwrap();
-/// assert_eq!(sys::exec_name().unwrap(), base);
-/// ```
-pub fn exec_name() -> Result<String> {
-    Ok(env::current_exe()?.base()?)
-}
-
 /// Returns true if the given path exists. Handles path expansion.
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// assert_eq!(sys::exists("/etc"), true);
 /// ```
@@ -270,9 +252,9 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_files");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_files");
 /// let file1 = tmpdir.mash("file1");
 /// let file2 = tmpdir.mash("file2");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -305,7 +287,7 @@ pub fn files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// assert_eq!(sys::is_dir("/etc"), true);
 /// ```
@@ -316,11 +298,35 @@ pub fn is_dir<T: AsRef<Path>>(path: T) -> bool {
     }
 }
 
+/// Returns true if the given path exists and is an executable. Handles path expansion
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_is_exec");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// assert!(sys::touch_p(&file1, 0o644).is_ok());
+/// assert_eq!(sys::is_exec(&file1), false);
+/// assert!(sys::chmod_p(&file1).unwrap().add_x().chmod().is_ok());
+/// assert_eq!(file1.mode().unwrap(), 0o100755);
+/// assert_eq!(file1.is_exec(), true);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn is_exec<T: AsRef<Path>>(path: T) -> bool {
+    match metadata(path) {
+        Ok(x) => x.permissions().mode() & 0o111 != 0,
+        Err(_) => false,
+    }
+}
+
 /// Returns true if the given path exists and is a file. Handles path expansion
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// assert_eq!(sys::is_file("/etc/hosts"), true);
 /// ```
@@ -331,13 +337,37 @@ pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
     }
 }
 
+/// Returns true if the given path exists and is readonly. Handles path expansion
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_is_readonly");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// assert!(sys::touch_p(&file1, 0o644).is_ok());
+/// assert_eq!(file1.is_readonly(), false);
+/// assert!(sys::chmod_p(&file1).unwrap().readonly().chmod().is_ok());
+/// assert_eq!(file1.mode().unwrap(), 0o100444);
+/// assert_eq!(sys::is_readonly(&file1), true);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn is_readonly<T: AsRef<Path>>(path: T) -> bool {
+    match metadata(path) {
+        Ok(x) => x.permissions().readonly(),
+        Err(_) => false,
+    }
+}
+
 /// Returns true if the given path exists and is a symlink. Handles path expansion
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_is_symlink");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_is_symlink");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let link1 = tmpdir.mash("link1");
@@ -359,9 +389,9 @@ pub fn is_symlink<T: AsRef<Path>>(path: T) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_is_symlink_dir");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_is_symlink_dir");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let dir1 = tmpdir.mash("dir1");
 /// let link1 = tmpdir.mash("link1");
@@ -388,9 +418,9 @@ pub fn is_symlink_dir<T: AsRef<Path>>(path: T) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_is_symlink_file");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_is_symlink_file");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let link1 = tmpdir.mash("link1");
@@ -417,7 +447,7 @@ pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// assert_eq!(sys::gid("/etc").unwrap(), 0);
 /// ```
@@ -430,9 +460,9 @@ pub fn gid<T: AsRef<Path>>(path: T) -> Result<u32> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_glob");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_glob");
 /// let dir1 = tmpdir.mash("dir1");
 /// let dir2 = tmpdir.mash("dir2");
 /// let file1 = tmpdir.mash("file1");
@@ -451,12 +481,27 @@ pub fn glob<T: AsRef<Path>>(src: T) -> Result<Vec<PathBuf>> {
     Ok(paths)
 }
 
+/// Returns a new owned [`PathBuf`] from `dir` mashed together with `base`.
+/// Differs from the `mash` implementation as `mash` drops root prefix of the given `path` if
+/// it exists and also drops any trailing '/' on the new resulting path. More closely aligns
+/// with the Golang implementation of join.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert_eq!(sys::mash("/foo", "/bar"), PathBuf::from("/foo/bar"));
+/// ```
+pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
+    dir.as_ref().join(base.as_ref().trim_prefix("/")).components().collect::<PathBuf>()
+}
+
 /// Returns the Metadata object for the `Path` if it exists else an error. Handles path
 /// expansion.
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// let meta = sys::metadata(Path::new("/etc")).unwrap();
 /// assert_eq!(meta.is_dir(), true);
@@ -473,9 +518,9 @@ pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_paths");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_paths");
 /// let dir1 = tmpdir.mash("dir1");
 /// let dir2 = tmpdir.mash("dir2");
 /// let file1 = tmpdir.mash("file1");
@@ -507,9 +552,9 @@ pub fn paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlink");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_readlink");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let link1 = tmpdir.mash("link1");
@@ -529,7 +574,7 @@ pub fn readlink<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// assert_eq!(sys::uid("/etc").unwrap(), 0);
 /// ```
@@ -544,7 +589,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let home = env::var("HOME").unwrap();
     /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
@@ -556,7 +601,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let home = PathBuf::from("~").abs().unwrap();
     /// assert_eq!(PathBuf::from("foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
@@ -567,7 +612,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
     /// ```
@@ -577,7 +622,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_chmod");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -612,7 +657,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
     /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
@@ -623,7 +668,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(PathBuf::from("").empty(), true);
     /// ```
@@ -633,7 +678,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(Path::new("/etc").exists(), true);
     /// ```
@@ -643,7 +688,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let home = env::var("HOME").unwrap();
     /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
@@ -654,7 +699,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let first = Component::Normal(OsStr::new("foo"));
     /// assert_eq!(PathBuf::from("foo/bar").first().unwrap(), first);
@@ -665,17 +710,17 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(Path::new("/etc").gid().unwrap(), 0);
     /// ```
     fn gid(&self) -> Result<u32>;
 
-    /// Returns true if the `Path` as a String contains the given path
+    /// Returns true if the `Path` contains the given path or string.
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
     /// assert_eq!(path.has("foo"), true);
@@ -687,7 +732,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
     /// assert_eq!(path.has_prefix("/foo"), true);
@@ -699,7 +744,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let path = PathBuf::from("/foo/bar");
     /// assert_eq!(path.has_suffix("/bar"), true);
@@ -711,27 +756,65 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(Path::new("/etc").is_dir(), true);
     /// ```
     fn is_dir(&self) -> bool;
 
+    /// Returns true if the `Path` exists and is an executable. Handles path expansion.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_is_exec");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// assert!(sys::mkdir(&tmpdir).is_ok());
+    /// let file1 = tmpdir.mash("file1");
+    /// assert!(sys::touch_p(&file1, 0o644).is_ok());
+    /// assert_eq!(file1.is_exec(), false);
+    /// assert!(sys::chmod_p(&file1).unwrap().add_x().chmod().is_ok());
+    /// assert_eq!(file1.mode().unwrap(), 0o100755);
+    /// assert_eq!(file1.is_exec(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn is_exec(&self) -> bool;
+
     /// Returns true if the `Path` exists and is a file. Handles path expansion
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(Path::new("/etc/hosts").is_file(), true);
     /// ```
     fn is_file(&self) -> bool;
 
+    /// Returns true if the `Path` exists and is readonly. Handles path expansion.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_is_readonly");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// assert!(sys::mkdir(&tmpdir).is_ok());
+    /// let file1 = tmpdir.mash("file1");
+    /// assert!(sys::touch_p(&file1, 0o644).is_ok());
+    /// assert_eq!(file1.is_readonly(), false);
+    /// assert!(sys::chmod_p(&file1).unwrap().readonly().chmod().is_ok());
+    /// assert_eq!(file1.mode().unwrap(), 0o100444);
+    /// assert_eq!(file1.is_readonly(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    fn is_readonly(&self) -> bool;
+
     /// Returns true if the `Path` exists and is a symlink. Handles path expansion
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_is_symlink");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -749,7 +832,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_is_symlink_dir");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -767,7 +850,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_is_symlink_file");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -785,7 +868,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let first = Component::Normal(OsStr::new("bar"));
     /// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
@@ -799,7 +882,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(Path::new("/foo").mash("/bar"), PathBuf::from("/foo/bar"));
     /// ```
@@ -809,7 +892,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let meta = Path::new("/etc").metadata().unwrap();
     /// assert_eq!(meta.is_dir(), true);
@@ -820,7 +903,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_mode");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -837,7 +920,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_perms");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -854,7 +937,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_readlink");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -872,7 +955,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
     /// ```
@@ -882,7 +965,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("pathbuf_doc_setperms");
     /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -901,7 +984,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(PathBuf::from("/foo").to_string().unwrap(), "/foo".to_string());
     /// ```
@@ -911,7 +994,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(PathBuf::from("foo.exe").trim_ext(), PathBuf::from("foo"));
     /// ```
@@ -921,7 +1004,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(PathBuf::from("/foo").trim_first(), PathBuf::from("foo"));
     /// ```
@@ -931,7 +1014,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(PathBuf::from("/foo").trim_last(), PathBuf::from("/"));
     /// ```
@@ -941,7 +1024,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(Path::new("/foo/bar").trim_prefix("/foo"), PathBuf::from("/bar"));
     /// ```
@@ -952,7 +1035,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(PathBuf::from("ftp://foo").trim_protocol(), PathBuf::from("foo"));
     /// ```
@@ -962,7 +1045,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(PathBuf::from("/foo/bar").trim_suffix("/bar"), PathBuf::from("/foo"));
     /// ```
@@ -972,7 +1055,7 @@ pub trait PathExt {
     ///
     /// ### Examples
     /// ```
-    /// use fungus::presys::*;
+    /// use fungus::prelude::*;
     ///
     /// assert_eq!(Path::new("/etc").uid().unwrap(), 0);
     /// ```
@@ -1134,8 +1217,16 @@ impl PathExt for Path {
         is_dir(self)
     }
 
+    fn is_exec(&self) -> bool {
+        is_exec(self)
+    }
+
     fn is_file(&self) -> bool {
         is_file(self)
+    }
+
+    fn is_readonly(&self) -> bool {
+        is_readonly(self)
     }
 
     fn is_symlink(&self) -> bool {
@@ -1155,7 +1246,7 @@ impl PathExt for Path {
     }
 
     fn mash<T: AsRef<Path>>(&self, path: T) -> PathBuf {
-        self.join(path.as_ref().trim_prefix("/")).components().collect::<PathBuf>()
+        mash(self, path)
     }
 
     fn metadata(&self) -> Result<fs::Metadata> {
@@ -1280,7 +1371,7 @@ impl PathExt for Path {
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::presys::*;
+    use crate::prelude::*;
 
     // Reusable teset setup
     struct Setup {
@@ -1324,12 +1415,19 @@ mod tests {
         assert_eq!(sys::abs("~/foo/bar/../.").unwrap(), home.mash("foo"));
         assert_eq!(sys::abs("~/foo/bar/../").unwrap(), home.mash("foo"));
         assert_eq!(sys::abs("~/foo/bar/../blah").unwrap(), home.mash("foo/blah"));
+
+        // Move up the path multiple levels
+        assert_eq!(sys::abs("./../../foo").unwrap(), home.mash("foo"));
+        assert_eq!(sys::abs("../../foo").unwrap(), home.mash("foo"));
+
+        // Move up until invalid
+        assert!(sys::abs("../../../../../foo").is_err());
     }
 
     #[test]
     fn test_all_dirs() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("all_dirs");
+        let tmpdir = setup.temp.mash("path_all_dirs");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir1.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -1367,7 +1465,7 @@ mod tests {
     #[test]
     fn test_all_files() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("all_files");
+        let tmpdir = setup.temp.mash("path_all_files");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir1.mash("dir2");
         let tmpfile1 = tmpdir1.mash("file1");
@@ -1405,7 +1503,7 @@ mod tests {
     #[test]
     fn test_all_paths() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("all_paths");
+        let tmpdir = setup.temp.mash("path_all_paths");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir1.mash("dir2");
         let tmpfile1 = tmpdir1.mash("file1");
@@ -1443,7 +1541,7 @@ mod tests {
     #[test]
     fn test_dirs() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("dirs");
+        let tmpdir = setup.temp.mash("path_dirs");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -1479,23 +1577,9 @@ mod tests {
     }
 
     #[test]
-    fn test_exec_dir() {
-        let cwd = env::current_dir().unwrap();
-        let dir = cwd.mash("target/debug/deps");
-        assert_eq!(sys::exec_dir().unwrap(), dir);
-    }
-
-    #[test]
-    fn test_exec_name() {
-        let exec_path = env::current_exe().unwrap();
-        let name = exec_path.base().unwrap();
-        assert_eq!(name, sys::exec_name().unwrap());
-    }
-
-    #[test]
     fn test_files() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("files");
+        let tmpdir = setup.temp.mash("path_files");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -1539,9 +1623,31 @@ mod tests {
     }
 
     #[test]
+    fn test_is_exec() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("path_is_exec");
+        let file1 = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+        assert!(sys::touch_p(&file1, 0o644).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert_eq!(file1.is_exec(), false);
+
+        // add_x
+        assert!(sys::chmod_p(&file1).unwrap().add_x().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100755);
+        assert_eq!(file1.is_exec(), true);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_is_file() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("is_file");
+        let tmpdir = setup.temp.mash("path_is_file");
         let tmpfile = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1556,7 +1662,7 @@ mod tests {
     #[test]
     fn test_is_symlink() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("is_symlink");
+        let tmpdir = setup.temp.mash("path_is_symlink");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
 
@@ -1573,7 +1679,7 @@ mod tests {
     #[test]
     fn test_is_symlink_dir() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("is_symlink_dir");
+        let tmpdir = setup.temp.mash("path_is_symlink_dir");
         let dir1 = tmpdir.mash("dir1");
         let link1 = tmpdir.mash("link1");
         let link2 = tmpdir.mash("link2");
@@ -1599,7 +1705,7 @@ mod tests {
     #[test]
     fn test_is_symlink_file() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("is_symlink_file");
+        let tmpdir = setup.temp.mash("path_is_symlink_file");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
         let link2 = tmpdir.mash("link2");
@@ -1629,7 +1735,7 @@ mod tests {
     #[test]
     fn test_glob() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("glob");
+        let tmpdir = setup.temp.mash("path_glob");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -1668,7 +1774,7 @@ mod tests {
     #[test]
     fn test_paths() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("paths");
+        let tmpdir = setup.temp.mash("path_paths");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -1706,7 +1812,7 @@ mod tests {
     #[test]
     fn test_readlink() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("readlink");
+        let tmpdir = setup.temp.mash("path_readlink");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
 
@@ -1756,7 +1862,7 @@ mod tests {
     #[test]
     fn test_pathext_chmod() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("pathbuf_chmod");
+        let tmpdir = setup.temp.mash("path_pathbuf_chmod");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1903,7 +2009,7 @@ mod tests {
     #[test]
     fn test_pathext_is_dir() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("pathext_is_dir");
+        let tmpdir = setup.temp.mash("path_pathext_is_dir");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert_eq!(tmpdir.is_dir(), false);
@@ -1917,7 +2023,7 @@ mod tests {
     #[test]
     fn test_pathext_is_file() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("pathext_is_file");
+        let tmpdir = setup.temp.mash("path_pathext_is_file");
         let tmpfile = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1932,7 +2038,7 @@ mod tests {
     #[test]
     fn test_pathext_is_symlink_file() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("pathext_is_symlink_file");
+        let tmpdir = setup.temp.mash("path_pathext_is_symlink_file");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
 
@@ -1959,7 +2065,7 @@ mod tests {
     #[test]
     fn test_pathext_metadata() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("pathext_metadata");
+        let tmpdir = setup.temp.mash("path_pathext_metadata");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(tmpdir.metadata().is_err());
@@ -1989,7 +2095,7 @@ mod tests {
     #[test]
     fn test_pathext_mode() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("pathbuf_mode");
+        let tmpdir = setup.temp.mash("path_pathbuf_mode");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -2003,7 +2109,7 @@ mod tests {
     #[test]
     fn test_pathext_perms() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("pathbuf_perms");
+        let tmpdir = setup.temp.mash("path_pathbuf_perms");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -2017,7 +2123,7 @@ mod tests {
     #[test]
     fn test_pathext_setperms() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("pathbuf_setperms");
+        let tmpdir = setup.temp.mash("path_pathbuf_setperms");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());

@@ -46,7 +46,7 @@ pub fn current() -> Result<User> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// user::drop_sudo().unwrap();
 /// ```
@@ -65,7 +65,7 @@ pub fn drop_sudo() -> Result<()> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("home directory of the current user: {:?}", user::home().unwrap());
 /// ```
@@ -79,7 +79,7 @@ pub fn home() -> Result<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("user id of the current user: {:?}", user::getuid());
 /// ```
@@ -92,7 +92,7 @@ pub fn getuid() -> u32 {
 ///
 /// ### Examples
 /// ```
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("group id of the current user: {:?}", user::getgid());
 /// ```
@@ -105,7 +105,7 @@ pub fn getgid() -> u32 {
 ///
 /// ### Examples
 /// ```
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("user effective id of the current user: {:?}", user::geteuid());
 /// ```
@@ -118,7 +118,7 @@ pub fn geteuid() -> u32 {
 ///
 /// ### Examples
 /// ```
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("group effective id of the current user: {:?}", user::getegid());
 /// ```
@@ -131,7 +131,7 @@ pub fn getegid() -> u32 {
 ///
 /// ### Examples
 /// ```
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("real user ids of the given user: {:?}", user::getrids(0, 0));
 /// ```
@@ -153,7 +153,7 @@ pub fn getrids(uid: u32, gid: u32) -> (u32, u32) {
 ///
 /// ### Examples
 /// ```
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("is the user root: {:?}", user::is_root());
 /// ```
@@ -166,7 +166,7 @@ pub fn is_root() -> bool {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("lookup the given user: {:?}", user::lookup(1000).unwrap);
 /// ```
@@ -234,7 +234,7 @@ pub fn lookup(uid: u32) -> Result<User> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// println!("current user name: {:?}", user::name().unwrap());
 /// ```
@@ -248,7 +248,7 @@ pub fn name() -> Result<String> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// user::pause_sudo().unwrap();
 /// ```
@@ -267,7 +267,7 @@ pub fn pause_sudo() -> Result<()> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// user::setuid(1000);
 /// ```
@@ -283,7 +283,7 @@ pub fn setuid(uid: u32) -> Result<()> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// user::seteuid(1000);
 /// ```
@@ -299,7 +299,7 @@ pub fn seteuid(euid: u32) -> Result<()> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// user::setgid(1000);
 /// ```
@@ -315,7 +315,7 @@ pub fn setgid(gid: u32) -> Result<()> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// user::setegid(1000);
 /// ```
@@ -331,7 +331,7 @@ pub fn setegid(egid: u32) -> Result<()> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// user:sudo().unwrap();
 /// ```
@@ -344,7 +344,7 @@ pub fn sudo() -> Result<()> {
 ///
 /// ### Examples
 /// ```ignore
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
 /// // Switch to user 1000 but preserve root priviledeges to switch again
 /// user::switchuser(1000, 1000, 0, 1000, 1000, 0);
@@ -368,8 +368,7 @@ pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::presys::*;
-    use crate::user;
+    use crate::prelude::*;
 
     #[test]
     fn test_user_home() {

@@ -1,5 +1,4 @@
-use fungus::presys::*;
-use fungus::user;
+use fungus::prelude::*;
 
 fn main() {
     let tmpdir = PathBuf::from("../../temp");
@@ -23,8 +22,9 @@ fn main() {
 
     // Tests
     assert_ne!(user::home().unwrap(), PathBuf::from("/root"));
-    test_chown(&tmpdir);
-    test_sudo(&tmpdir);
+    test_exec_lookup(&tmpdir);
+    test_sys_chown(&tmpdir);
+    test_user_sudo(&tmpdir);
 }
 
 fn setup<T: AsRef<Path>>(path: T, target: &str) -> PathBuf {
@@ -38,7 +38,27 @@ fn cleanup<T: AsRef<Path>>(path: T) {
     assert!(sys::remove_all(path).is_ok());
 }
 
-fn test_chown<T: AsRef<Path>>(path: T) {
+fn test_exec_lookup<T: AsRef<Path>>(path: T) {
+    let tmpdir = setup(path, "bin_lookup");
+    let file1 = tmpdir.mash("file1");
+
+    // Test lookup by path
+    assert!(sys::touch_p(&file1, 0o755).is_ok());
+    assert_eq!(file1.is_exec(), true);
+    assert_eq!(exec::lookup(&file1).unwrap(), file1.abs().unwrap());
+
+    // Tet lookup by PATH
+    let saved_path = env::var("PATH").unwrap();
+    let new_path = format!("{}:{}", tmpdir.abs().unwrap().to_string().unwrap(), &saved_path);
+    env::set_var("PATH", new_path);
+    assert_eq!(exec::lookup(file1.base().unwrap()).unwrap(), file1.abs().unwrap());
+    env::set_var("PATH", saved_path);
+    assert!(exec::lookup(file1.base().unwrap()).is_err());
+
+    cleanup(tmpdir);
+}
+
+fn test_sys_chown<T: AsRef<Path>>(path: T) {
     let tmpdir = setup(path, "bin_chown");
     let file1 = tmpdir.mash("file1");
 
@@ -78,7 +98,7 @@ fn test_chown<T: AsRef<Path>>(path: T) {
     cleanup(tmpdir);
 }
 
-fn test_sudo<T: AsRef<Path>>(path: T) {
+fn test_user_sudo<T: AsRef<Path>>(path: T) {
     // Get the real user behind the sudo mask
     let (ruid, rgid) = user::getrids(0, 0);
     assert_ne!(ruid, 0);

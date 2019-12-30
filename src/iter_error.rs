@@ -42,7 +42,7 @@ impl fmt::Display for IterError {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::*;
+    use crate::prelude::*;
 
     fn item_not_found() -> Result<i32> {
         Err(IterError::item_not_found().into())

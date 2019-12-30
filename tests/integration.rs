@@ -1,4 +1,4 @@
-use fungus::presys::*;
+use fungus::prelude::*;
 
 #[test]
 fn test_use_syntax() {

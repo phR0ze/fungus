@@ -26,6 +26,9 @@ pub enum PathError {
     /// An error indicating that the path is not a directory.
     IsNotDir(PathBuf),
 
+    /// An error indicating that the path is not an executable file.
+    IsNotExec(PathBuf),
+
     /// An error indicating that the path is not a file.
     IsNotFile(PathBuf),
 
@@ -69,6 +72,11 @@ impl PathError {
         PathError::IsNotDir(path.as_ref().to_path_buf())
     }
 
+    /// Return an error indicating that the path is not an executable
+    pub fn is_not_exec<T: AsRef<Path>>(path: T) -> PathError {
+        PathError::IsNotExec(path.as_ref().to_path_buf())
+    }
+
     /// Return an error indicating that the path is not a file
     pub fn is_not_file<T: AsRef<Path>>(path: T) -> PathError {
         PathError::IsNotFile(path.as_ref().to_path_buf())
@@ -105,6 +113,7 @@ impl fmt::Display for PathError {
             PathError::FileNameNotFound(ref path) => write!(f, "filename not found for path: {}", path.display()),
             PathError::InvalidExpansion(ref path) => write!(f, "invalid expansion for path: {}", path.display()),
             PathError::IsNotDir(ref path) => write!(f, "is not a directory: {}", path.display()),
+            PathError::IsNotExec(ref path) => write!(f, "is not an executable: {}", path.display()),
             PathError::IsNotFile(ref path) => write!(f, "is not a file: {}", path.display()),
             PathError::IsNotFileOrSymlinkToFile(ref path) => write!(f, "is not a file or a symlink to a file: {}", path.display()),
             PathError::MultipleHomeSymbols(ref path) => write!(f, "multiple home symbols for path: {}", path.display()),
@@ -155,6 +164,8 @@ mod tests {
         assert_eq!(format!("{}", PathError::invalid_expansion(PathBuf::from("foo"))), "invalid expansion for path: foo");
         assert_eq!(PathError::is_not_dir(Path::new("foo")), PathError::IsNotDir(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::is_not_dir(PathBuf::from("foo"))), "is not a directory: foo");
+        assert_eq!(PathError::is_not_exec(Path::new("foo")), PathError::IsNotExec(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::is_not_exec(PathBuf::from("foo"))), "is not an executable: foo");
         assert_eq!(PathError::is_not_file(Path::new("foo")), PathError::IsNotFile(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::is_not_file(PathBuf::from("foo"))), "is not a file: foo");
         assert_eq!(PathError::is_not_file_or_symlink_to_file(Path::new("foo")), PathError::IsNotFileOrSymlinkToFile(PathBuf::from("foo")));

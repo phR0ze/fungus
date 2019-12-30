@@ -5,7 +5,7 @@ authors = ["phR0ze"]
 edition = "2018"
 
 [dependencies.fungus]
-features = ["chown", "user"]
+features = ["_libc_"]
 
 [patch.crates-io]
 fungus = { path = "../../../" }

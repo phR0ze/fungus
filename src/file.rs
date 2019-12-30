@@ -15,8 +15,7 @@ use std::os::unix::{self, fs::PermissionsExt};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::core::*;
-use crate::path::PathExt;
+use crate::prelude::*;
 
 /// Chmod provides flexible options for changing file permission with optional configuration.
 #[derive(Debug, Clone)]
@@ -50,9 +49,56 @@ impl Chmod {
         self
     }
 
-    /// Update the `mode` option. Default is 0o666
+    /// Update the `mode` option. Default is the current file's mode or to 0o644 if it doesn't exist
     pub fn mode(&mut self, mode: u32) -> &mut Self {
         self.mode = mode;
+        self
+    }
+
+    /// Update the `mode` option to add read permission to all.
+    pub fn add_r(&mut self) -> &mut Self {
+        self.mode |= 0o0444;
+        self
+    }
+
+    /// Update the `mode` option to add write permission to all.
+    pub fn add_w(&mut self) -> &mut Self {
+        self.mode |= 0o0222;
+        self
+    }
+
+    /// Update the `mode` option to add execute permission to all.
+    pub fn add_x(&mut self) -> &mut Self {
+        self.mode |= 0o0111;
+        self
+    }
+
+    /// Update the `mode` option to make readonly.
+    pub fn readonly(&mut self) -> &mut Self {
+        self.sub_w().sub_x()
+    }
+
+    /// Update the `mode` option to drop group and other permissions.
+    pub fn secure(&mut self) -> &mut Self {
+        self.mode &= 0o7700;
+        self
+    }
+
+    /// Update the `mode` option to subtract read permission from all.
+    pub fn sub_r(&mut self) -> &mut Self {
+        self.mode &= 0o7333;
+        self
+    }
+
+    /// Update the `mode` option to subtract write permission from all.
+    pub fn sub_w(&mut self) -> &mut Self {
+        self.mode &= 0o7555;
+        self
+    }
+
+    /// Update the `mode` option to subtract execute permission from all.
+    pub fn sub_x(&mut self) -> &mut Self {
+        self.mode &= 0o7666;
         self
     }
 
@@ -112,9 +158,9 @@ impl Chmod {
 /// Wraps `chmod_p` to apply the given `mode` to all files/dirs using recursion and invoking
 /// the mode change on the close of this function call.
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chmod");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_chmod");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -136,9 +182,9 @@ pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<()> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chmod_p");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_chmod_p");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -150,7 +196,12 @@ pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<()> {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
-    Ok(Chmod { path: path.as_ref().abs()?, mode: 0o666, dirs: false, files: false, recursive: true })
+    let path = path.as_ref().abs()?;
+    let mode = match path.mode() {
+        Ok(x) => x,
+        _ => 0o644,
+    };
+    Ok(Chmod { path: path, mode: mode, dirs: false, files: false, recursive: true })
 }
 
 /// Change the ownership of the `path` providing path expansion, globbing, recursion and error
@@ -158,10 +209,9 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
 ///
 //// ### Examples
 /// ```ignore
-/// use fungus::presys::*;
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chown");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_chown");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
@@ -179,10 +229,9 @@ pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
 ///
 //// ### Examples
 /// ```ignore
-/// use fungus::presys::*;
-/// use fungus::user;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_chown");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_chown");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
@@ -236,9 +285,9 @@ fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copy");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_copy");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
@@ -371,9 +420,9 @@ impl Copyfile {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_copyfile");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
@@ -398,9 +447,9 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile_p");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_copyfile_p");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
@@ -418,9 +467,9 @@ pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copy
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_digest");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_digest");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
@@ -440,9 +489,9 @@ pub fn digest<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_mkdir");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_mkdir");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), true);
@@ -460,9 +509,9 @@ pub fn mkdir<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_mkdir");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_mkdir");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir_p(&tmpdir, 0o555).is_ok());
 /// assert_eq!(tmpdir.mode().unwrap(), 0o40555);
@@ -479,9 +528,9 @@ pub fn mkdir_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copy");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_copy");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
@@ -521,9 +570,9 @@ pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_remove");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_remove");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::remove(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
@@ -547,9 +596,9 @@ pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_remove_all");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_remove_all");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
@@ -566,9 +615,9 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> Result<()> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readbytes");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_readbytes");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -588,9 +637,9 @@ pub fn readbytes<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlines");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_readlines");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -609,9 +658,9 @@ pub fn readlines<T: AsRef<Path>>(path: T) -> Result<Vec<String>> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlines_p");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_readlines_p");
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -629,9 +678,9 @@ pub fn readlines_p<T: AsRef<Path>>(path: T) -> Result<io::Lines<BufReader<File>>
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readstring");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_readstring");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -652,7 +701,7 @@ pub fn readstring<T: AsRef<Path>>(path: T) -> Result<String> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
 /// assert_eq!(sys::revoking_mode(0o0777, 0o0777), false);
 /// ```
@@ -665,9 +714,9 @@ pub fn revoking_mode(old: u32, new: u32) -> bool {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_symlink");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_symlink");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let link1 = tmpdir.mash("link1");
@@ -691,9 +740,9 @@ pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<Pat
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_touch");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_touch");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -713,9 +762,9 @@ pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_touch");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_touch");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -733,9 +782,9 @@ pub fn touch_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_write");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_write");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -757,9 +806,9 @@ pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> Result<()> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_write_p");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_write_p");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -778,9 +827,9 @@ pub fn write_p<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U, mode: u32) -> R
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_writelines");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_writelines");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -798,9 +847,9 @@ pub fn writelines<T: AsRef<Path>>(path: T, data: &Vec<String>) -> Result<()> {
 ///
 /// ### Examples
 /// ```
-/// use fungus::presys::*;
+/// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_writelines_p");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_writelines_p");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -820,7 +869,7 @@ pub fn writelines_p<T: AsRef<Path>>(path: T, data: &Vec<String>, mode: u32) -> R
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::presys::*;
+    use crate::prelude::*;
 
     // Reusable teset setup
     struct Setup {
@@ -837,7 +886,7 @@ mod tests {
     #[test]
     fn test_chmod() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("chmod");
+        let tmpdir = setup.temp.mash("file_chmod");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -855,7 +904,7 @@ mod tests {
     #[test]
     fn test_chmod_p() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("chmod_p");
+        let tmpdir = setup.temp.mash("file_chmod_p");
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -864,6 +913,7 @@ mod tests {
 
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&dir1).is_ok());
         assert!(sys::mkdir(&dir2).is_ok());
         assert!(sys::touch_p(&file1, 0o644).is_ok());
         assert!(sys::touch_p(&file2, 0o644).is_ok());
@@ -907,9 +957,64 @@ mod tests {
     }
 
     #[test]
+    fn test_chmod_p_symbolic() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("file_chmod_p_symbolic");
+        let file1 = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+        assert!(sys::touch_p(&file1, 0o644).is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert_eq!(file1.is_exec(), false);
+
+        // add_x
+        assert!(sys::chmod_p(&file1).unwrap().add_x().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100755);
+        assert_eq!(file1.is_exec(), true);
+
+        // sub_x
+        assert!(sys::chmod_p(&file1).unwrap().sub_x().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100644);
+        assert_eq!(file1.is_exec(), false);
+
+        // sub_w
+        assert!(sys::chmod_p(&file1).unwrap().sub_w().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100444);
+        assert_eq!(file1.is_readonly(), true);
+
+        // add_w
+        assert!(sys::chmod_p(&file1).unwrap().add_w().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100666);
+        assert_eq!(file1.is_readonly(), false);
+
+        // sub_r
+        assert!(sys::chmod_p(&file1).unwrap().sub_r().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100222);
+
+        // add_r
+        assert!(sys::chmod_p(&file1).unwrap().add_r().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100666);
+
+        // readonly
+        assert!(sys::chmod_p(&file1).unwrap().readonly().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100444);
+        assert_eq!(file1.is_readonly(), true);
+
+        // secure
+        assert!(sys::chmod_p(&file1).unwrap().secure().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100400);
+        assert_eq!(file1.is_readonly(), true);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_copy_empty() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("copy_empty");
+        let tmpdir = setup.temp.mash("file_copy_empty");
         let file1 = tmpdir.mash("file1");
 
         // source doesn't exist
@@ -920,7 +1025,7 @@ mod tests {
     #[test]
     fn test_copy_link_dir() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("copy_link_dir");
+        let tmpdir = setup.temp.mash("file_copy_link_dir");
         let dirlink = tmpdir.mash("dirlink");
         let dir1 = tmpdir.mash("dir1");
         let dir1file = dir1.mash("file");
@@ -956,7 +1061,7 @@ mod tests {
     #[test]
     fn test_copy_dir_copy() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("copy_dir_copy");
+        let tmpdir = setup.temp.mash("file_copy_dir_copy");
         let dir1 = tmpdir.mash("dir1");
         let dir1file = dir1.mash("file");
         let dir2 = tmpdir.mash("dir2");
@@ -983,7 +1088,7 @@ mod tests {
     #[test]
     fn test_copy_dir_clone() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("copy_dir_clone");
+        let tmpdir = setup.temp.mash("file_copy_dir_clone");
         let dir1 = tmpdir.mash("dir1");
         let dir1file = dir1.mash("file");
         let dir2 = tmpdir.mash("dir2");
@@ -1009,7 +1114,7 @@ mod tests {
     #[test]
     fn test_copy_single_file() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("copy_single_file");
+        let tmpdir = setup.temp.mash("file_copy_single_file");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
 
@@ -1033,7 +1138,7 @@ mod tests {
     #[test]
     fn test_copyfile() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("copyfile");
+        let tmpdir = setup.temp.mash("file_copyfile");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
         let link1 = tmpdir.mash("link1");
@@ -1078,7 +1183,7 @@ mod tests {
     #[test]
     fn test_copyfile_p() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("copyfile_p");
+        let tmpdir = setup.temp.mash("file_copyfile_p");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
 
@@ -1099,7 +1204,7 @@ mod tests {
     #[cfg(feature = "_crypto_")]
     fn test_digest() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("digest");
+        let tmpdir = setup.temp.mash("file_digest");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
 
@@ -1119,7 +1224,7 @@ mod tests {
     #[test]
     fn test_mkdir_p() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("mkdir_p");
+        let tmpdir = setup.temp.mash("file_mkdir_p");
         let dir1 = tmpdir.mash("dir1");
         let dir2 = tmpdir.mash("dir2");
 
@@ -1139,7 +1244,7 @@ mod tests {
     #[test]
     fn test_move_p() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("move_p");
+        let tmpdir = setup.temp.mash("file_move_p");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
         let dir1 = tmpdir.mash("dir1");
@@ -1185,7 +1290,7 @@ mod tests {
     #[test]
     fn test_readbytes() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("readbytes");
+        let tmpdir = setup.temp.mash("file_readbytes");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1203,7 +1308,7 @@ mod tests {
     #[test]
     fn test_readlines() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("readlines");
+        let tmpdir = setup.temp.mash("file_readlines");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1221,7 +1326,7 @@ mod tests {
     #[test]
     fn test_readlines_p() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("readlines_p");
+        let tmpdir = setup.temp.mash("file_readlines_p");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1239,7 +1344,7 @@ mod tests {
     #[test]
     fn test_readstring() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("readstring");
+        let tmpdir = setup.temp.mash("file_readstring");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1257,7 +1362,7 @@ mod tests {
     #[test]
     fn test_remove() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("remove_dir");
+        let tmpdir = setup.temp.mash("file_remove_dir");
         let tmpfile = setup.temp.mash("remove_file");
 
         // Remove empty directory
@@ -1276,7 +1381,7 @@ mod tests {
     #[test]
     fn test_remove_all() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("remove_all");
+        let tmpdir = setup.temp.mash("file_remove_all");
 
         assert!(sys::mkdir(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), true);
@@ -1315,7 +1420,7 @@ mod tests {
     #[test]
     fn test_symlink() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("symlink");
+        let tmpdir = setup.temp.mash("file_symlink");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1333,7 +1438,7 @@ mod tests {
     #[test]
     fn test_touch() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("touch");
+        let tmpdir = setup.temp.mash("file_touch");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1350,7 +1455,7 @@ mod tests {
     #[test]
     fn test_touch_p() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("touch_p");
+        let tmpdir = setup.temp.mash("file_touch_p");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1368,7 +1473,7 @@ mod tests {
     #[test]
     fn test_write() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("write");
+        let tmpdir = setup.temp.mash("file_write");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1386,7 +1491,7 @@ mod tests {
     #[test]
     fn test_write_p() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("write_p");
+        let tmpdir = setup.temp.mash("file_write_p");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1405,7 +1510,7 @@ mod tests {
     #[test]
     fn test_writelines() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("writelines");
+        let tmpdir = setup.temp.mash("file_writelines");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1424,7 +1529,7 @@ mod tests {
     #[test]
     fn test_writelines_p() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("writelines_p");
+        let tmpdir = setup.temp.mash("file_writelines_p");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
