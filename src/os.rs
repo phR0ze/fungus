@@ -125,6 +125,7 @@ pub fn windows() -> bool {
 /// Type of operating system rust is running on
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Info {
+    pub arch: Arch,      // System architecture
     pub kernel: String,  // Kernel version e.g. 5.3.13
     pub release: String, // Kernel release e.g. 5.3.13-arch1-1
 }
@@ -137,7 +138,7 @@ pub fn info() -> Result<Info> {
     let ver_len = release.find('-').ok_or_else(|| OsError::KernelVersionNotFound)?;
     let (version, _) = release.split_at(ver_len);
 
-    Ok(Info { kernel: version.to_string(), release: release.to_string() })
+    Ok(Info { arch: arch(), kernel: version.to_string(), release: release.to_string() })
 }
 
 // Substitute stdout and stderr for testing
@@ -157,8 +158,10 @@ mod tests {
     use std::io::{self, Write};
 
     #[test]
+    #[cfg(target_os = "x86_64")]
     fn test_info() {
-        assert!(sys::info().is_ok());
+        let info = sys::info().unwrap();
+        assert_eq!(info.arch, Arch::X86_64);
     }
 
     #[test]
