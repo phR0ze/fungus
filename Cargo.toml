@@ -1,6 +1,6 @@
 [package]
 name = "fungus"
-version = "0.0.32"
+version = "0.0.33"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -25,12 +25,18 @@ walkdir = "2.2.9"
 
 # Optional dependencies based on features
 libc = { version = "0.2.66", optional = true }
+blake2 = { version = "0.8.1", optional = true }
 
 [features]
 default = []
 
-# chown functions: ["chown", "lchown"] depend on libc
-chown = ["libc"]
+# Includes cypto dependent functions:
+# "sys::digest"
+_crypto_ = ["blake2"]
 
-# user functions: ["getuid", "getgid"] depend on libc
-user = ["libc"]
+# Includes libc dependent functions:
+# "sys::chown", "sys::lchown", "user::User", "user::current", "user::drop_sudo", "user::getuid",
+# "user::getgid", "user::geteuid", "user::getegid", "user::getrids", "user::is_root",
+# "user::lookup", "user::name", "user::pause_sudo", "user::setuid", "user::setgid", "user::seteuid",
+# "user::setegid", "user::sudo", "user::switchuser"
+_libc_ = ["libc"]

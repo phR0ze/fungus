@@ -1,19 +1,18 @@
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 use libc;
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 use std::io;
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 use std::mem;
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 use std::ptr;
 
+use crate::core::*;
 use std::env;
 use std::path::PathBuf;
 
-use crate::core::*;
-
 /// User provides options for a specific user.
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 #[derive(Debug, Clone, Default)]
 pub struct User {
     pub uid: u32,           // user id
@@ -28,7 +27,7 @@ pub struct User {
     pub realshell: PathBuf, // real user shell behind sudo
 }
 
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 impl User {
     /// Returns true if the user is root
     pub fn is_root(&self) -> bool {
@@ -37,12 +36,9 @@ impl User {
 }
 
 /// Get the current user
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn current() -> Result<User> {
     let user = lookup(unsafe { libc::getuid() })?;
-    // if user.home.empty() {
-    //     user.home = home()?;
-    // }
     Ok(user)
 }
 
@@ -54,7 +50,7 @@ pub fn current() -> Result<User> {
 ///
 /// user::drop_sudo().unwrap();
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn drop_sudo() -> Result<()> {
     match getuid() {
         0 => {
@@ -87,7 +83,7 @@ pub fn home() -> Result<PathBuf> {
 ///
 /// println!("user id of the current user: {:?}", user::getuid());
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn getuid() -> u32 {
     unsafe { libc::getuid() }
 }
@@ -100,7 +96,7 @@ pub fn getuid() -> u32 {
 ///
 /// println!("group id of the current user: {:?}", user::getgid());
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn getgid() -> u32 {
     unsafe { libc::getgid() }
 }
@@ -113,7 +109,7 @@ pub fn getgid() -> u32 {
 ///
 /// println!("user effective id of the current user: {:?}", user::geteuid());
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn geteuid() -> u32 {
     unsafe { libc::geteuid() }
 }
@@ -126,7 +122,7 @@ pub fn geteuid() -> u32 {
 ///
 /// println!("group effective id of the current user: {:?}", user::getegid());
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn getegid() -> u32 {
     unsafe { libc::getegid() }
 }
@@ -139,7 +135,7 @@ pub fn getegid() -> u32 {
 ///
 /// println!("real user ids of the given user: {:?}", user::getrids(0, 0));
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn getrids(uid: u32, gid: u32) -> (u32, u32) {
     match uid {
         0 => match (env::var("SUDO_UID"), env::var("SUDO_GID")) {
@@ -161,7 +157,7 @@ pub fn getrids(uid: u32, gid: u32) -> (u32, u32) {
 ///
 /// println!("is the user root: {:?}", user::is_root());
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn is_root() -> bool {
     getuid() == 0
 }
@@ -174,7 +170,7 @@ pub fn is_root() -> bool {
 ///
 /// println!("lookup the given user: {:?}", user::lookup(1000).unwrap);
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn lookup(uid: u32) -> Result<User> {
     // Get the libc::passwd by user id
     let mut buf = vec![0; 2048];
@@ -234,13 +230,6 @@ pub fn lookup(uid: u32) -> Result<User> {
     })
 }
 
-/// Lookup a user by user name
-/// TODO
-#[cfg(feature = "user")]
-pub fn lookup_by_name<T: AsRef<str>>(name: T) -> User {
-    panic!("Not implemented");
-}
-
 /// Returns the current user's name.
 ///
 /// ### Examples
@@ -249,9 +238,9 @@ pub fn lookup_by_name<T: AsRef<str>>(name: T) -> User {
 ///
 /// println!("current user name: {:?}", user::name().unwrap());
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn name() -> Result<String> {
-    Ok(lookup(unsafe { libc::getuid() })?.name)
+    Ok(current()?.name)
 }
 
 /// Switches back to the original user under the sudo mask. Preserves the ability to raise sudo
@@ -263,7 +252,7 @@ pub fn name() -> Result<String> {
 ///
 /// user::pause_sudo().unwrap();
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn pause_sudo() -> Result<()> {
     match getuid() {
         0 => {
@@ -282,7 +271,7 @@ pub fn pause_sudo() -> Result<()> {
 ///
 /// user::setuid(1000);
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn setuid(uid: u32) -> Result<()> {
     match unsafe { libc::setuid(uid) } {
         0 => Ok(()),
@@ -298,7 +287,7 @@ pub fn setuid(uid: u32) -> Result<()> {
 ///
 /// user::seteuid(1000);
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn seteuid(euid: u32) -> Result<()> {
     match unsafe { libc::seteuid(euid) } {
         0 => Ok(()),
@@ -314,7 +303,7 @@ pub fn seteuid(euid: u32) -> Result<()> {
 ///
 /// user::setgid(1000);
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn setgid(gid: u32) -> Result<()> {
     match unsafe { libc::setgid(gid) } {
         0 => Ok(()),
@@ -330,7 +319,7 @@ pub fn setgid(gid: u32) -> Result<()> {
 ///
 /// user::setegid(1000);
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn setegid(egid: u32) -> Result<()> {
     match unsafe { libc::setegid(egid) } {
         0 => Ok(()),
@@ -346,7 +335,7 @@ pub fn setegid(egid: u32) -> Result<()> {
 ///
 /// user:sudo().unwrap();
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn sudo() -> Result<()> {
     switchuser(0, 0, 0, 0, 0, 0)
 }
@@ -363,7 +352,7 @@ pub fn sudo() -> Result<()> {
 /// // Switch to user 1000 and drop root priviledges permanantely
 /// user::switchuser(1000, 1000, 1000, 1000, 1000, 1000);
 /// ```
-#[cfg(feature = "user")]
+#[cfg(feature = "_libc_")]
 pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u32) -> Result<()> {
     // Best practice to drop the group first
     match unsafe { libc::setresgid(rgid, egid, sgid) } {

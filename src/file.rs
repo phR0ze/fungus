@@ -1,10 +1,12 @@
-#[cfg(feature = "chown")]
+#[cfg(feature = "_crypto_")]
+use blake2::{Blake2b, Digest};
+#[cfg(feature = "_libc_")]
 use libc;
-#[cfg(feature = "chown")]
+#[cfg(feature = "_libc_")]
 use std::ffi::CString;
-#[cfg(feature = "chown")]
+#[cfg(feature = "libc_")]
 use std::io;
-#[cfg(feature = "chown")]
+#[cfg(feature = "_libc_")]
 use std::os::unix::ffi::OsStrExt;
 
 use std::fs::{self, File};
@@ -167,7 +169,7 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
 /// assert!(sys::chown(&file1, user::getuid(), user::getgid()).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-#[cfg(feature = "chown")]
+#[cfg(feature = "_libc_")]
 pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
     chown_p(path, uid, gid, true)
 }
@@ -188,13 +190,13 @@ pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
 /// assert!(sys::chown(&file1, user::getuid(), user::getgid()).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-#[cfg(feature = "chown")]
+#[cfg(feature = "_libc_")]
 pub fn lchown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
     chown_p(path, uid, gid, false)
 }
 
 /// Private implementation of chown
-#[cfg(feature = "chown")]
+#[cfg(feature = "_libc_")]
 fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<()> {
     let path = path.as_ref().abs()?;
 
@@ -398,7 +400,7 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 /// ```
 /// use fungus::presys::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_copyfile_p");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
@@ -410,6 +412,28 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 /// ```
 pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copyfile> {
     Ok(Copyfile { src: src.as_ref().abs()?, dst: dst.as_ref().abs()?, mode: None, follow_links: false })
+}
+
+/// Computes and returns the digest of the given `path`.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+/// use fungus::core::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_digest");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let file1 = tmpdir.mash("file1");
+/// let file2 = tmpdir.mash("file2");
+/// assert!(sys::write(&file1, "this is a test").is_ok());
+/// assert!(sys::copyfile(&file1, &file2).is_ok());
+/// assert_iter_eq(sys::digest(&file1).unwrap(), sys::digest(&file2).unwrap());
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+#[cfg(feature = "_crypto_")]
+pub fn digest<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
+    Ok(Blake2b::digest(&readbytes(path)?).into_iter().collect())
 }
 
 /// Creates the given directory and any parent directories needed, handling path expansion and
@@ -1035,6 +1059,27 @@ mod tests {
         assert!(sys::touch_p(&file1, 0o644).is_ok());
         assert!(sys::copyfile_p(&file1, &file2).unwrap().mode(0o555).copy().is_ok());
         assert_eq!(file2.mode().unwrap(), 0o100555);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "_crypto_")]
+    fn test_digest() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("digest");
+        let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        assert!(sys::write(&file1, "this is a test").is_ok());
+        assert!(sys::copyfile(&file1, &file2).is_ok());
+        assert_iter_eq(sys::digest(&file1).unwrap(), sys::digest(&file2).unwrap());
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
