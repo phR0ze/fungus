@@ -24,7 +24,7 @@ pub mod core {
     pub use crate::user_error::*;
 }
 
-/// Import sys module
+/// Import sys module. Includes core::* for convenience.
 ///
 /// ### Examples
 /// ```
@@ -34,6 +34,8 @@ pub mod core {
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
 pub mod presys {
+    // sys specific modules
+    pub use crate::core::*;
     pub use crate::path::PathExt;
     pub mod sys {
         pub use crate::file::*;
@@ -41,6 +43,7 @@ pub mod presys {
         pub use crate::path::*;
     }
 
+    // Re-exports for standard crates
     pub use std::env;
     pub use std::ffi::OsStr;
     pub use std::fs::{self, File};

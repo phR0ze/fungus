@@ -419,7 +419,6 @@ pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copy
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_digest");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
@@ -585,47 +584,45 @@ pub fn readbytes<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
     }
 }
 
-/// Returns an Iterator to the Reader of the lines of the file.
-///
-/// ### Examples
-/// ```
-/// use fungus::presys::*;
-/// use fungus::core::*;
-///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlines");
-/// let tmpfile = tmpdir.mash("file1");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
-/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
-/// assert_iter_eq(sys::readlines(&tmpfile).unwrap().collect::<io::Result<Vec<String>>>().unwrap(), vec![String::from("this is a test")]);
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// ```
-pub fn readlines<T: AsRef<Path>>(path: T) -> Result<io::Lines<BufReader<File>>> {
-    let path = path.as_ref().abs()?;
-    let file = File::open(path)?;
-    Ok(BufReader::new(file).lines())
-}
-
 /// Returns all lines from teh file as a `Vec<String>`.
 ///
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlines_p");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlines");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// assert!(sys::write(&tmpfile, "this is a test").is_ok());
-/// assert_iter_eq(sys::readlines_p(&tmpfile).unwrap(), vec![String::from("this is a test")]);
+/// assert_iter_eq(sys::readlines(&tmpfile).unwrap(), vec![String::from("this is a test")]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn readlines_p<T: AsRef<Path>>(path: T) -> Result<Vec<String>> {
-    match readlines(path)?.collect::<io::Result<Vec<String>>>() {
+pub fn readlines<T: AsRef<Path>>(path: T) -> Result<Vec<String>> {
+    match readlines_p(path)?.collect::<io::Result<Vec<String>>>() {
         Ok(data) => Ok(data),
         Err(err) => Err(err.into()),
     }
+}
+
+/// Returns an Iterator to the Reader of the lines of the file.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_readlines_p");
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
+/// assert_iter_eq(sys::readlines_p(&tmpfile).unwrap().collect::<io::Result<Vec<String>>>().unwrap(), vec![String::from("this is a test")]);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn readlines_p<T: AsRef<Path>>(path: T) -> Result<io::Lines<BufReader<File>>> {
+    let path = path.as_ref().abs()?;
+    let file = File::open(path)?;
+    Ok(BufReader::new(file).lines())
 }
 
 /// Returns the contents of the `path` as a `String`.
@@ -756,7 +753,7 @@ pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> Result<()> {
     Ok(())
 }
 
-/// Wraps `writebytes` allowing for setting the file's mode.
+/// Wraps `write` allowing for setting the file's mode.
 ///
 /// ### Examples
 /// ```
@@ -772,14 +769,49 @@ pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> Result<()> {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn write_p<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U, mode: u32) -> Result<()> {
-    let path = path.as_ref().abs()?;
-    {
-        let mut f = File::create(&path)?;
-        f.write(data.as_ref())?;
-        f.sync_all()?; // Works better than f.flush()?
-    }
+    write(&path, data)?;
+    chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
+    Ok(())
+}
 
-    // Set the mode for the file
+/// Write `&Vec<String>` data to a file as lines. Handles path expansion.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_writelines");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let lines = vec![String::from("one"), String::from("two")];
+/// assert!(sys::writelines(&tmpfile, &lines).is_ok());
+/// assert_iter_eq(sys::readlines(&tmpfile).unwrap(), lines);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn writelines<T: AsRef<Path>>(path: T, data: &Vec<String>) -> Result<()> {
+    write(path, data.join("\n"))?;
+    Ok(())
+}
+
+/// Wraps `writelines` allowing for setting the file's mode.
+///
+/// ### Examples
+/// ```
+/// use fungus::presys::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_writelines_p");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let lines = vec![String::from("one"), String::from("two")];
+/// assert!(sys::writelines_p(&tmpfile, &lines, 0o666).is_ok());
+/// assert_iter_eq(sys::readlines(&tmpfile).unwrap(), lines);
+/// assert_eq!(tmpfile.mode().unwrap(), 0o100666);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn writelines_p<T: AsRef<Path>>(path: T, data: &Vec<String>, mode: u32) -> Result<()> {
+    write(&path, data.join("\n"))?;
     chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
     Ok(())
 }
@@ -788,7 +820,6 @@ pub fn write_p<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U, mode: u32) -> R
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::core::*;
     use crate::presys::*;
 
     // Reusable teset setup
@@ -1181,7 +1212,7 @@ mod tests {
 
         // test
         assert!(sys::write(&tmpfile, "this is a test").is_ok());
-        assert_iter_eq(sys::readlines(&tmpfile).unwrap().collect::<io::Result<Vec<String>>>().unwrap(), vec![String::from("this is a test")]);
+        assert_iter_eq(sys::readlines(&tmpfile).unwrap(), vec![String::from("this is a test")]);
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1199,7 +1230,7 @@ mod tests {
 
         // test
         assert!(sys::write(&tmpfile, "this is a test").is_ok());
-        assert_iter_eq(sys::readlines_p(&tmpfile).unwrap(), vec![String::from("this is a test")]);
+        assert_iter_eq(sys::readlines_p(&tmpfile).unwrap().collect::<io::Result<Vec<String>>>().unwrap(), vec![String::from("this is a test")]);
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1365,6 +1396,45 @@ mod tests {
         // test
         assert!(sys::write_p(&tmpfile, "this is a test", 0o666).is_ok());
         assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
+        assert_eq!(tmpfile.mode().unwrap(), 0o100666);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_writelines() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("writelines");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        let lines = vec![String::from("one"), String::from("two")];
+        assert!(sys::writelines(&tmpfile, &lines).is_ok());
+        assert_iter_eq(sys::readlines(&tmpfile).unwrap(), lines);
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_writelines_p() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("writelines_p");
+        let tmpfile = tmpdir.mash("file1");
+
+        // setup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        let lines = vec![String::from("one"), String::from("two")];
+        assert!(sys::writelines_p(&tmpfile, &lines, 0o666).is_ok());
+        assert_iter_eq(sys::readlines(&tmpfile).unwrap(), lines);
         assert_eq!(tmpfile.mode().unwrap(), 0o100666);
 
         // cleanup

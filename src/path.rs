@@ -55,7 +55,6 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_dirs");
 /// let dir1 = tmpdir.mash("dir1");
@@ -95,7 +94,6 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_files");
 /// let file1 = tmpdir.mash("file1");
@@ -138,7 +136,6 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_all_paths");
 /// let file1 = tmpdir.mash("file1");
@@ -180,7 +177,6 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// println!("current working directory: {:?}", sys::cwd().unwrap());
 /// ```
@@ -198,7 +194,6 @@ pub fn cwd() -> Result<PathBuf> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_dirs");
 /// let dir1 = tmpdir.mash("dir1");
@@ -276,7 +271,6 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_files");
 /// let file1 = tmpdir.mash("file1");
@@ -437,7 +431,6 @@ pub fn gid<T: AsRef<Path>>(path: T) -> Result<u32> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_glob");
 /// let dir1 = tmpdir.mash("dir1");
@@ -481,7 +474,6 @@ pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
 /// ### Examples
 /// ```
 /// use fungus::presys::*;
-/// use fungus::core::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("doc_paths");
 /// let dir1 = tmpdir.mash("dir1");
@@ -1288,7 +1280,6 @@ impl PathExt for Path {
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::core::*;
     use crate::presys::*;
 
     // Reusable teset setup
