@@ -36,6 +36,9 @@ fn setup<T: AsRef<Path>>(path: T, target: &str) -> PathBuf {
 
 fn cleanup<T: AsRef<Path>>(path: T) {
     assert!(sys::remove_all(path).is_ok());
+
+    // Delete the lock file as it seems to cause problems when the fungus version changes
+    assert!(sys::remove("Cargo.lock").is_ok());
 }
 
 fn test_exec_lookup<T: AsRef<Path>>(path: T) {
@@ -43,17 +46,21 @@ fn test_exec_lookup<T: AsRef<Path>>(path: T) {
     let file1 = tmpdir.mash("file1");
 
     // Test lookup by path
+    assert_eq!(exec::exists(&file1), false);
     assert!(sys::touch_p(&file1, 0o755).is_ok());
     assert_eq!(file1.is_exec(), true);
     assert_eq!(exec::lookup(&file1).unwrap(), file1.abs().unwrap());
+    assert_eq!(exec::exists(&file1), true);
 
-    // Tet lookup by PATH
+    // Test lookup by PATH
     let saved_path = env::var("PATH").unwrap();
     let new_path = format!("{}:{}", tmpdir.abs().unwrap().to_string().unwrap(), &saved_path);
     env::set_var("PATH", new_path);
+    assert_eq!(exec::exists(file1.base().unwrap()), true);
     assert_eq!(exec::lookup(file1.base().unwrap()).unwrap(), file1.abs().unwrap());
     env::set_var("PATH", saved_path);
     assert!(exec::lookup(file1.base().unwrap()).is_err());
+    assert_eq!(exec::exists(file1.base().unwrap()), false);
 
     cleanup(tmpdir);
 }

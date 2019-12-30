@@ -17,16 +17,11 @@ pub fn dir() -> Result<PathBuf> {
 }
 
 /// Check if the given executable exists in the `PATH` and is executable.
-///
-/// ### Examples
-/// ```ignore
-/// use fungus::prelude::*;
-///
-/// let dir = env::current_exe().unwrap().dir().unwrap();
-/// assert_eq!(exec::dir().unwrap(), dir);
-/// ```
-pub fn exists() -> bool {
-    false
+pub fn exists<T: AsRef<Path>>(target: T) -> bool {
+    match lookup(target) {
+        Ok(_) => true,
+        _ => false,
+    }
 }
 
 /// Returns the full path of the given executable. Uses given path if resolvable and falls back on
