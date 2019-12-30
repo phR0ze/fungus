@@ -21,7 +21,7 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 
     // Check for empty string
     if path.empty() {
-        return Err(PathError::empty().into());
+        return Err(PathError::Empty.into());
     }
 
     // Expand home directory
@@ -1079,7 +1079,7 @@ impl PathExt for Path {
                         Component::Normal(x) => return Ok(path.mash(x).mash(components.collect::<PathBuf>()).clean()?),
                         _ => (),
                     },
-                    None => return Err(PathError::empty().into()),
+                    None => return Err(PathError::Empty.into()),
                 }
             }
         }

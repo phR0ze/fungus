@@ -5,6 +5,7 @@ mod libc;
 mod miscs;
 mod option;
 mod os;
+mod os_error;
 mod path;
 mod path_error;
 mod result;
@@ -22,6 +23,7 @@ pub mod core {
     pub use crate::iter_error::*;
     pub use crate::miscs::*;
     pub use crate::option::*;
+    pub use crate::os_error::*;
     pub use crate::path_error::*;
     pub use crate::result::*;
     pub use crate::user_error::*;

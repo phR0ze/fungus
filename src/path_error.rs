@@ -47,11 +47,6 @@ impl PathError {
         PathError::DoesNotExist(path.as_ref().to_path_buf())
     }
 
-    /// Return an error indicating that the path is empty
-    pub fn empty() -> PathError {
-        PathError::Empty
-    }
-
     /// Return an error indicating that the path exists already
     pub fn exists_already<T: AsRef<Path>>(path: T) -> PathError {
         PathError::ExistsAlready(path.as_ref().to_path_buf())
@@ -128,7 +123,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     fn path_empty() -> Result<PathBuf> {
-        Err(PathError::empty().into())
+        Err(PathError::Empty.into())
     }
 
     fn parent_not_found() -> Result<PathBuf> {
@@ -153,7 +148,7 @@ mod tests {
     fn test_other_errors() {
         assert_eq!(PathError::does_not_exist(Path::new("foo")), PathError::DoesNotExist(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::DoesNotExist(PathBuf::from("foo"))), "path does not exist: foo");
-        assert_eq!(format!("{}", PathError::empty()), "path empty");
+        assert_eq!(format!("{}", PathError::Empty), "path empty");
         assert_eq!(PathError::exists_already(Path::new("foo")), PathError::ExistsAlready(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::ExistsAlready(PathBuf::from("foo"))), "path exists already: foo");
         assert_eq!(PathError::failed_to_string(Path::new("foo")), PathError::FailedToString(PathBuf::from("foo")));

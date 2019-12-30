@@ -1,14 +1,63 @@
 use std::io;
 
-// Substitute stdout and stderr for testing
-pub struct Stdio<T: io::Write, U: io::Write> {
-    pub out: T,
-    pub err: U,
+use crate::prelude::*;
+
+/// Type of operating system rust is running on
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Arch {
+    X86,    // 32bit
+    X86_64, // 64bit
 }
-impl<T: io::Write, U: io::Write> Stdio<T, U> {
-    pub fn new(out: T, err: U) -> Self {
-        Stdio { out, err }
-    }
+
+/// Detect at runtime the system architecture rust is running on.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert_eq!(sys::arch(), sys::Arch::X86);
+/// ```
+
+#[cfg(target_arch = "x86")]
+pub fn arch() -> Arch {
+    Arch::X86
+}
+
+/// Detect at runtime the system architecture rust is running on.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert_eq!(sys::arch(), sys::Arch::X86_64);
+/// ```
+#[cfg(target_arch = "x86_64")]
+pub fn arch() -> Arch {
+    Arch::X86_64
+}
+
+/// Returns true if the system is a x86 system.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert_eq!(sys::x86(), false);
+/// ```
+pub fn x86() -> bool {
+    arch() == Arch::X86
+}
+
+/// Returns true if the system is a x86_64 system.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert_eq!(sys::x86_64(), true);
+/// ```
+pub fn x86_64() -> bool {
+    arch() == Arch::X86_64
 }
 
 /// Type of operating system rust is running on
@@ -73,10 +122,51 @@ pub fn windows() -> bool {
     platform() == Platform::Windows
 }
 
+/// Type of operating system rust is running on
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct Info {
+    pub kernel: String,  // Kernel version e.g. 5.3.13
+    pub release: String, // Kernel release e.g. 5.3.13-arch1-1
+}
+
+/// Get system information
+pub fn info() -> Result<Info> {
+    // Extract kernel release and version
+    let data = sys::readstring("/proc/version")?;
+    let release = data.split(" ").nth(2).ok_or_else(|| OsError::KernelReleaseNotFound)?;
+    let ver_len = release.find('-').ok_or_else(|| OsError::KernelVersionNotFound)?;
+    let (version, _) = release.split_at(ver_len);
+
+    Ok(Info { kernel: version.to_string(), release: release.to_string() })
+}
+
+// Substitute stdout and stderr for testing
+pub struct Stdio<T: io::Write, U: io::Write> {
+    pub out: T,
+    pub err: U,
+}
+impl<T: io::Write, U: io::Write> Stdio<T, U> {
+    pub fn new(out: T, err: U) -> Self {
+        Stdio { out, err }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
     use std::io::{self, Write};
+
+    #[test]
+    fn test_info() {
+        assert!(sys::info().is_ok());
+    }
+
+    #[test]
+    #[cfg(target_os = "x86_64")]
+    fn test_arch() {
+        assert_eq!(sys::x86(), false);
+        assert_eq!(sys::x86_64(), true);
+    }
 
     #[test]
     #[cfg(target_os = "linux")]
