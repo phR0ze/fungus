@@ -1,4 +1,5 @@
 mod file;
+mod file_error;
 mod iter;
 mod iter_error;
 mod libc;
@@ -19,6 +20,7 @@ pub mod exec;
 
 /// Export core module
 pub mod core {
+    pub use crate::file_error::*;
     pub use crate::iter::*;
     pub use crate::iter_error::*;
     pub use crate::miscs::*;
@@ -50,6 +52,7 @@ pub mod prelude {
     pub use crate::user;
 
     // Re-exports for standard crates
+    pub use regex::Regex;
     pub use std::env;
     pub use std::ffi::OsStr;
     pub use std::fs::{self, File};

@@ -484,6 +484,27 @@ pub fn digest<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
     Ok(Blake2b::digest(&readbytes(path)?).into_iter().collect())
 }
 
+/// Returns the result of applying the regular expression to the given file.
+///
+/// ### Examples
+/// ```ignore
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_readlines");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
+/// assert_iter_eq(sys::readlines(&tmpfile).unwrap(), vec![String::from("this is a test")]);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn extract_string<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<String> {
+    let data = readstring(path)?;
+    let caps = rx.captures(&data).ok_or_else(|| FileError::FailedToExtractString)?;
+    let value = caps.get(1).ok_or_else(|| FileError::FailedToExtractString)?;
+    Ok(value.as_str().to_string())
+}
+
 /// Creates the given directory and any parent directories needed, handling path expansion and
 /// returning an absolute path created.
 ///
@@ -1216,6 +1237,25 @@ mod tests {
         assert!(sys::write(&file1, "this is a test").is_ok());
         assert!(sys::copyfile(&file1, &file2).is_ok());
         assert_iter_eq(sys::digest(&file1).unwrap(), sys::digest(&file2).unwrap());
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_extract_string() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("file_extract_string");
+        let file1 = tmpdir.mash("file1");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // test
+        //let rx = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
+        //assert!(sys::write(&file1, "Linux version 4.19.87-1-lts (linux-lts@archlinux)").is_ok());
+        let rx = Regex::new(r"'(?P<title>[^']+)'\s+\((?P<year>\d{4})\)").unwrap();
+        assert!(sys::write(&file1, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
+        assert_eq!(sys::extract_string(&file1, &rx).unwrap(), "Citizen Kane");
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
