@@ -484,18 +484,19 @@ pub fn digest<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
     Ok(Blake2b::digest(&readbytes(path)?).into_iter().collect())
 }
 
-/// Returns the result of applying the regular expression to the given file.
+/// Returns the first captured string from the given regular expression `rx`.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_readlines");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_extract_string");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("file1");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
-/// assert!(sys::write(&tmpfile, "this is a test").is_ok());
-/// assert_iter_eq(sys::readlines(&tmpfile).unwrap(), vec![String::from("this is a test")]);
+/// let rx = Regex::new(r"'([^']+)'\s+\((\d{4})\)").unwrap();
+/// assert!(sys::write(&tmpfile, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
+/// assert_eq!(sys::extract_string(&tmpfile, &rx).unwrap(), "Citizen Kane");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn extract_string<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<String> {
@@ -503,6 +504,31 @@ pub fn extract_string<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<String> {
     let caps = rx.captures(&data).ok_or_else(|| FileError::FailedToExtractString)?;
     let value = caps.get(1).ok_or_else(|| FileError::FailedToExtractString)?;
     Ok(value.as_str().to_string())
+}
+
+/// Returns the captured strings from the given regular expression `rx`.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_extract_strings");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let rx = Regex::new(r"'([^']+)'\s+\((\d{4})\)").unwrap();
+/// assert!(sys::write(&tmpfile, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
+/// assert_eq!(sys::extract_strings(&tmpfile, &rx).unwrap(), vec!["Citizen Kane", "1941"]);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn extract_strings<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<Vec<String>> {
+    let data = readstring(path)?;
+    let caps = rx.captures(&data).ok_or_else(|| FileError::FailedToExtractString)?;
+    let values = caps.iter().skip(1).filter_map(|x| x).filter_map(|x| Some(x.as_str().to_string())).collect::<Vec<String>>();
+    if values.len() == 0 {
+        return Err(FileError::FailedToExtractString.into());
+    }
+    Ok(values)
 }
 
 /// Creates the given directory and any parent directories needed, handling path expansion and
@@ -1251,11 +1277,30 @@ mod tests {
         assert!(sys::mkdir(&tmpdir).is_ok());
 
         // test
-        //let rx = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
-        //assert!(sys::write(&file1, "Linux version 4.19.87-1-lts (linux-lts@archlinux)").is_ok());
-        let rx = Regex::new(r"'(?P<title>[^']+)'\s+\((?P<year>\d{4})\)").unwrap();
+        let rx = Regex::new(r"'([^']+)'\s+\((\d{4})\)").unwrap();
         assert!(sys::write(&file1, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
         assert_eq!(sys::extract_string(&file1, &rx).unwrap(), "Citizen Kane");
+
+        // cleanup
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_extract_strings() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("file_extract_strings");
+        let file1 = tmpdir.mash("file1");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        // some
+        let rx = Regex::new(r"'([^']+)'\s+\((\d{4})\)").unwrap();
+        assert!(sys::write(&file1, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
+        assert_eq!(sys::extract_strings(&file1, &rx).unwrap(), vec!["Citizen Kane", "1941"]);
+
+        // none
+        let rx = Regex::new(r"(foo)").unwrap();
+        assert!(sys::extract_strings(&file1, &rx).is_err());
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());

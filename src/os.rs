@@ -158,10 +158,24 @@ mod tests {
     use std::io::{self, Write};
 
     #[test]
+    #[cfg(target_os = "x86")]
+    fn test_info() {
+        let info = sys::info().unwrap();
+        assert_eq!(info.arch, Arch::X86);
+    }
+
+    #[test]
     #[cfg(target_os = "x86_64")]
     fn test_info() {
         let info = sys::info().unwrap();
         assert_eq!(info.arch, Arch::X86_64);
+    }
+
+    #[test]
+    #[cfg(target_os = "x86")]
+    fn test_arch() {
+        assert_eq!(sys::x86(), true);
+        assert_eq!(sys::x86_64(), false);
     }
 
     #[test]

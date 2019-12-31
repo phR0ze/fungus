@@ -90,6 +90,7 @@ mod tests {
 
     #[test]
     fn test_dir() {
+        Setup::init();
         let cwd = env::current_dir().unwrap();
         let dir = cwd.mash("target/debug/deps");
         assert_eq!(exec::dir().unwrap(), dir);
