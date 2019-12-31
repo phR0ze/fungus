@@ -506,6 +506,25 @@ pub fn extract_string<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<String> {
     Ok(value.as_str().to_string())
 }
 
+/// Returns the first captured string from the given regular expression `rx`.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_extract_string_p");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let rx = Regex::new(r"'([^']+)'\s+\((\d{4})\)").unwrap();
+/// assert!(sys::write(&tmpfile, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
+/// assert_eq!(sys::extract_string(&tmpfile, &rx).unwrap(), "Citizen Kane");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn extract_string_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> Result<String> {
+    extract_string(path, &Regex::new(rx.as_ref())?)
+}
+
 /// Returns the captured strings from the given regular expression `rx`.
 ///
 /// ### Examples
@@ -529,6 +548,24 @@ pub fn extract_strings<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<Vec<String
         return Err(FileError::FailedToExtractString.into());
     }
     Ok(values)
+}
+
+/// Returns the captured strings from the given regular expression `rx`.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("file_doc_extract_strings_p");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("file1");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// assert!(sys::write(&tmpfile, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
+/// assert_eq!(sys::extract_strings_p(&tmpfile, r"'([^']+)'\s+\((\d{4})\)").unwrap(), vec!["Citizen Kane", "1941"]);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+pub fn extract_strings_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> Result<Vec<String>> {
+    extract_strings(path, &Regex::new(rx.as_ref())?)
 }
 
 /// Creates the given directory and any parent directories needed, handling path expansion and
@@ -1276,10 +1313,13 @@ mod tests {
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
 
-        // test
+        // extract_string
         let rx = Regex::new(r"'([^']+)'\s+\((\d{4})\)").unwrap();
         assert!(sys::write(&file1, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
         assert_eq!(sys::extract_string(&file1, &rx).unwrap(), "Citizen Kane");
+
+        // extract_string_p
+        assert_eq!(sys::extract_string_p(&file1, r"'([^']+)'\s+\((\d{4})\)").unwrap(), "Citizen Kane");
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1293,10 +1333,13 @@ mod tests {
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
 
-        // some
+        // extract_string
         let rx = Regex::new(r"'([^']+)'\s+\((\d{4})\)").unwrap();
         assert!(sys::write(&file1, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
         assert_eq!(sys::extract_strings(&file1, &rx).unwrap(), vec!["Citizen Kane", "1941"]);
+
+        // extract_string_p
+        assert_eq!(sys::extract_strings_p(&file1, r"'([^']+)'\s+\((\d{4})\)").unwrap(), vec!["Citizen Kane", "1941"]);
 
         // none
         let rx = Regex::new(r"(foo)").unwrap();
