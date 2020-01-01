@@ -2,56 +2,82 @@ use chrono;
 use colored::*;
 use log;
 use std::io;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use crate::prelude::*;
 
 lazy_static! {
-    static ref LOGGER: Logger = Logger { level: log::Level::Info, color: true, buffer: true, output: Arc::new(Mutex::new(vec![])) };
+    // Arc isn't needed here as this is static
+    static ref LOGOPTS: Mutex<LogOpts> = Mutex::new(LogOpts { level: log::Level::Info, color: true, buffer: false, silent: false, output: vec![] });
 }
 
-/// Provides logging
-#[derive(Debug)]
-pub struct Logger {
-    pub level: log::Level,       // log level
-    pub color: bool,             // use colored logging
-    pub buffer: bool,            // use buffer for output?
-    output: Arc<Mutex<Vec<u8>>>, // buffer to use for output
+pub struct LogOpts {
+    level: log::Level, // log level
+    color: bool,       // use colored logging
+    buffer: bool,      // use buffer for output?
+    silent: bool,      // go silent when true
+    output: Vec<u8>,   // buffer to use for output
 }
+
+pub struct Logger;
 impl Logger {
     /// Initialize the global logger with the current Logger settings.
     pub fn init() -> Result<()> {
         let level = log::Level::Info;
-        log::set_logger(&*LOGGER)?;
+        log::set_boxed_logger(Box::new(Logger {}))?;
         log::set_max_level(level.to_level_filter());
         Ok(())
     }
 
+    /// Get the log `level` to use.
+    pub fn level() -> log::Level {
+        LOGOPTS.lock().unwrap().level
+    }
+
     /// Set the log `level` to use.
-    pub fn level(&mut self, level: log::Level) -> &mut Self {
-        self.level = level;
+    pub fn set_level(level: log::Level) {
+        LOGOPTS.lock().unwrap().level = level;
         log::set_max_level(level.to_level_filter());
-        self
+    }
+
+    /// Check if logging should be in color.
+    pub fn color() -> bool {
+        LOGOPTS.lock().unwrap().color
     }
 
     /// Use color for logging if `yes` is true else no color.
-    pub fn color(&mut self, yes: bool) -> &mut Self {
-        self.color = yes;
-        self
+    pub fn use_color(yes: bool) {
+        LOGOPTS.lock().unwrap().color = yes;
+    }
+
+    /// Check if logging should go to buffer
+    pub fn buffer() -> bool {
+        LOGOPTS.lock().unwrap().buffer
     }
 
     /// Use buffer for logging if `yes` is true else io::stdout.
-    pub fn buffer(yes: bool) {
-        //t logger = LOGGER;
+    pub fn use_buffer(yes: bool) {
+        LOGOPTS.lock().unwrap().buffer = yes;
+    }
+
+    /// Check if in silent mode
+    pub fn silent() -> bool {
+        LOGOPTS.lock().unwrap().silent
+    }
+
+    /// Set silent for logging if `yes` is true else false
+    pub fn be_silent(yes: bool) {
+        LOGOPTS.lock().unwrap().silent = yes;
     }
 
     /// Return the data from the buffer as a String
     pub fn data() -> Result<String> {
-        let result = match str::from_utf8(&LOGGER.output.lock().unwrap()[..]) {
+        let mut opts = LOGOPTS.lock().unwrap();
+        let result = match str::from_utf8(&opts.output) {
             Ok(x) => Ok(x.to_string()),
             Err(err) => Err(err.into()),
         };
-        LOGGER.output.lock().unwrap().clear();
+        opts.output.clear();
         result
     }
 }
@@ -59,13 +85,19 @@ impl Logger {
 impl log::Log for Logger {
     // Filter out incorrect levels
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= self.level
+        metadata.level() <= Logger::level()
     }
 
     // Log with correct level color and timestamp
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
-            let level = if self.color {
+            let mut opts = LOGOPTS.lock().unwrap();
+            if opts.silent {
+                return;
+            }
+
+            // Get level prefix
+            let level = if opts.color {
                 match record.level() {
                     log::Level::Error => record.level().to_string().red(),
                     log::Level::Warn => record.level().to_string().yellow(),
@@ -78,9 +110,8 @@ impl log::Log for Logger {
             };
 
             // Write output to drains
-            if self.buffer {
-                writeln!(self.output.lock().unwrap(), "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args())
-                    .unwrap();
+            if opts.buffer {
+                writeln!(opts.output, "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
             } else {
                 writeln!(io::stdout(), "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
             }
@@ -115,12 +146,54 @@ mod tests {
 
         // Log output
         Logger::init().unwrap();
+        Logger::use_buffer(true);
+
+        Logger::use_color(false);
         log::error!("hello error");
-        assert!(Logger::data().unwrap().ends_with("hello error\n"));
+        let data = Logger::data().unwrap();
+        assert!(data.starts_with("ERROR["));
+        Logger::use_color(true);
+        log::error!("hello error");
+        let data = Logger::data().unwrap();
+        assert!(data.ends_with("hello error\n"));
+
+        Logger::use_color(false);
         log::warn!("hello warn");
-        assert!(Logger::data().unwrap().ends_with("hello warn\n"));
-        log::warn!("hello info");
-        assert!(Logger::data().unwrap().ends_with("hello info\n"));
+        let data = Logger::data().unwrap();
+        assert!(data.starts_with("WARN ["));
+        Logger::use_color(true);
+        log::warn!("hello warn");
+        let data = Logger::data().unwrap();
+        assert!(data.ends_with("hello warn\n"));
+
+        Logger::use_color(false);
+        log::info!("hello info");
+        let data = Logger::data().unwrap();
+        assert!(data.starts_with("INFO ["));
+        Logger::use_color(true);
+        log::info!("hello info");
+        let data = Logger::data().unwrap();
+        assert!(data.ends_with("hello info\n"));
+
+        // Test level
+        Logger::use_color(false);
+        log::debug!("hello debug");
+        let data = Logger::data().unwrap();
+        assert_eq!(data.len(), 0);
+        Logger::set_level(log::Level::Debug);
+        log::debug!("hello debug");
+        let data = Logger::data().unwrap();
+        assert!(data.starts_with("DEBUG["));
+        Logger::use_color(true);
+        log::debug!("hello debug");
+        let data = Logger::data().unwrap();
+        assert!(data.ends_with("hello debug\n"));
+
+        // Test silent mode
+        Logger::be_silent(true);
+        log::info!("hello info");
+        let data = Logger::data().unwrap();
+        assert_eq!(data.len(), 0);
 
         // create log directory and file
         //assert_eq!(file1.mode().unwrap(), 0o100555);
