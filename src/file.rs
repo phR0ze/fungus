@@ -881,7 +881,7 @@ pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> Result<()> {
     let mut f = File::create(path)?;
     f.write(data.as_ref())?;
 
-    // Works better than f.flush()?
+    // f.sync_all() works better than f.flush()?
     f.sync_all()?;
     Ok(())
 }

@@ -56,7 +56,7 @@ pub mod prelude {
     pub use regex::Regex;
     pub use std::env;
     pub use std::ffi::OsStr;
-    pub use std::fs::{self, File};
+    pub use std::fs::{self, File, OpenOptions};
     pub use std::io::{self, prelude::*, BufRead, BufReader};
     pub use std::os::unix::fs::{MetadataExt, PermissionsExt};
     pub use std::path::{Component, Path, PathBuf};
