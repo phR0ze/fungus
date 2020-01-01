@@ -2,8 +2,13 @@ use chrono;
 use colored::*;
 use log;
 use std::io;
+use std::sync::{Arc, Mutex};
 
 use crate::prelude::*;
+
+lazy_static! {
+    static ref BUFFER: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(vec![]));
+}
 
 /// Provides logging
 #[derive(Debug)]
@@ -12,29 +17,36 @@ pub struct Logger {
     pub colored: bool,     // use colored logging
 }
 impl Logger {
-    /// Create a new logger with defaults
-    pub fn new() -> Logger {
-        Logger { level: log::Level::Info, colored: true }
+    /// Initialize the global logger with the current Logger settings.
+    pub fn init() -> Result<()> {
+        let level = log::Level::Info;
+        let logger = Logger { level: level, colored: true };
+        log::set_boxed_logger(Box::new(logger))?;
+        log::set_max_level(level.to_level_filter());
+        Ok(())
+    }
+
+    /// Return the data from the buffer as a String
+    pub fn buffer() -> Result<String> {
+        let result = match str::from_utf8(&BUFFER.lock().unwrap()[..]) {
+            Ok(x) => Ok(x.to_string()),
+            Err(err) => Err(err.into()),
+        };
+        BUFFER.lock().unwrap().clear();
+        result
+    }
+
+    /// Set the log `level` to use.
+    pub fn set_level(&mut self, level: log::Level) -> &mut Self {
+        self.level = level;
+        log::set_max_level(level.to_level_filter());
+        self
     }
 
     /// Use colored logging if `yes` is true else no color.
     pub fn set_colored(&mut self, yes: bool) -> &mut Self {
         self.colored = yes;
         self
-    }
-
-    /// Set the log `level` to use.
-    pub fn set_level(&mut self, level: log::Level) -> &mut Self {
-        self.level = level;
-        self
-    }
-
-    /// Initialize the global logger with the current Logger settings.
-    pub fn init(self) -> Result<()> {
-        let level = self.level;
-        log::set_boxed_logger(Box::new(self))?;
-        log::set_max_level(level.to_level_filter());
-        Ok(())
     }
 }
 
@@ -60,7 +72,8 @@ impl log::Log for Logger {
             };
 
             // Write output to drains
-            writeln!(io::stdout(), "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
+            writeln!(BUFFER.lock().unwrap(), "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
+            //writeln!(io::stdout(), "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
         }
     }
 
@@ -91,12 +104,13 @@ mod tests {
         assert!(sys::remove_all(&tmpdir).is_ok());
 
         // Log output
-        let mut logger = Logger::new().init().unwrap();
+        Logger::init().unwrap();
         log::error!("hello error");
-        // log::warn!("hello warn");
-        // log::info!("hello info");
-        // log::debug!("hello debug");
-        // log::trace!("hello trace");
+        assert!(Logger::buffer().unwrap().ends_with("hello error\n"));
+        log::warn!("hello warn");
+        assert!(Logger::buffer().unwrap().ends_with("hello warn\n"));
+        log::warn!("hello info");
+        assert!(Logger::buffer().unwrap().ends_with("hello info\n"));
 
         // create log directory and file
         //assert_eq!(file1.mode().unwrap(), 0o100555);
