@@ -6,31 +6,15 @@ use std::io;
 use crate::prelude::*;
 
 /// Provides logging
+#[derive(Debug)]
 pub struct Logger {
-    pub level: log::Level,     // log level
-    pub colored: bool,         // use colored logging
-    pub none: bool,            // don't log anything when true
-    pub path: Option<PathBuf>, // log file
+    pub level: log::Level, // log level
+    pub colored: bool,     // use colored logging
 }
 impl Logger {
     /// Create a new logger with defaults
     pub fn new() -> Logger {
-        Logger { level: log::Level::Info, colored: true, none: false, path: None }
-    }
-
-    /// Disable logging to file.
-    pub fn disable_file_output(&mut self) -> &mut Self {
-        // Close logger file
-        //if self.path.is_some() {}
-        self.path = None;
-        self
-    }
-
-    /// Enable logging to disk.
-    pub fn enable_file_output<T: AsRef<Path>>(&mut self, path: T) -> &mut Self {
-        self.path = Some(path.as_ref().to_path_buf());
-        // Open file for logging
-        self
+        Logger { level: log::Level::Info, colored: true }
     }
 
     /// Use colored logging if `yes` is true else no color.
