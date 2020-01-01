@@ -3,6 +3,7 @@ mod file_error;
 mod iter;
 mod iter_error;
 mod libc;
+mod logger;
 mod miscs;
 mod option;
 mod os;
@@ -12,23 +13,22 @@ mod path_error;
 mod result;
 mod user_error;
 
-/// Export user module
-pub mod user;
-
-/// Export exec module
 pub mod exec;
+pub mod user;
 
 /// Export core module
 pub mod core {
     pub use crate::file_error::*;
     pub use crate::iter::*;
     pub use crate::iter_error::*;
+    pub use crate::logger::*;
     pub use crate::miscs::*;
     pub use crate::option::*;
     pub use crate::os_error::*;
     pub use crate::path_error::*;
     pub use crate::result::*;
     pub use crate::user_error::*;
+    pub use log::{debug, error, info, log, trace, warn};
 }
 
 /// Import sys module. Includes core::*, exec, and user modules.
@@ -52,6 +52,7 @@ pub mod prelude {
     pub use crate::user;
 
     // Re-exports for standard crates
+    pub use lazy_static::*;
     pub use regex::Regex;
     pub use std::env;
     pub use std::ffi::OsStr;

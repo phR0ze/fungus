@@ -141,7 +141,7 @@ pub fn info() -> Result<Info> {
     Ok(Info { arch: arch(), kernel: version.to_string(), release: release.to_string() })
 }
 
-// Substitute stdout and stderr for testing
+// Substitute stdout and stderr
 pub struct Stdio<T: io::Write, U: io::Write> {
     pub out: T,
     pub err: U,
