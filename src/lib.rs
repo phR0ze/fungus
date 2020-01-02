@@ -13,6 +13,7 @@ mod path_error;
 mod result;
 mod user_error;
 
+pub mod agent;
 pub mod exec;
 pub mod user;
 
@@ -41,17 +42,26 @@ pub mod core {
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
 pub mod prelude {
+
+    // system
+    //----------------------------------------------------------------------------------------------
     pub use crate::core::*;
+
+    // exec
     pub use crate::exec;
+
+    // sys
     pub use crate::path::PathExt;
     pub mod sys {
         pub use crate::file::*;
         pub use crate::os::*;
         pub use crate::path::*;
     }
+
+    // user
     pub use crate::user;
 
-    // Re-exports for standard crates
+    // Re-exports for sys
     pub use lazy_static::*;
     pub use regex::Regex;
     pub use std::env;
@@ -61,4 +71,13 @@ pub mod prelude {
     pub use std::os::unix::fs::{MetadataExt, PermissionsExt};
     pub use std::path::{Component, Path, PathBuf};
     pub use std::str;
+
+    // network namespace
+    //----------------------------------------------------------------------------------------------
+
+    // agent
+    pub use crate::agent;
+
+    // net
+    pub mod net {}
 }
