@@ -45,7 +45,7 @@ const WINDOWS_FIREFOX43: &str = "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Ge
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    // use crate::prelude::*;
+    use crate::prelude::*;
 
     // // Reusable teset setup
     // struct Setup {
@@ -58,4 +58,39 @@ mod tests {
     //         setup
     //     }
     // }
+
+    #[test]
+    fn test_agents() {
+        assert_ne!(agent::ANDROID5_NEXUS7, "");
+        assert_ne!(agent::ANDROID7_GALAXYS8, "");
+        assert_ne!(agent::ANDROID6_NOTE4, "");
+        assert_ne!(agent::BING_BOT, "");
+        assert_ne!(agent::IPAD_IOS9, "");
+        assert_ne!(agent::IPAD_IOS12, "");
+        assert_ne!(agent::IPHONE_IOS8, "");
+        assert_ne!(agent::IPHONE_IOS9, "");
+        assert_ne!(agent::IPHONE_IOS10, "");
+        assert_ne!(agent::IPHONE_IOS11, "");
+        assert_ne!(agent::IPHONE_IOS12, "");
+        assert_ne!(agent::LINUX_FIREFOX43, "");
+        assert_ne!(agent::LINUX_KONQUEROR, "");
+        assert_ne!(agent::LINUX_MOZILLA, "");
+        assert_ne!(agent::MAC_FIREFOX, "");
+        assert_ne!(agent::MAC_MOZILLA, "");
+        assert_ne!(agent::MAC_SAFARI4, "");
+        assert_ne!(agent::MAC_SAFARI9, "");
+        assert_ne!(agent::WINDOWS10_CHROME58, "");
+        assert_ne!(agent::WINDOWS_CHROME43, "");
+        assert_ne!(agent::WINDOWS_FIREFOX53, "");
+        assert_ne!(agent::WINDOWSIE6, "");
+        assert_ne!(agent::WINDOWSIE7, "");
+        assert_ne!(agent::WINDOWSIE8, "");
+        assert_ne!(agent::WINDOWSIE9, "");
+        assert_ne!(agent::WINDOWSIE10, "");
+        assert_ne!(agent::WINDOWSIE11, "");
+        assert_ne!(agent::WINDOWS_EDGE13, "");
+        assert_ne!(agent::WINDOWS_EDGE14, "");
+        assert_ne!(agent::WINDOWS_MOZILLA, "");
+        assert_ne!(agent::WINDOWS_FIREFOX43, "");
+    }
 }
