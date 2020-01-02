@@ -1,12 +1,10 @@
-#[cfg(feature = "_libc_")]
-use libc;
-#[cfg(feature = "_libc_")]
-use std::io;
-#[cfg(feature = "_libc_")]
-use std::mem;
-#[cfg(feature = "_libc_")]
-use std::ptr;
-
+cfgblock! {
+    #[cfg(feature = "_libc_")]
+    use libc;
+    use std::io;
+    use std::mem;
+    use std::ptr;
+}
 use crate::core::*;
 use std::env;
 use std::path::PathBuf;

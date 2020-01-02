@@ -1,14 +1,11 @@
 #[cfg(feature = "_crypto_")]
 use blake2::{Blake2b, Digest};
-#[cfg(feature = "_libc_")]
-use libc;
-#[cfg(feature = "_libc_")]
-use std::ffi::CString;
-#[cfg(feature = "libc_")]
-use std::io;
-#[cfg(feature = "_libc_")]
-use std::os::unix::ffi::OsStrExt;
-
+cfgblock! {
+    #[cfg(feature = "_libc_")]
+    use libc;
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+}
 use std::fs::{self, File};
 use std::io::{self, prelude::*, BufRead, BufReader};
 use std::os::unix::{self, fs::PermissionsExt};
@@ -157,6 +154,8 @@ impl Chmod {
 
 /// Wraps `chmod_p` to apply the given `mode` to all files/dirs using recursion and invoking
 /// the mode change on the close of this function call.
+///
+/// ### Examples
 /// ```
 /// use fungus::prelude::*;
 ///

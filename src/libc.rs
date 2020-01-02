@@ -1,11 +1,10 @@
-#[cfg(feature = "_libc_")]
-use crate::core::*;
-#[cfg(feature = "_libc_")]
-use libc;
-#[cfg(feature = "_libc_")]
-use std::ffi::{CStr, OsStr};
-#[cfg(feature = "_libc_")]
-use std::os::unix::ffi::OsStrExt;
+cfgblock! {
+    #[cfg(feature = "_libc_")]
+    use crate::core::*;
+    use libc;
+    use std::ffi::{CStr, OsStr};
+    use std::os::unix::ffi::OsStrExt;
+}
 
 /// Convert libc::c_chart into a Rust String. Returns an empty string if `ptr` is null or if the
 /// String conversion fails.

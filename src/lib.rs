@@ -1,3 +1,9 @@
+#![allow(dead_code)]
+
+// macro import has to happend before other modules
+#[macro_use]
+pub mod macros;
+
 mod file;
 mod file_error;
 mod iter;
@@ -23,6 +29,7 @@ pub mod core {
     pub use crate::iter::*;
     pub use crate::iter_error::*;
     pub use crate::logger::*;
+    pub use crate::macros::*;
     pub use crate::miscs::*;
     pub use crate::option::*;
     pub use crate::os_error::*;
@@ -62,7 +69,10 @@ pub mod prelude {
     pub use crate::user;
 
     // Re-exports for sys
+    pub use chrono;
+    pub use colored::*;
     pub use lazy_static::*;
+    pub use log;
     pub use regex::Regex;
     pub use std::env;
     pub use std::ffi::OsStr;

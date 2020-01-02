@@ -22,6 +22,7 @@ fn main() {
 
     // Tests
     assert_ne!(user::home().unwrap(), PathBuf::from("/root"));
+    test_net(&tmpdir);
     test_exec_lookup(&tmpdir);
     test_sys_chown(&tmpdir);
     test_user_sudo(&tmpdir);
@@ -39,6 +40,15 @@ fn cleanup<T: AsRef<Path>>(path: T) {
 
     // Delete the lock file as it seems to cause problems when the fungus version changes
     assert!(sys::remove("Cargo.lock").is_ok());
+}
+
+fn test_net() {
+    let tmpdir = setup(path, "bin_net");
+    let file1 = tmpdir.mash("file1");
+
+    println!("{}", agent::ANDROID5_NEXUS7);
+
+    cleanup(tmpdir);
 }
 
 fn test_exec_lookup<T: AsRef<Path>>(path: T) {

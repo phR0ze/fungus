@@ -1,11 +1,11 @@
 // Agent identifiers
 const ANDROID5_NEXUS7: &str =
     "Mozilla/5.0 (Linux; Android 5.1.1; Nexus 7 Build/LMY47V) AppleWebKit/537.36 (KHTML like Gecko) Chrome/47.0.2526.76 Safari/537.36";
-const ANDROID7_GALAXYS8: &str   = "Mozilla/5.0 (Linux; Android 7.0; SM-G892A Build/NRD90M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/60.0.3112.107 Mobile Safari/537.36";
-const ANDROID6_NOTE4: &str    = "Mozilla/5.0 (Linux; Android 6.0.1; SAMSUNG SM-N910F Build/MMB29M) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0 Chrome/44.0.2403.133 Mobile Safari/537.36";
+const ANDROID7_GALAXYS8: &str = "Mozilla/5.0 (Linux; Android 7.0; SM-G892A Build/NRD90M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/60.0.3112.107 Mobile Safari/537.36";
+const ANDROID6_NOTE4: &str = "Mozilla/5.0 (Linux; Android 6.0.1; SAMSUNG SM-N910F Build/MMB29M) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0 Chrome/44.0.2403.133 Mobile Safari/537.36";
 const BING_BOT: &str = "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)";
 const IPAD_IOS9: &str = "Mozilla/5.0 (iPad; CPU OS 9_1 like Mac OS X) AppleWebKit/601.1.46 (KHTML like Gecko) Version/9.0 Mobile/13B143 Safari/601.1";
-const IPAD_IOS12: &str         = "Mozilla/5.0 (iPad; CPU OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 EdgiOS/44.5.3 Mobile/15E148 Safari/605.1.15";
+const IPAD_IOS12: &str = "Mozilla/5.0 (iPad; CPU OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 EdgiOS/44.5.3 Mobile/15E148 Safari/605.1.15";
 const IPHONE_IOS8: &str =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 8_0_2 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12A366 Safari/600.1.4";
 const IPHONE_IOS9: &str =
@@ -45,7 +45,7 @@ const WINDOWS_FIREFOX43: &str = "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Ge
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
+    // use crate::prelude::*;
 
     // // Reusable teset setup
     // struct Setup {
@@ -58,39 +58,4 @@ mod tests {
     //         setup
     //     }
     // }
-
-    #[test]
-    fn test_agents() {
-        assert_ne!(agent::ANDROID5_NEXUS7, "");
-        assert_ne!(agent::ANDROID7_GALAXYS8, "");
-        assert_ne!(agent::ANDROID6_NOTE4, "");
-        assert_ne!(agent::BING_BOT, "");
-        assert_ne!(agent::IPAD_IOS9, "");
-        assert_ne!(agent::IPAD_IOS12, "");
-        assert_ne!(agent::IPHONE_IOS8, "");
-        assert_ne!(agent::IPHONE_IOS9, "");
-        assert_ne!(agent::IPHONE_IOS10, "");
-        assert_ne!(agent::IPHONE_IOS11, "");
-        assert_ne!(agent::IPHONE_IOS12, "");
-        assert_ne!(agent::LINUX_FIREFOX43, "");
-        assert_ne!(agent::LINUX_KONQUEROR, "");
-        assert_ne!(agent::LINUX_MOZILLA, "");
-        assert_ne!(agent::MAC_FIREFOX, "");
-        assert_ne!(agent::MAC_MOZILLA, "");
-        assert_ne!(agent::MAC_SAFARI4, "");
-        assert_ne!(agent::MAC_SAFARI9, "");
-        assert_ne!(agent::WINDOWS10_CHROME58, "");
-        assert_ne!(agent::WINDOWS_CHROME43, "");
-        assert_ne!(agent::WINDOWS_FIREFOX53, "");
-        assert_ne!(agent::WINDOWSIE6, "");
-        assert_ne!(agent::WINDOWSIE7, "");
-        assert_ne!(agent::WINDOWSIE8, "");
-        assert_ne!(agent::WINDOWSIE9, "");
-        assert_ne!(agent::WINDOWSIE10, "");
-        assert_ne!(agent::WINDOWSIE11, "");
-        assert_ne!(agent::WINDOWS_EDGE13, "");
-        assert_ne!(agent::WINDOWS_EDGE14, "");
-        assert_ne!(agent::WINDOWS_MOZILLA, "");
-        assert_ne!(agent::WINDOWS_FIREFOX43, "");
-    }
 }

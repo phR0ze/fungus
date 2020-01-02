@@ -1,6 +1,6 @@
 [package]
 name = "fungus"
-version = "0.0.38"
+version = "0.0.39"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -35,11 +35,15 @@ blake2 = { version = "0.8.1", optional = true }
 [features]
 default = []
 
-# Includes cypto dependent functions:
+# Includes net dependent functions/types:
+# "agent"
+_net_ = []
+
+# Includes cypto dependent functions/type:
 # "sys::digest"
 _crypto_ = ["blake2"]
 
-# Includes libc dependent functions:
+# Includes libc dependent functions/type:
 # "sys::chown", "sys::lchown", "user::User", "user::current", "user::drop_sudo", "user::getuid",
 # "user::getgid", "user::geteuid", "user::getegid", "user::getrids", "user::is_root",
 # "user::lookup", "user::name", "user::pause_sudo", "user::setuid", "user::setgid", "user::seteuid",
