@@ -6,6 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::core::*;
+use crate::sys::{self, user};
 
 /// Return the path in an absolute clean form
 ///
@@ -1091,7 +1092,7 @@ impl PathExt for Path {
     }
 
     fn chmod(&self, mode: u32) -> Result<()> {
-        crate::file::chmod(self, mode)?;
+        sys::chmod(self, mode)?;
         Ok(())
     }
 
@@ -1171,11 +1172,11 @@ impl PathExt for Path {
 
             // Single tilda only
             cnt if cnt == 1 && path_str == "~" => {
-                expanded = crate::user::home()?;
+                expanded = user::home()?;
             }
 
             // Replace prefix with home directory
-            1 => expanded = crate::user::home()?.mash(&path_str[2..]),
+            1 => expanded = user::home()?.mash(&path_str[2..]),
             _ => (),
         }
 

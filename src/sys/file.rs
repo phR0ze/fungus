@@ -115,7 +115,7 @@ impl Chmod {
     /// Execute the [`Chmod`] options against the set `path` with the set `mode`.
     pub fn chmod(&self) -> Result<()> {
         // Handle globbing
-        let sources = crate::path::glob(&self.path)?;
+        let sources = sys::glob(&self.path)?;
         if sources.len() == 0 {
             return Err(PathError::does_not_exist(&self.path).into());
         }
@@ -136,7 +136,7 @@ impl Chmod {
 
             // Handle recursion
             if self.recursive && is_dir {
-                for path in crate::path::paths(&source)? {
+                for path in sys::paths(&source)? {
                     self.clone().path(path).chmod()?;
                 }
             }
@@ -249,7 +249,7 @@ fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<
     let path = path.as_ref().abs()?;
 
     // Handle globbing
-    let sources = crate::path::glob(&path)?;
+    let sources = sys::glob(&path)?;
     if sources.len() == 0 {
         return Err(PathError::does_not_exist(&path).into());
     }
@@ -301,7 +301,7 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
     let dstabs = dst.as_ref().abs()?;
 
     // Handle globbing
-    let sources = crate::path::glob(&src)?;
+    let sources = sys::glob(&src)?;
     if sources.len() == 0 {
         return Err(PathError::does_not_exist(&src).into());
     }
@@ -628,7 +628,7 @@ pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
     let src = src.as_ref().abs()?;
 
     // Handle globbing
-    let sources = crate::path::glob(&src)?;
+    let sources = sys::glob(&src)?;
     if sources.len() == 0 {
         return Err(PathError::does_not_exist(&src).into());
     }

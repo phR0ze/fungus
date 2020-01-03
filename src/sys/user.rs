@@ -5,9 +5,11 @@ cfgblock! {
     use std::mem;
     use std::ptr;
 }
-use crate::core::*;
 use std::env;
 use std::path::PathBuf;
+
+use crate::core::*;
+use crate::sys;
 
 /// User provides options for a specific user.
 #[cfg(feature = "_libc_")]
@@ -186,19 +188,19 @@ pub fn lookup(uid: u32) -> Result<User> {
     let gid = passwd.pw_gid;
 
     // User name for the lookedup user. We always want this and it should always exist.
-    let username = unsafe { crate::libc::to_string(passwd.pw_name)? };
+    let username = unsafe { sys::libc::to_string(passwd.pw_name)? };
 
     // Will almost always be a single 'x' as the passwd is in the shadow database
-    //let userpwd = unsafe { crate::libc::to_string(passwd.pw_passwd)? };
+    //let userpwd = unsafe { sys::libc::to_string(passwd.pw_passwd)? };
 
     // User home directory e.g. '/home/<user>'. Might be a null pointer indicating the system default should be used
-    let userhome = unsafe { crate::libc::to_string(passwd.pw_dir) }.unwrap_or_default();
+    let userhome = unsafe { sys::libc::to_string(passwd.pw_dir) }.unwrap_or_default();
 
     // User shell e.g. '/bin/bash'. Might be a null pointer indicating the system default should be used
-    let usershell = unsafe { crate::libc::to_string(passwd.pw_shell) }.unwrap_or_default();
+    let usershell = unsafe { sys::libc::to_string(passwd.pw_shell) }.unwrap_or_default();
 
     // A string container user contextual information, possibly real name or phone number.
-    //let usergecos = unsafe { crate::libc::to_string(passwd.pw_gecos)? };
+    //let usergecos = unsafe { sys::libc::to_string(passwd.pw_gecos)? };
 
     // Get the user's real ids as well if applicable
     let (ruid, rgid) = getrids(uid, gid);
