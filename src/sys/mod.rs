@@ -11,6 +11,6 @@ pub use os::*;
 pub use path::*;
 
 // Export extensions
-pub mod Ext {
+pub mod ext {
     pub use super::path::PathExt;
 }

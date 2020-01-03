@@ -15,8 +15,8 @@ pub mod sys;
 /// ```
 pub mod prelude {
     pub use crate::core::*;
-    pub use crate::net::agent;
-    pub use crate::sys::{self, exec, user, Ext::*};
+    pub use crate::net::{self, agent};
+    pub use crate::sys::{self, exec, ext::*, user};
 
     // Re-exports
     //----------------------------------------------------------------------------------------------
