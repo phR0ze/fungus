@@ -1,43 +1,15 @@
-#![allow(dead_code)]
-
 // macro import has to happend before other modules
 #[macro_use]
-pub mod macros;
+pub mod core;
 
 mod file;
-mod file_error;
-mod iter;
-mod iter_error;
 mod libc;
-mod logger;
-mod miscs;
-mod option;
 mod os;
-mod os_error;
 mod path;
-mod path_error;
-mod result;
-mod user_error;
 
-pub mod agent;
 pub mod exec;
+pub mod net;
 pub mod user;
-
-/// Export core module
-pub mod core {
-    pub use crate::file_error::*;
-    pub use crate::iter::*;
-    pub use crate::iter_error::*;
-    pub use crate::logger::*;
-    pub use crate::macros::*;
-    pub use crate::miscs::*;
-    pub use crate::option::*;
-    pub use crate::os_error::*;
-    pub use crate::path_error::*;
-    pub use crate::result::*;
-    pub use crate::user_error::*;
-    pub use log::{debug, error, info, log, trace, warn};
-}
 
 /// Import sys module. Includes core::*, exec, and user modules.
 ///
@@ -53,19 +25,14 @@ pub mod prelude {
     // system
     //----------------------------------------------------------------------------------------------
     pub use crate::core::*;
-
-    // exec
     pub use crate::exec;
 
-    // sys
     pub use crate::path::PathExt;
     pub mod sys {
         pub use crate::file::*;
         pub use crate::os::*;
         pub use crate::path::*;
     }
-
-    // user
     pub use crate::user;
 
     // Re-exports for sys
@@ -84,10 +51,6 @@ pub mod prelude {
 
     // network namespace
     //----------------------------------------------------------------------------------------------
-
-    // agent
-    pub use crate::agent;
-
-    // net
-    pub mod net {}
+    pub use crate::net;
+    pub use crate::net::agent;
 }

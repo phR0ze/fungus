@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 // Agent identifiers
 const ANDROID5_NEXUS7: &str =
     "Mozilla/5.0 (Linux; Android 5.1.1; Nexus 7 Build/LMY47V) AppleWebKit/537.36 (KHTML like Gecko) Chrome/47.0.2526.76 Safari/537.36";
@@ -46,18 +48,6 @@ const WINDOWS_FIREFOX43: &str = "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Ge
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-
-    // // Reusable teset setup
-    // struct Setup {
-    //     temp: PathBuf,
-    // }
-    // impl Setup {
-    //     fn init() -> Self {
-    //         let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-    //         sys::mkdir(&setup.temp).unwrap();
-    //         setup
-    //     }
-    // }
 
     #[test]
     fn test_agents() {
