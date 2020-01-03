@@ -36,21 +36,19 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     // Expand relative directories if needed
     if !path_buf.is_absolute() {
         let mut curr = env::current_dir()?;
-        loop {
-            match path_buf.first() {
-                Ok(path) => match path {
-                    Component::CurDir => {
-                        path_buf = path_buf.trim_first();
-                    }
-                    Component::ParentDir => {
-                        curr = curr.dir()?;
-                        path_buf = path_buf.trim_first();
-                    }
-                    _ => return Ok(curr.mash(path_buf)),
-                },
-                _ => return Ok(curr),
+        while let Ok(path) = path_buf.first() {
+            match path {
+                Component::CurDir => {
+                    path_buf = path_buf.trim_first();
+                }
+                Component::ParentDir => {
+                    curr = curr.dir()?;
+                    path_buf = path_buf.trim_first();
+                }
+                _ => return Ok(curr.mash(path_buf)),
             }
         }
+        return Ok(curr);
     }
 
     Ok(path_buf)

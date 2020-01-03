@@ -166,12 +166,7 @@ where
         Self: Sized,
     {
         let mut iter = (&mut self).peekable();
-        loop {
-            match iter.next() {
-                None => break,
-                _ => (),
-            }
-        }
+        while let Some(_) = iter.next() {}
         self
     }
 
