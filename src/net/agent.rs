@@ -48,12 +48,9 @@ const WINDOWS_FIREFOX43: &str = "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Ge
 #[cfg(test)]
 mod tests {
     use crate::net::agent;
-    use colored::*;
-    use std::path::PathBuf;
 
     #[test]
     fn test_agents() {
-        println!("{}", PathBuf::from("foo").cyan());
         assert_ne!(agent::ANDROID5_NEXUS7, "");
         assert_ne!(agent::ANDROID7_GALAXYS8, "");
         assert_ne!(agent::ANDROID6_NOTE4, "");
