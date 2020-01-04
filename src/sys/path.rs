@@ -695,6 +695,16 @@ pub trait PathExt {
     /// ```
     fn expand(&self) -> Result<PathBuf>;
 
+    /// Returns the extension of the path or an error.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
+    /// ```
+    fn ext(&self) -> Result<String>;
+
     /// Returns the first path component.
     ///
     /// ### Examples
@@ -916,6 +926,16 @@ pub trait PathExt {
     /// ```
     fn mode(&self) -> Result<u32>;
 
+    /// Returns the final component of the `Path` without an extension if there is one
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(PathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
+    /// ```
+    fn name(&self) -> Result<String>;
+
     /// Return the permissions for the `Path`
     ///
     /// ### Examples
@@ -996,9 +1016,9 @@ pub trait PathExt {
     /// ```
     /// use fungus::prelude::*;
     ///
-    /// assert_eq!(PathBuf::from("foo.exe").trim_ext(), PathBuf::from("foo"));
+    /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
     /// ```
-    fn trim_ext(&self) -> PathBuf;
+    fn trim_ext(&self) -> Result<PathBuf>;
 
     /// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
     ///
@@ -1184,6 +1204,13 @@ impl PathExt for Path {
         Ok(expanded)
     }
 
+    fn ext(&self) -> Result<String> {
+        match self.extension() {
+            Some(val) => Ok(val.to_str().ok_or_else(|| PathError::failed_to_string(self))?.to_string()),
+            None => Err(PathError::extension_not_found(self).into()),
+        }
+    }
+
     fn first(&self) -> Result<Component> {
         self.components().first_result()
     }
@@ -1259,6 +1286,10 @@ impl PathExt for Path {
         Ok(perms.mode())
     }
 
+    fn name(&self) -> Result<String> {
+        self.trim_ext()?.base()
+    }
+
     fn perms(&self) -> Result<fs::Permissions> {
         Ok(self.metadata()?.permissions())
     }
@@ -1311,11 +1342,14 @@ impl PathExt for Path {
         Ok(String::from(_str))
     }
 
-    fn trim_ext(&self) -> PathBuf {
-        match self.file_stem() {
-            Some(val) => self.trim_last().mash(val),
+    fn trim_ext(&self) -> Result<PathBuf> {
+        Ok(match self.extension() {
+            Some(val) => {
+                let _str = val.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
+                self.trim_suffix(format!(".{}", _str.to_string()))
+            }
             None => self.to_path_buf(),
-        }
+        })
     }
 
     fn trim_first(&self) -> PathBuf {
@@ -2171,6 +2205,14 @@ mod tests {
     }
 
     #[test]
+    fn test_pathext_ext() {
+        assert!(PathBuf::from("").ext().is_err());
+        assert!(PathBuf::from("foo").ext().is_err());
+        assert_eq!(PathBuf::from("foo.exe").ext().unwrap(), "exe");
+        assert_eq!(PathBuf::from("/foo/bar.exe").ext().unwrap(), "exe");
+    }
+
+    #[test]
     fn test_pathext_first() {
         assert_eq!(Component::RootDir, PathBuf::from("/").first().unwrap());
         assert_eq!(Component::CurDir, PathBuf::from(".").first().unwrap());
@@ -2304,6 +2346,14 @@ mod tests {
     }
 
     #[test]
+    fn test_pathext_name() {
+        assert!(PathBuf::from("").name().is_err());
+        assert_eq!(PathBuf::from("foo").name().unwrap(), "foo");
+        assert_eq!(PathBuf::from("foo.exe").name().unwrap(), "foo");
+        assert_eq!(PathBuf::from("/foo/bar.exe").name().unwrap(), "bar");
+    }
+
+    #[test]
     fn test_pathext_perms() {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("path_pathbuf_perms");
@@ -2362,9 +2412,10 @@ mod tests {
 
     #[test]
     fn test_pathext_trim_ext() {
-        assert_eq!(PathBuf::new(), PathBuf::from("").trim_ext());
-        assert_eq!(PathBuf::from("foo"), PathBuf::from("foo.exe").trim_ext());
-        assert_eq!(PathBuf::from("/foo/bar"), PathBuf::from("/foo/bar.exe").trim_ext());
+        assert_eq!(PathBuf::from("").trim_ext().unwrap(), PathBuf::new());
+        assert_eq!(PathBuf::from("foo").trim_ext().unwrap(), PathBuf::from("foo"));
+        assert_eq!(PathBuf::from("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
+        assert_eq!(PathBuf::from("/foo/bar.exe").trim_ext().unwrap(), PathBuf::from("/foo/bar"));
     }
 
     #[test]

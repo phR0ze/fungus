@@ -14,6 +14,9 @@ pub enum PathError {
     /// An error indicating that the path exists already.
     ExistsAlready(PathBuf),
 
+    /// An error indicating that the path does not have an extension.
+    ExtensionNotFound(PathBuf),
+
     /// An error indicating a failure to convert the path to a string.
     FailedToString(PathBuf),
 
@@ -50,6 +53,11 @@ impl PathError {
     /// Return an error indicating that the path exists already
     pub fn exists_already<T: AsRef<Path>>(path: T) -> PathError {
         PathError::ExistsAlready(path.as_ref().to_path_buf())
+    }
+
+    /// Return an error indicating that the path extension was not found
+    pub fn extension_not_found<T: AsRef<Path>>(path: T) -> PathError {
+        PathError::ExtensionNotFound(path.as_ref().to_path_buf())
     }
 
     /// Return an error indicating a failure to convert the path to a string
@@ -104,6 +112,7 @@ impl fmt::Display for PathError {
             PathError::DoesNotExist(ref path) => write!(f, "path does not exist: {}", path.display()),
             PathError::Empty => write!(f, "path empty"),
             PathError::ExistsAlready(ref path) => write!(f, "path exists already: {}", path.display()),
+            PathError::ExtensionNotFound(ref path) => write!(f, "path extension not found: {}", path.display()),
             PathError::FailedToString(ref path) => write!(f, "failed to convert to string for path: {}", path.display()),
             PathError::FileNameNotFound(ref path) => write!(f, "filename not found for path: {}", path.display()),
             PathError::InvalidExpansion(ref path) => write!(f, "invalid expansion for path: {}", path.display()),
@@ -151,6 +160,8 @@ mod tests {
         assert_eq!(format!("{}", PathError::Empty), "path empty");
         assert_eq!(PathError::exists_already(Path::new("foo")), PathError::ExistsAlready(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::ExistsAlready(PathBuf::from("foo"))), "path exists already: foo");
+        assert_eq!(PathError::extension_not_found(Path::new("foo")), PathError::ExtensionNotFound(PathBuf::from("foo")));
+        assert_eq!(format!("{}", PathError::ExtensionNotFound(PathBuf::from("foo"))), "path extension not found: foo");
         assert_eq!(PathError::failed_to_string(Path::new("foo")), PathError::FailedToString(PathBuf::from("foo")));
         assert_eq!(format!("{}", PathError::failed_to_string(PathBuf::from("foo"))), "failed to convert to string for path: foo");
         assert_eq!(PathError::filename_not_found(Path::new("foo")), PathError::FileNameNotFound(PathBuf::from("foo")));
