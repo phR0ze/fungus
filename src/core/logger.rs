@@ -155,6 +155,39 @@ impl Logger {
         opts.output.clear();
         result
     }
+
+    /// Log fatal error message than exit the process
+    pub fn fatal(args: fmt::Arguments, level: log::Level, &(target, module_path, file, line): &(&str, &'static str, &'static str, u32)) {
+        let mut opts = LOGOPTS.lock().unwrap();
+        if opts.silent {
+            return;
+        }
+        let record = log::Record::builder()
+            .args(args)
+            .level(level)
+            .target(target)
+            .module_path_static(Some(module_path))
+            .file_static(Some(file))
+            .line(Some(line))
+            .build();
+
+        // Get level prefix
+        let level = "FATAL".to_string();
+        let level_color = if opts.color { level.red() } else { level.normal() };
+
+        // Write output to drains
+        if opts.stdout {
+            writeln!(io::stdout(), "{:<5}[{}] {}", level_color, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
+        }
+        if opts.buffer {
+            writeln!(opts.output, "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
+        }
+        if opts.file.is_some() {
+            let mut file = opts.file.as_ref().unwrap();
+            writeln!(file, "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
+        }
+        std::process::exit(1);
+    }
 }
 
 impl log::Log for Logger {
@@ -238,35 +271,41 @@ mod tests {
         }
 
         // Test log levels
-        log::error!("hello error");
+        error!("hello error");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("ERROR["));
         Logger::enable_color();
-        log::error!("hello error");
+        error!("hello error");
         let data = Logger::data().unwrap();
         assert!(data.ends_with("hello error\n"));
 
-        log::warn!("hello warn");
+        // can't test directly
+        // fatal!("hello fatal");
+        // let data = Logger::data().unwrap();
+        // assert!(data.starts_with("FATAL["));
+        // assert!(data.ends_with("hello fatal\n"));
+
+        warn!("hello warn");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("WARN ["));
         assert!(data.ends_with("hello warn\n"));
 
-        log::info!("hello info");
+        info!("hello info");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("INFO ["));
         assert!(data.ends_with("hello info\n"));
 
         // Test level
-        log::debug!("hello debug");
+        debug!("hello debug");
         let data = Logger::data().unwrap();
         assert_eq!(data.len(), 0);
         Logger::set_level(log::Level::Trace);
-        log::debug!("hello debug");
+        debug!("hello debug");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("DEBUG["));
         assert!(data.ends_with("hello debug\n"));
 
-        log::trace!("hello trace");
+        trace!("hello trace");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("TRACE["));
         assert!(data.ends_with("hello trace\n"));
@@ -275,7 +314,7 @@ mod tests {
         if !Logger::silent() {
             Logger::enable_silence();
         }
-        log::info!("hello info");
+        info!("hello info");
         let data = Logger::data().unwrap();
         assert_eq!(data.len(), 0);
         Logger::disable_silence();
@@ -283,14 +322,14 @@ mod tests {
         // Test stdio
         Logger::disable_buffer();
         Logger::enable_stdout();
-        log::trace!("hello trace");
+        trace!("hello trace");
         Logger::disable_stdout();
 
         // Test file logging
         assert_eq!(file1.exists(), false);
         assert!(Logger::enable_file(&file1).is_ok());
-        log::info!("hello info");
-        log::warn!("hello warn");
+        info!("hello info");
+        warn!("hello warn");
         assert_eq!(file1.exists(), true);
         assert!(Logger::disable_file().is_ok());
         assert_eq!(Logger::data().unwrap().len(), 0);

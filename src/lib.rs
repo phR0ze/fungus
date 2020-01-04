@@ -1,4 +1,3 @@
-// macro import has to happend before other modules
 #[macro_use]
 pub mod core;
 pub mod net;
@@ -14,9 +13,10 @@ pub mod sys;
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
 pub mod prelude {
-    pub use crate::core::*;
-    pub use crate::net::{self, agent};
-    pub use crate::sys::{self, exec, ext::*, user};
+    pub use super::core::*;
+    pub use super::net::{self, agent};
+    pub use super::sys::{self, exec, ext::*, user};
+    pub use super::{cfgblock, fatal};
 
     // Re-exports
     //----------------------------------------------------------------------------------------------
@@ -27,6 +27,7 @@ pub mod prelude {
     pub use regex::Regex;
     pub use std::env;
     pub use std::ffi::OsStr;
+    pub use std::fmt;
     pub use std::fs::{self, File, OpenOptions};
     pub use std::io::{self, prelude::*, BufRead, BufReader};
     pub use std::os::unix::fs::{MetadataExt, PermissionsExt};

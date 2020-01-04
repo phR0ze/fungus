@@ -30,6 +30,21 @@ macro_rules! cfgblock {
     };
 }
 
+/// Provides a fatal log function for logging at error level then terminating the process.
+#[macro_export]
+macro_rules! fatal {
+    (target: $target:expr, $($arg:tt)+) => (
+        $crate::core::Logger::fatal(
+            log::__log_format_args!($($arg)+),
+            log::Level::Error,
+            &($target, log::__log_module_path!(), log::__log_file!(), log::__log_line!()),
+        );
+    );
+    ($($arg:tt)+) => (
+        fatal!(target: log::__log_module_path!(), $($arg)+);
+    )
+}
+
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
@@ -37,7 +52,7 @@ mod tests {
     // use crate::prelude::*;
 
     #[test]
-    fn test_cfgblock_single_item() {
-        //assert_eq!(FOO, "/foo");
+    fn test_macros() {
+        fatal!("foobar!");
     }
 }
