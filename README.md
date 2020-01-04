@@ -16,7 +16,7 @@ Rust utilities to reduce code verbosity
   * [Git-Hook Version Increment](#git-hook-version-increment)
 * [License](#license)
 
-## Contribute<a name="Contribute"/></a>
+## Contribute <a name="Contribute"/></a>
 Pull requests are always welcome.  However understand that they will be evaluated purely on whether
 or not the change fits with my goals/ideals for the project.
 
