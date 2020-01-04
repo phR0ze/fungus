@@ -8,6 +8,10 @@ fungus
 
 Rust utilities to reduce code verbosity
 
+* [Modules](#modules)
+  * [core](#core)
+  * [net](#net)
+  * [sys](#sys)
 * [Contribute](#contribute)
   * [Git-Hook Version Increment](#git-hook-version-increment)
 * [License](#license)
