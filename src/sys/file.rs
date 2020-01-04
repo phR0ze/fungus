@@ -641,7 +641,7 @@ pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
     for source in sources {
         let dstpath = match dst_is_dir {
             true => dst.mash(src.base()?),
-            false => dst.to_path_buf(),
+            false => dst.clone(),
         };
         fs::rename(source, dstpath)?;
     }
