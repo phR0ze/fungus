@@ -44,6 +44,17 @@ impl Logger {
         LOGOPTS.lock().unwrap().level
     }
 
+    /// Convert a string to a log level
+    pub fn level_from_str<T: AsRef<str>>(level: T) -> log::Level {
+        match level.as_ref().to_lowercase().as_ref() {
+            "error" => log::Level::Error,
+            "warn" => log::Level::Warn,
+            "debug" => log::Level::Debug,
+            "trace" => log::Level::Trace,
+            _ => log::Level::Info,
+        }
+    }
+
     /// Set the log `level` to use.
     pub fn set_level(level: log::Level) {
         LOGOPTS.lock().unwrap().level = level;
@@ -249,6 +260,20 @@ mod tests {
             sys::mkdir(&setup.temp).unwrap();
             setup
         }
+    }
+
+    #[test]
+    fn test_level_from_str() {
+        assert_eq!(Logger::level_from_str("error"), log::Level::Error);
+        assert_eq!(Logger::level_from_str("Error"), log::Level::Error);
+        assert_eq!(Logger::level_from_str("warn"), log::Level::Warn);
+        assert_eq!(Logger::level_from_str("Warn"), log::Level::Warn);
+        assert_eq!(Logger::level_from_str("info"), log::Level::Info);
+        assert_eq!(Logger::level_from_str("Info"), log::Level::Info);
+        assert_eq!(Logger::level_from_str("debug"), log::Level::Debug);
+        assert_eq!(Logger::level_from_str("Debug"), log::Level::Debug);
+        assert_eq!(Logger::level_from_str("trace"), log::Level::Trace);
+        assert_eq!(Logger::level_from_str("Trace"), log::Level::Trace);
     }
 
     #[test]
