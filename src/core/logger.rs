@@ -35,8 +35,9 @@ pub struct Logger;
 impl Logger {
     /// Initialize the global logger with the current Logger settings.
     pub fn init() -> Result<()> {
-        let opts = LOGOPTS.lock().unwrap();
+        let mut opts = LOGOPTS.lock().unwrap();
         if !opts.init {
+            opts.init = true;
             let level = log::Level::Info;
             log::set_boxed_logger(Box::new(Logger {}))?;
             log::set_max_level(level.to_level_filter());
