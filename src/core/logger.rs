@@ -121,14 +121,30 @@ impl Logger {
         LOGOPTS.lock().unwrap().buffer
     }
 
-    /// Enable buffer logging
+    /// Enable buffer logging which will disable stdout logging
     pub fn enable_buffer() {
-        LOGOPTS.lock().unwrap().buffer = true;
+        let mut opts = LOGOPTS.lock().unwrap();
+        opts.buffer = true;
+        opts.stdout = false;
     }
 
-    /// Disable buffer logging
+    /// Disable buffer logging which enables stdout logging
     pub fn disable_buffer() {
-        LOGOPTS.lock().unwrap().buffer = false;
+        let mut opts = LOGOPTS.lock().unwrap();
+        opts.buffer = false;
+        opts.stdout = true;
+    }
+
+    /// Flush buffer to stdout
+    pub fn flush_buffer() {
+        let mut opts = LOGOPTS.lock().unwrap();
+        if opts.output.len() != 0 {
+            if let Ok(x) = str::from_utf8(&opts.output) {
+                let data = x.to_string();
+                opts.output.clear();
+                write!(io::stdout(), "{}", data).unwrap();
+            }
+        }
     }
 
     /// Check if in silent mode
