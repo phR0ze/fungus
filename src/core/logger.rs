@@ -197,7 +197,7 @@ impl Logger {
             writeln!(io::stdout(), "{:<5}[{}] {}", level_color, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
         }
         if opts.buffer {
-            writeln!(opts.output, "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
+            writeln!(opts.output, "{:<5}[{}] {}", level_color, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
         }
         if opts.file.is_some() {
             let mut file = opts.file.as_ref().unwrap();
@@ -240,7 +240,7 @@ impl log::Log for Logger {
                 writeln!(io::stdout(), "{:<5}[{}] {}", level_color, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
             }
             if opts.buffer {
-                writeln!(opts.output, "{:<5}[{}] {}", level, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
+                writeln!(opts.output, "{:<5}[{}] {}", level_color, chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"), record.args()).unwrap();
             }
             if opts.file.is_some() {
                 let mut file = opts.file.as_ref().unwrap();
@@ -316,17 +316,26 @@ mod tests {
         // assert!(data.starts_with("FATAL["));
         // assert!(data.ends_with("hello fatal\n"));
 
+        Logger::disable_color();
         warn!("hello warn");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("WARN ["));
+        Logger::enable_color();
+        warn!("hello warn");
+        let data = Logger::data().unwrap();
         assert!(data.ends_with("hello warn\n"));
 
+        Logger::disable_color();
         info!("hello info");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("INFO ["));
+        Logger::enable_color();
+        info!("hello info");
+        let data = Logger::data().unwrap();
         assert!(data.ends_with("hello info\n"));
 
         // Test level
+        Logger::disable_color();
         debug!("hello debug");
         let data = Logger::data().unwrap();
         assert_eq!(data.len(), 0);
@@ -334,8 +343,12 @@ mod tests {
         debug!("hello debug");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("DEBUG["));
+        Logger::enable_color();
+        debug!("hello debug");
+        let data = Logger::data().unwrap();
         assert!(data.ends_with("hello debug\n"));
 
+        Logger::disable_color();
         trace!("hello trace");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("TRACE["));
