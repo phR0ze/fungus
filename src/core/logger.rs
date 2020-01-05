@@ -10,6 +10,7 @@ lazy_static! {
     // Arc isn't needed for reference counting as this is static
     static ref LOGOPTS: Mutex<LogOpts> = Mutex::new(LogOpts {
         level: log::Level::Info,
+        init: false,   // already initialized?
         silent: false, // allow output by default
         color: true,   // use color by default
         file: None,    // don't log to file by default
@@ -21,6 +22,7 @@ lazy_static! {
 
 struct LogOpts {
     level: log::Level,  // log level
+    init: bool,         // initialized?
     silent: bool,       // be silent?
     color: bool,        // use color in output?
     file: Option<File>, // use file for output?
@@ -33,9 +35,12 @@ pub struct Logger;
 impl Logger {
     /// Initialize the global logger with the current Logger settings.
     pub fn init() -> Result<()> {
-        let level = log::Level::Info;
-        log::set_boxed_logger(Box::new(Logger {}))?;
-        log::set_max_level(level.to_level_filter());
+        let opts = LOGOPTS.lock().unwrap();
+        if !opts.init {
+            let level = log::Level::Info;
+            log::set_boxed_logger(Box::new(Logger {}))?;
+            log::set_max_level(level.to_level_filter());
+        }
         Ok(())
     }
 
