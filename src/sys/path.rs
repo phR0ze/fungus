@@ -653,6 +653,16 @@ pub trait PathExt {
     /// If the result of this process is an empty string, return the string `.`, representing the current directory.
     fn clean(&self) -> Result<PathBuf>;
 
+    /// Returns the `Path` with the given string concatenated on.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
+    /// ```
+    fn concat<T: AsRef<str>>(&self, val: T) -> Result<PathBuf>;
+
     /// Returns the `Path` without its final component, if there is one.
     ///
     /// ### Examples
@@ -1162,6 +1172,10 @@ impl PathExt for Path {
             path_buf.push(".");
         }
         Ok(path_buf)
+    }
+
+    fn concat<T: AsRef<str>>(&self, val: T) -> Result<PathBuf> {
+        Ok(PathBuf::from(format!("{}{}", self.to_string()?, val.as_ref())))
     }
 
     fn dir(&self) -> Result<PathBuf> {
@@ -2155,6 +2169,14 @@ mod tests {
         for test in tests {
             assert_eq!(PathBuf::from(test.0), PathBuf::from(test.1).clean().unwrap());
         }
+    }
+
+    #[test]
+    fn test_pathext_concat() {
+        assert_eq!(Path::new("").concat(".rs").unwrap(), PathBuf::from(".rs"));
+        assert_eq!(Path::new("foo").concat(".rs").unwrap(), PathBuf::from("foo.rs"));
+        assert_eq!(Path::new("foo.exe").concat(".rs").unwrap(), PathBuf::from("foo.exe.rs"));
+        assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
     }
 
     #[test]
