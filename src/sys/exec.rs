@@ -25,7 +25,7 @@ pub fn exists<T: AsRef<Path>>(target: T) -> bool {
 }
 
 /// Returns the full path of the given executable. Uses given path if resolvable and falls back on
-/// the system `PATH` if simply a exec name.
+/// the system `PATH` if simply an exec name.
 /// ```
 pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
     let path = target.as_ref();
@@ -44,12 +44,8 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
         // Target is a name
         false => {
             let base = path.to_string()?;
-            for dir in env::var("PATH")?.split(':') {
-                // Unix shell semantics: path element "" means "."
-                let path = match dir == "" {
-                    true => sys::mash(".", &base).abs()?,
-                    false => sys::mash(dir, &base).abs()?,
-                };
+            for dir in user::path_dirs()? {
+                let path = sys::mash(dir, &base);
                 if !path.is_dir() && path.is_exec() {
                     return Ok(path);
                 }

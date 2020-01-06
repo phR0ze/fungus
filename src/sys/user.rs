@@ -8,7 +8,152 @@ cfgblock! {
 use std::env;
 use std::path::PathBuf;
 
-use crate::core::*;
+use crate::prelude::*;
+
+// Implementation in Rust for the XDB Base Directory Specification
+// https://wiki.archlinux.org/index.php/XDG_Base_Directory
+// -------------------------------------------------------------------------------------------------
+
+/// Returns the full path to the current user's home directory.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("home directory of the current user: {:?}", user::home_dir().unwrap());
+/// ```
+pub fn home_dir() -> Result<PathBuf> {
+    let os_str = env::var("HOME")?;
+    let dir = PathBuf::from(os_str);
+    Ok(dir)
+}
+
+/// Returns the full path to the current user's config directory.
+/// Where user-specific configurations should be written (analogous to /etc).
+/// Defaults to $HOME/.config.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("config directory of the current user: {:?}", user::config_dir().unwrap());
+/// ```
+pub fn config_dir() -> Result<PathBuf> {
+    Ok(match env::var("XDG_CONFIG_HOME") {
+        Ok(x) => PathBuf::from(x),
+        Err(_) => home_dir()?.mash(".config"),
+    })
+}
+
+/// Returns the full path to the current user's cache directory.
+/// Where user-specific non-essential (cached) data should be written (analogous to /var/cache).
+/// Defaults to $HOME/.cache.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("cache directory of the current user: {:?}", user::cache_dir().unwrap());
+/// ```
+pub fn cache_dir() -> Result<PathBuf> {
+    Ok(match env::var("XDG_CACHE_HOME") {
+        Ok(x) => PathBuf::from(x),
+        Err(_) => home_dir()?.mash(".cache"),
+    })
+}
+
+/// Returns the full path to the current user's data directory.
+/// Where user-specific data files should be written (analogous to /usr/share).
+/// Defaults to $HOME/.local/share.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("data directory of the current user: {:?}", user::data_dir().unwrap());
+/// ```
+pub fn data_dir() -> Result<PathBuf> {
+    Ok(match env::var("XDG_DATA_HOME") {
+        Ok(x) => PathBuf::from(x),
+        Err(_) => home_dir()?.mash(".local/share"),
+    })
+}
+
+/// Returns the full path to the current user's runtime directory.
+/// Used for non-essential, user-specific data files such as sockets, named pipes, etc.
+/// Must be owned by the user with an access mode of 0700.
+/// Filesystem fully featured by standards of OS.
+/// Must be on the local filesystem.
+/// May be subject to periodic cleanup.
+/// Modified every 6 hours or set sticky bit if persistence is desired.
+/// Can only exist for the duration of the user's login.
+/// Should not store large files as it may be mounted as a tmpfs.
+///
+/// Defaults to /run/user/<user-id>
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("runtime directory of the current user: {:?}", user::runtime_dir().unwrap());
+/// ```
+#[cfg(feature = "_libc_")]
+pub fn runtime_dir() -> Result<PathBuf> {
+    Ok(match env::var("XDG_RUNTIME_DIR") {
+        Ok(x) => PathBuf::from(x),
+        Err(_) => PathBuf::from(format!("/run/user/{}", user::getuid())),
+    })
+}
+
+/// Returns the current user's data directories.
+/// List of directories seperated by : (analogous to PATH).
+/// Defaults to /usr/local/share:/usr/share.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("data directories of the current user: {:?}", user::data_dirs().unwrap());
+/// ```
+pub fn data_dirs() -> Result<Vec<PathBuf>> {
+    Ok(match env::var("XDG_DATA_DIRS") {
+        Ok(x) => sys::parse_paths(x)?,
+        Err(_) => vec![PathBuf::from("/usr/local/share:/usr/share")],
+    })
+}
+
+/// Returns the current user's config directories.
+/// List of directories seperated by : (analogous to PATH).
+/// Defaults to /etc/xdg
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("config directories of the current user: {:?}", user::config_dirs().unwrap());
+/// ```
+pub fn config_dirs() -> Result<Vec<PathBuf>> {
+    Ok(match env::var("XDG_CONFIG_DIRS") {
+        Ok(x) => sys::parse_paths(x)?,
+        Err(_) => vec![PathBuf::from("/etc/xdg")],
+    })
+}
+
+/// Returns the current user's path directories.
+/// List of directories seperated by :
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("path directories of the current user: {:?}", user::path_dirs().unwrap());
+/// ```
+pub fn path_dirs() -> Result<Vec<PathBuf>> {
+    sys::parse_paths(env::var("PATH")?)
+}
+
+// User functions
+// -------------------------------------------------------------------------------------------------
 
 /// User provides options for a specific user.
 #[cfg(feature = "_libc_")]
@@ -58,20 +203,6 @@ pub fn drop_sudo() -> Result<()> {
         }
         _ => Ok(()),
     }
-}
-
-/// Returns the full path to the current user's home directory.
-///
-/// ### Examples
-/// ```
-/// use fungus::prelude::*;
-///
-/// println!("home directory of the current user: {:?}", user::home().unwrap());
-/// ```
-pub fn home() -> Result<PathBuf> {
-    let os_str = env::var("HOME")?;
-    let dir = PathBuf::from(os_str);
-    Ok(dir)
 }
 
 /// Returns the user ID for the current user.
@@ -374,6 +505,6 @@ mod tests {
         let home_str = env::var("HOME").unwrap();
         let home_path = PathBuf::from(home_str);
         let home_dir = home_path.parent().unwrap();
-        assert_eq!(home_dir.to_path_buf(), user::home().unwrap().dir().unwrap());
+        assert_eq!(home_dir.to_path_buf(), user::home_dir().unwrap().dir().unwrap());
     }
 }

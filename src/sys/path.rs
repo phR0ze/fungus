@@ -512,6 +512,29 @@ pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
     Ok(meta)
 }
 
+/// Parse unix shell pathing e.g. $PATH, $XDG_DATA_DIRS or $XDG_CONFIG_DIRS.
+/// List of directories seperated by :
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let paths = vec![PathBuf::from("/foo1"), PathBuf::from("/foo2/bar")];
+/// assert_iter_eq(sys::parse_paths("/foo1:/foo2/bar").unwrap(), paths);
+/// ```
+pub fn parse_paths<T: AsRef<str>>(value: T) -> Result<Vec<PathBuf>> {
+    let mut paths: Vec<PathBuf> = Vec::new();
+    for dir in value.as_ref().split(':') {
+        // Unix shell semantics: path element "" means "."
+        let path = match dir == "" {
+            true => sys::cwd()?,
+            false => PathBuf::from(dir),
+        };
+        paths.push(path);
+    }
+    Ok(paths)
+}
+
 /// Returns all directories/files for the given path, sorted by filename. Handles path
 /// expansion. Paths are returned as abs paths. Doesn't include the path itself only
 /// its children nor is this recursive.
@@ -1207,11 +1230,11 @@ impl PathExt for Path {
 
             // Single tilda only
             cnt if cnt == 1 && path_str == "~" => {
-                expanded = user::home()?;
+                expanded = user::home_dir()?;
             }
 
             // Replace prefix with home directory
-            1 => expanded = user::home()?.mash(&path_str[2..]),
+            1 => expanded = user::home_dir()?.mash(&path_str[2..]),
             _ => (),
         }
 
@@ -2052,6 +2075,15 @@ mod tests {
         // Clean up
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_parse_paths() {
+        let paths = vec![PathBuf::from("/foo1"), PathBuf::from("/foo2/bar")];
+        assert_iter_eq(sys::parse_paths("/foo1:/foo2/bar").unwrap(), paths);
+
+        let paths = vec![sys::cwd().unwrap(), PathBuf::from("/foo1"), PathBuf::from("/foo2/bar")];
+        assert_iter_eq(sys::parse_paths(":/foo1:/foo2/bar").unwrap(), paths);
     }
 
     #[test]

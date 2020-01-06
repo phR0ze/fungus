@@ -10,18 +10,34 @@ fn main() {
     println!("=====================================================================");
     println!("=                      LIVE TESTING                                 =");
     println!("=====================================================================");
-    println!("CWD:       {:?}", env::current_dir().unwrap());
+    println!("CWD:       {:?}", sys::cwd().unwrap());
     println!("User Name: {:?}", user.name);
-    println!("User Home: {:?}, {:?}", user::home().unwrap(), user.home);
+    println!("User Home: {:?}, {:?}", user::home_dir().unwrap(), user.home);
     println!("User  UID: {:?}, {:?}", user::getuid(), user.uid);
     println!("User  GID: {:?}, {:?}", user::getgid(), user.gid);
     println!("Real Name: {:?}", user.realname);
     println!("Real Home: {:?}", user.realhome);
     println!("User RUID: {:?}", user.ruid);
     println!("User RGID: {:?}", user.rgid);
+    println!("User Config: {:?}", user::config_dir().unwrap());
+    println!("User Cache: {:?}", user::cache_dir().unwrap());
+    println!("User Data: {:?}", user::data_dir().unwrap());
+    println!("User Runtime: {:?}", user::runtime_dir().unwrap());
+    println!("User Data Dirs:");
+    for x in user::data_dirs().unwrap() {
+        println!("  {:?}", x);
+    }
+    println!("User Config Dirs:");
+    for x in user::config_dirs().unwrap() {
+        println!("  {:?}", x);
+    }
+    println!("User Path Dirs:");
+    for x in user::path_dirs().unwrap() {
+        println!("  {:?}", x);
+    }
 
     // Tests
-    assert_ne!(user::home().unwrap(), PathBuf::from("/root"));
+    assert_ne!(user::home_dir().unwrap(), PathBuf::from("/root"));
     test_net(&tmpdir);
     test_exec_lookup(&tmpdir);
     test_sys_chown(&tmpdir);
@@ -42,7 +58,7 @@ fn cleanup<T: AsRef<Path>>(path: T) {
     assert!(sys::remove("Cargo.lock").is_ok());
 }
 
-fn test_net() {
+fn test_net<T: AsRef<Path>>(path: T) {
     let tmpdir = setup(path, "bin_net");
     let file1 = tmpdir.mash("file1");
 
