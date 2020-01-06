@@ -1,5 +1,7 @@
 #[macro_use]
 pub mod core;
+#[cfg(feature = "_arch_")]
+pub mod arch;
 pub mod net;
 pub mod sys;
 
