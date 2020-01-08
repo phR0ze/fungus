@@ -2,7 +2,10 @@
 #[macro_use]
 pub mod macros;
 
+mod arch_error;
 mod file_error;
+mod finally;
+mod git_error;
 mod iter;
 mod iter_error;
 mod logger;
@@ -14,7 +17,10 @@ mod result;
 mod user_error;
 
 // Exports
+pub use arch_error::*;
 pub use file_error::*;
+pub use finally::*;
+pub use git_error::*;
 pub use iter::*;
 pub use iter_error::*;
 pub use logger::*;

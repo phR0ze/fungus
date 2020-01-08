@@ -1,15 +1,19 @@
 // Arch Linux ABS
 // https://wiki.archlinux.org/index.php/Arch_Build_System
 // https://wiki.archlinux.org/index.php/Arch_Build_System#Retrieve_PKGBUILD_source_using_Git
-use git2::build::RepoBuilder;
+cfgblock! {
+    #[cfg(feature = "_arch_")]
+    use git2::{self, build::RepoBuilder};
+    const TMPDIR: &str = "abs";
+    const REPO_PACKAGES_NAME: &str = "packages";
+    const REPO_COMMUNITY_NAME: &str = "community";
+    const REPO_BASE: &str = "https://git.archlinux.org/svntogit";
+}
 
 use crate::prelude::*;
-use failure::bail;
-
-const REPO_PACKAGES_NAME: &str = "packages";
-const REPO_COMMUNITY_NAME: &str = "community";
 
 // An repo identifier
+#[cfg(feature = "_arch_")]
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Repo {
     /// Arch Linux packages repository
@@ -20,19 +24,57 @@ pub enum Repo {
 }
 
 #[cfg(feature = "_arch_")]
-pub fn init<T: AsRef<Path>>(path: T) -> Result<()> {
-    let pkg = "pkgfile".to_string();
-    let path = path.as_ref().abs()?;
+impl Repo {
+    pub fn from<T: AsRef<str>>(repo: T) -> Result<Repo> {
+        match repo.as_ref() {
+            REPO_PACKAGES_NAME => Ok(Repo::Packages),
+            REPO_COMMUNITY_NAME => Ok(Repo::Community),
+            _ => Err(ArchError::repo_not_found(repo.as_ref().to_string()).into()),
+        }
+    }
+}
 
-    // Ensure the destination dir exists
-    sys::mkdir(&path)?;
+/// Get the repo the given `pkg` lives in.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert_eq!(arch::abs::repo("pkgfile").unwrap(), arch::abs::Repo::Packages);
+/// ```
+#[cfg(feature = "_arch_")]
+pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
+    for name in &vec![REPO_PACKAGES_NAME, REPO_COMMUNITY_NAME] {
+        let remote = format!("{}/{}.git", REPO_BASE, name);
+        if net::git::remote_branch_exists(remote, pkg.as_ref()) {
+            return Repo::from(name);
+        }
+    }
+    Err(ArchError::package_not_found(pkg).into())
+}
 
-    // Init the repo at the given destination dir
-    let mut found = false;
-    let mut repo: git2::Repository;
-    for name in vec![REPO_PACKAGES_NAME, REPO_COMMUNITY_NAME] {
-        // Configure the branch to checkout
-        let branch = format!("{}/{}", &name, &pkg);
+/// Download the package source for `pkg` to `dst`.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("abs_soure_doc");
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+///
+/// assert!(arch::abs::source("pkgfile", &tmpdir).is_ok());
+/// assert_eq!(tmpdir.is_dir(), true);
+/// assert_eq!(tmpdir.mash("PKGBUILD").exists(), true);
+///
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+#[cfg(feature = "_arch_")]
+pub fn source<T: AsRef<str>, U: AsRef<Path>>(pkg: T, dst: U) -> Result<()> {
+    for name in &vec![REPO_PACKAGES_NAME, REPO_COMMUNITY_NAME] {
+        let remote = format!("{}/{}.git", REPO_BASE, name);
+        let branch = format!("{}/{}", name, pkg.as_ref());
+
+        // Create the new temp repo
         let mut builder = RepoBuilder::new();
         builder.branch(&branch);
 
@@ -43,51 +85,24 @@ pub fn init<T: AsRef<Path>>(path: T) -> Result<()> {
             repo.remote_with_fetch(name, url, &refspec)
         });
 
-        // Clone the single branch from teh repo
-        match builder.clone(&format!("https://git.archlinux.org/svntogit/{}.git", &name), &path) {
-            Ok(x) => {
-                found = true;
-                repo = x
-            }
-            Err(_) => continue,
+        // Clone the single branch from the repo if it exists
+        let tmpdir = user::temp_dir(TMPDIR)?;
+        let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
+        if let Ok(_) = builder.clone(&remote, &tmpdir) {
+            // Copy out the target source in <tmpdir>/trunk/* to dst
+            let dir = sys::mkdir(&dst)?;
+            sys::copy(tmpdir.mash("trunk/*"), dir)?;
+            return Ok(());
         }
     }
-
-    if !found {
-        bail!("failed to find the package in any repo: {}", &pkg);
-    }
-
-    Ok(())
+    Err(ArchError::package_not_found(pkg).into())
 }
-
-// /// Get the repo the given `pkg` lives in.
-// #[cfg(feature = "_arch_")]
-// pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
-//     let branch = "packages/pkgfile".to_string();
-//     let refspec = format!("+refs/heads/{0:}:refs/remotes/origin/{0:}", &branch);
-
-//     let repo = Repository::init(&path)?;
-//     for x in &vec![REPO_PACKAGES_NAME, REPO_COMMUNITY_NAME] {
-//         let mut remote = repo.remote(x, &format!("https://git.archlinux.org/svntogit/{}.git", x))?;
-
-//         // Fetch the remote branch via a refspec
-//         remote.fetch(&[&refspec], None, None).unwrap();
-
-//         //repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-//         let head = repo.find_reference("FETCH_HEAD")?;
-//         let oid = head.target().unwrap();
-//         let commit = repo.find_commit(oid)?;
-//         repo.branch(&branch, &commit, false)?;
-//         // println!("{:?}", oid);
-//         println!("foo");
-//     }
-// }
 
 // Unit tests
 // -------------------------------------------------------------------------------------------------
+#[cfg(feature = "_arch_")]
 #[cfg(test)]
 mod tests {
-    use crate::arch::abs;
     use crate::prelude::*;
 
     // Reusable teset setup
@@ -103,13 +118,20 @@ mod tests {
     }
 
     #[test]
-    fn test_init() {
+    fn test_repo() {
+        assert_eq!(arch::abs::repo("pkgfile").unwrap(), arch::abs::Repo::Packages);
+    }
+
+    #[test]
+    fn test_source() {
         let setup = Setup::init();
-        let tmpdir = setup.temp.mash("abs_init");
+        let tmpdir = setup.temp.mash("abs_source");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
-        assert!(abs::init(&tmpdir).is_ok());
+        assert!(arch::abs::source("pkgfile", &tmpdir).is_ok());
+        assert_eq!(tmpdir.is_dir(), true);
+        assert_eq!(tmpdir.mash("PKGBUILD").exists(), true);
 
-        // assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::remove_all(&tmpdir).is_ok());
     }
 }

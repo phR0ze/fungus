@@ -5,6 +5,8 @@ cfgblock! {
     use std::mem;
     use std::ptr;
 }
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use std::env;
 use std::path::PathBuf;
 
@@ -64,7 +66,7 @@ pub fn cache_dir() -> Result<PathBuf> {
 
 /// Returns the full path to the current user's data directory.
 /// Where user-specific data files should be written (analogous to /usr/share).
-/// Defaults to $HOME/.local/share.
+/// Defaults to $HOME/.local/share
 ///
 /// ### Examples
 /// ```
@@ -89,20 +91,37 @@ pub fn data_dir() -> Result<PathBuf> {
 /// Can only exist for the duration of the user's login.
 /// Should not store large files as it may be mounted as a tmpfs.
 ///
-/// Defaults to /run/user/<user-id>
+/// Defaults to /tmp if $XDG_RUNTIME_DIR is not set
 ///
 /// ### Examples
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("runtime directory of the current user: {:?}", user::runtime_dir().unwrap());
+/// println!("runtime directory of the current user: {:?}", user::runtime_dir());
 /// ```
-#[cfg(feature = "_libc_")]
-pub fn runtime_dir() -> Result<PathBuf> {
-    Ok(match env::var("XDG_RUNTIME_DIR") {
+pub fn runtime_dir() -> PathBuf {
+    match env::var("XDG_RUNTIME_DIR") {
         Ok(x) => PathBuf::from(x),
-        Err(_) => PathBuf::from(format!("/run/user/{}", user::getuid())),
-    })
+        Err(_) => PathBuf::from("/tmp"),
+    }
+}
+
+/// Returns the full path to a newly created directory in `/tmp` that can be used for temporary
+/// work. The returned path will be checked for uniqueness and created with a random suffix and
+/// the given `prefix`. It is up to the calling code to ensure the directory returned is
+/// properly cleaned up when done with.
+///
+/// ### Examples
+/// ```ignore
+/// use fungus::prelude::*;
+///
+/// println!("temp generated directory for the current user: {:?}", user::temp_dir("foo").unwrap());
+/// ```
+pub fn temp_dir<T: AsRef<str>>(prefix: T) -> Result<PathBuf> {
+    let suffix: String = rand::thread_rng().sample_iter(&Alphanumeric).take(8).collect();
+    let dir = PathBuf::from(format!("/tmp/{}-{}", prefix.as_ref(), suffix));
+    sys::mkdir(&dir)?;
+    Ok(dir)
 }
 
 /// Returns the current user's data directories.
@@ -506,5 +525,13 @@ mod tests {
         let home_path = PathBuf::from(home_str);
         let home_dir = home_path.parent().unwrap();
         assert_eq!(home_dir.to_path_buf(), user::home_dir().unwrap().dir().unwrap());
+    }
+
+    #[test]
+    fn test_temp_dir() {
+        let tmpdir = user::temp_dir("foo").unwrap();
+        assert_eq!(tmpdir.exists(), true);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert_eq!(tmpdir.exists(), false);
     }
 }

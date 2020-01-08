@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod core;
-#[cfg(feature = "_arch_")]
 pub mod arch;
 pub mod net;
 pub mod sys;
@@ -15,8 +14,9 @@ pub mod sys;
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
 pub mod prelude {
+    pub use super::arch;
     pub use super::core::*;
-    pub use super::net::{self, agent};
+    pub use super::net;
     pub use super::sys::{self, exec, ext::*, user};
     pub use super::{cfgblock, fatal};
 
