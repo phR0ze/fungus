@@ -1320,8 +1320,8 @@ mod tests {
         assert_eq!(sys::extract_string_p(&file1, r"'([^']+)'.*").unwrap(), "Citizen Kane");
 
         // multi line
-        assert!(sys::write(&file1, "# test\npkgbase=linux\npkgver=5.4.8.arch1\npkgrel=1\n").is_ok());
-        assert_eq!(sys::extract_string_p(&file1, r"(?m)^pkgver=(\d+\.\d+\.\d+).*").unwrap(), "5.4.8");
+        assert!(sys::write(&file2, "# test\npkgbase=linux\npkgver=5.4.8.arch1\npkgrel=1\n").is_ok());
+        assert_eq!(sys::extract_string_p(&file2, r"(?m)^pkgver=(\d+\.\d+\.\d+).*").unwrap(), "5.4.8");
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
