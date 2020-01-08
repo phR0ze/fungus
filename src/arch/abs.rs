@@ -34,6 +34,28 @@ impl Repo {
     }
 }
 
+/// Get the linux kernel version for the standard `linux` package
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// println!("curren linux kernel version: {:?}", arch::abs::kernel_ver().unwrap());
+/// ```
+#[cfg(feature = "_arch_")]
+pub fn kernel_ver() -> Result<String> {
+    // Download source to tmpdir
+    let tmpdir = user::temp_dir(TMPDIR)?;
+    let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
+    let src = source("linux", &tmpdir)?;
+
+    // Extract the kernel version
+    lazy_static! {
+        static ref RX: Regex = Regex::new(r"(?m)^pkgver=(\d+\.\d+\.\d+).*").unwrap();
+    }
+    sys::extract_string(src.mash("PKGBUILD"), &RX)
+}
+
 /// Get the repo the given `pkg` lives in.
 ///
 /// ### Examples
@@ -69,7 +91,7 @@ pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(feature = "_arch_")]
-pub fn source<T: AsRef<str>, U: AsRef<Path>>(pkg: T, dst: U) -> Result<()> {
+pub fn source<T: AsRef<str>, U: AsRef<Path>>(pkg: T, dst: U) -> Result<PathBuf> {
     for name in &vec![REPO_PACKAGES_NAME, REPO_COMMUNITY_NAME] {
         let remote = format!("{}/{}.git", REPO_BASE, name);
         let branch = format!("{}/{}", name, pkg.as_ref());
@@ -91,8 +113,8 @@ pub fn source<T: AsRef<str>, U: AsRef<Path>>(pkg: T, dst: U) -> Result<()> {
         if let Ok(_) = builder.clone(&remote, &tmpdir) {
             // Copy out the target source in <tmpdir>/trunk/* to dst
             let dir = sys::mkdir(&dst)?;
-            sys::copy(tmpdir.mash("trunk/*"), dir)?;
-            return Ok(());
+            sys::copy(tmpdir.mash("trunk/*"), &dir)?;
+            return Ok(dir);
         }
     }
     Err(ArchError::package_not_found(pkg).into())
@@ -115,6 +137,11 @@ mod tests {
             sys::mkdir(&setup.temp).unwrap();
             setup
         }
+    }
+
+    #[test]
+    fn test_kernel_ver() {
+        assert!(arch::abs::kernel_ver().is_ok());
     }
 
     #[test]

@@ -118,10 +118,13 @@ pub fn runtime_dir() -> PathBuf {
 /// println!("temp generated directory for the current user: {:?}", user::temp_dir("foo").unwrap());
 /// ```
 pub fn temp_dir<T: AsRef<str>>(prefix: T) -> Result<PathBuf> {
-    let suffix: String = rand::thread_rng().sample_iter(&Alphanumeric).take(8).collect();
-    let dir = PathBuf::from(format!("/tmp/{}-{}", prefix.as_ref(), suffix));
-    sys::mkdir(&dir)?;
-    Ok(dir)
+    loop {
+        let suffix: String = rand::thread_rng().sample_iter(&Alphanumeric).take(8).collect();
+        let dir = PathBuf::from(format!("/tmp/{}-{}", prefix.as_ref(), suffix));
+        if !dir.exists() {
+            return sys::mkdir(&dir);
+        }
+    }
 }
 
 /// Returns the current user's data directories.

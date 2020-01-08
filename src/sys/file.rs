@@ -1309,16 +1309,19 @@ mod tests {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("file_extract_string");
         let file1 = tmpdir.mash("file1");
+        let file2 = tmpdir.mash("file2");
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
 
-        // extract_string
-        let rx = Regex::new(r"'([^']+)'\s+\((\d{4})\)").unwrap();
+        // single line
+        let rx = Regex::new(r"'([^']+)'.*").unwrap();
         assert!(sys::write(&file1, "Not my favorite movie: 'Citizen Kane' (1941).").is_ok());
         assert_eq!(sys::extract_string(&file1, &rx).unwrap(), "Citizen Kane");
+        assert_eq!(sys::extract_string_p(&file1, r"'([^']+)'.*").unwrap(), "Citizen Kane");
 
-        // extract_string_p
-        assert_eq!(sys::extract_string_p(&file1, r"'([^']+)'\s+\((\d{4})\)").unwrap(), "Citizen Kane");
+        // multi line
+        assert!(sys::write(&file1, "# test\npkgbase=linux\npkgver=5.4.8.arch1\npkgrel=1\n").is_ok());
+        assert_eq!(sys::extract_string_p(&file1, r"(?m)^pkgver=(\d+\.\d+\.\d+).*").unwrap(), "5.4.8");
 
         // cleanup
         assert!(sys::remove_all(&tmpdir).is_ok());
