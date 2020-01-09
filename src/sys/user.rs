@@ -339,8 +339,7 @@ pub fn is_root() -> bool {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let uid = user::getuid();
-/// println!("lookup the given user: {:?}", user::lookup(uid).unwrap());
+/// assert!(user::lookup(user::getuid()).is_ok());
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn lookup(uid: u32) -> Result<User> {
@@ -548,6 +547,44 @@ mod tests {
         let home_path = PathBuf::from(home_str);
         let home_dir = home_path.parent().unwrap();
         assert_eq!(home_dir.to_path_buf(), user::home_dir().unwrap().dir().unwrap());
+    }
+
+    #[test]
+    fn test_user_ids() {
+        assert!(user::drop_sudo().is_ok());
+        assert!(user::getuid() != 0);
+        assert!(user::getgid() != 0);
+        assert!(user::geteuid() != 0);
+        assert!(user::getegid() != 0);
+        assert_eq!(user::getrids(user::getuid(), user::getgid()), (user::getuid(), user::getgid()));
+        assert_eq!(user::is_root(), false);
+        assert!(user::lookup(user::getuid()).is_ok());
+        assert!(user::name().unwrap() != "".to_string());
+        assert!(user::setegid(user::getegid()).is_ok());
+        assert!(user::setgid(user::getgid()).is_ok());
+        assert!(user::seteuid(user::geteuid()).is_ok());
+        assert!(user::setuid(user::getuid()).is_ok());
+    }
+
+    #[test]
+    fn test_user_dirs() {
+        assert!(user::home_dir().is_ok());
+        assert!(user::config_dir().is_ok());
+        assert!(user::cache_dir().is_ok());
+        assert!(user::data_dir().is_ok());
+        user::runtime_dir();
+        assert!(user::data_dirs().is_ok());
+        assert!(user::config_dirs().is_ok());
+        assert!(user::path_dirs().is_ok());
+        assert!(user::current().is_ok());
+        assert_eq!(user::current().unwrap().is_root(), false);
+
+        let tmpdir = user::temp_dir("test_user_dirs").unwrap();
+        assert_eq!(tmpdir.exists(), true);
+        {
+            let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
+        }
+        assert_eq!(tmpdir.exists(), false);
     }
 
     #[test]
