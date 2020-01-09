@@ -437,7 +437,7 @@ pub fn pause_sudo() -> Result<()> {
 /// Set the user ID for the current user.
 ///
 /// ### Examples
-/// ```
+/// ```ignore
 /// use fungus::prelude::*;
 ///
 /// assert!(user::setuid(user::getuid()).is_ok());
@@ -453,7 +453,7 @@ pub fn setuid(uid: u32) -> Result<()> {
 /// Set the user effective ID for the current user.
 ///
 /// ### Examples
-/// ```
+/// ```ignore
 /// use fungus::prelude::*;
 ///
 /// assert!(user::seteuid(user::geteuid()).is_ok());
@@ -469,7 +469,7 @@ pub fn seteuid(euid: u32) -> Result<()> {
 /// Set the group ID for the current user.
 ///
 /// ### Examples
-/// ```
+/// ```ignore
 /// use fungus::prelude::*;
 ///
 /// assert!(user::setgid(user::getgid()).is_ok());
@@ -485,7 +485,7 @@ pub fn setgid(gid: u32) -> Result<()> {
 /// Set the group effective ID for the current user.
 ///
 /// ### Examples
-/// ```
+/// ```ignore
 /// use fungus::prelude::*;
 ///
 /// assert!(user::setegid(user::getegid()).is_ok());
@@ -549,8 +549,10 @@ mod tests {
         assert_eq!(home_dir.to_path_buf(), user::home_dir().unwrap().dir().unwrap());
     }
 
+    #[cfg(feature = "_libc_")]
     #[test]
-    fn test_user_ids() {
+    fn test_user_libc() {
+        assert!(user::pause_sudo().is_ok());
         assert!(user::drop_sudo().is_ok());
         assert!(user::getuid() != 0);
         assert!(user::getgid() != 0);
@@ -560,10 +562,13 @@ mod tests {
         assert_eq!(user::is_root(), false);
         assert!(user::lookup(user::getuid()).is_ok());
         assert!(user::name().unwrap() != "".to_string());
-        assert!(user::setegid(user::getegid()).is_ok());
-        assert!(user::setgid(user::getgid()).is_ok());
-        assert!(user::seteuid(user::geteuid()).is_ok());
-        assert!(user::setuid(user::getuid()).is_ok());
+        assert!(user::current().is_ok());
+        assert_eq!(user::current().unwrap().is_root(), false);
+        // assert!(user::sudo().is_err());
+        // assert!(user::setegid(user::getegid()).is_ok());
+        // assert!(user::setgid(user::getgid()).is_ok());
+        // assert!(user::seteuid(user::geteuid()).is_ok());
+        // assert!(user::setuid(user::getuid()).is_ok());
     }
 
     #[test]
@@ -576,8 +581,6 @@ mod tests {
         assert!(user::data_dirs().is_ok());
         assert!(user::config_dirs().is_ok());
         assert!(user::path_dirs().is_ok());
-        assert!(user::current().is_ok());
-        assert_eq!(user::current().unwrap().is_root(), false);
 
         let tmpdir = user::temp_dir("test_user_dirs").unwrap();
         assert_eq!(tmpdir.exists(), true);
