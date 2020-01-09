@@ -1703,6 +1703,7 @@ mod tests {
 
         // invalid target
         assert!(sys::all_dirs("").is_err());
+        assert!(sys::all_dirs("foobar").is_err());
 
         // Create the dirs and files
         assert!(sys::mkdir(&tmpdir1).is_ok());
@@ -1741,6 +1742,7 @@ mod tests {
 
         // invalid target
         assert!(sys::all_files("").is_err());
+        assert!(sys::all_files("foobar").is_err());
 
         // Create the dirs and files
         assert!(sys::mkdir(&tmpdir1).is_ok());
@@ -1779,6 +1781,7 @@ mod tests {
 
         // invalid target
         assert!(sys::all_paths("").is_err());
+        assert!(sys::all_paths("foobar").is_err());
 
         // Create the dirs and files
         assert!(sys::mkdir(&tmpdir1).is_ok());
@@ -1817,6 +1820,7 @@ mod tests {
 
         // invalid target
         assert!(sys::dirs("").is_err());
+        assert!(sys::dirs("foobar").is_err());
 
         // Create the dirs and files
         assert!(sys::mkdir(&tmpdir1).is_ok());
@@ -1845,6 +1849,19 @@ mod tests {
     }
 
     #[test]
+    fn test_exists() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("path_exists");
+        let tmpfile = tmpdir.mash("file");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+        assert_eq!(sys::exists(&tmpfile), false);
+        assert!(sys::touch(&tmpfile).is_ok());
+        assert_eq!(sys::exists(&tmpfile), true);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_files() {
         let setup = Setup::init();
         let tmpdir = setup.temp.mash("path_files");
@@ -1855,6 +1872,7 @@ mod tests {
 
         // invalid target
         assert!(sys::files("").is_err());
+        assert!(sys::files("foobar").is_err());
 
         // Create the dirs and files
         assert!(sys::mkdir(&tmpdir1).is_ok());
@@ -1883,6 +1901,18 @@ mod tests {
     }
 
     #[test]
+    fn test_uid() {
+        assert!(sys::uid(".").is_ok());
+        assert!(Path::new(".").uid().is_ok());
+    }
+
+    #[test]
+    fn test_gid() {
+        assert!(sys::gid(".").is_ok());
+        assert!(Path::new(".").gid().is_ok());
+    }
+
+    #[test]
     fn test_is_dir() {
         let setup = Setup::init();
         assert_eq!(sys::is_dir("."), true);
@@ -1899,6 +1929,7 @@ mod tests {
         // setup
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
+        assert_eq!(sys::is_exec(&file1), false);
         assert!(sys::touch_p(&file1, 0o644).is_ok());
         assert_eq!(file1.mode().unwrap(), 0o100644);
         assert_eq!(file1.is_exec(), false);
@@ -1920,10 +1951,28 @@ mod tests {
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
+        assert_eq!(sys::is_file(&tmpfile), false);
         assert!(sys::touch(&tmpfile).is_ok());
         assert_eq!(sys::is_file(tmpfile), true);
 
         // Clean up
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_is_readonly() {
+        let setup = Setup::init();
+        let tmpdir = setup.temp.mash("path_is_readonly");
+        let file1 = tmpdir.mash("file1");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(sys::mkdir(&tmpdir).is_ok());
+
+        assert_eq!(sys::is_readonly(&file1), false);
+        assert!(sys::touch_p(&file1, 0o644).is_ok());
+        assert_eq!(file1.is_readonly(), false);
+        assert!(sys::chmod_p(&file1).unwrap().readonly().chmod().is_ok());
+        assert_eq!(file1.mode().unwrap(), 0o100444);
+        assert_eq!(sys::is_readonly(&file1), true);
         assert!(sys::remove_all(&tmpdir).is_ok());
     }
 
@@ -1936,6 +1985,7 @@ mod tests {
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
+        assert_eq!(sys::is_symlink(&link1), false);
         assert!(sys::touch(&file1).is_ok());
         assert!(sys::symlink(&link1, &file1).is_ok());
         assert_eq!(sys::is_symlink(link1), true);
@@ -2050,6 +2100,7 @@ mod tests {
 
         // invalid target
         assert!(sys::paths("").is_err());
+        assert!(sys::paths("foobar").is_err());
 
         // Create the dirs and files
         assert!(sys::mkdir(&tmpdir1).is_ok());
@@ -2278,11 +2329,11 @@ mod tests {
     #[test]
     fn test_pathext_has() {
         let path = PathBuf::from("/foo/bar");
-        assert!(path.has("foo"));
-        assert!(path.has("/foo"));
-        assert!(path.has("/"));
-        assert!(path.has("/ba"));
-        assert!(!path.has("bob"));
+        assert_eq!(path.has("foo"), true);
+        assert_eq!(path.has("/foo"), true);
+        assert_eq!(path.has("/"), true);
+        assert_eq!(path.has("/ba"), true);
+        assert_eq!(path.has("bob"), false);
     }
 
     #[test]
