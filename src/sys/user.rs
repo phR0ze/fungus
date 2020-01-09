@@ -22,7 +22,7 @@ use crate::prelude::*;
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("home directory of the current user: {:?}", user::home_dir().unwrap());
+/// assert!(user::home_dir().is_ok());
 /// ```
 pub fn home_dir() -> Result<PathBuf> {
     let os_str = env::var("HOME")?;
@@ -38,7 +38,7 @@ pub fn home_dir() -> Result<PathBuf> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("config directory of the current user: {:?}", user::config_dir().unwrap());
+/// assert!(user::config_dir().is_ok());
 /// ```
 pub fn config_dir() -> Result<PathBuf> {
     Ok(match env::var("XDG_CONFIG_HOME") {
@@ -55,7 +55,7 @@ pub fn config_dir() -> Result<PathBuf> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("cache directory of the current user: {:?}", user::cache_dir().unwrap());
+/// assert!(user::cache_dir().is_ok());
 /// ```
 pub fn cache_dir() -> Result<PathBuf> {
     Ok(match env::var("XDG_CACHE_HOME") {
@@ -72,7 +72,7 @@ pub fn cache_dir() -> Result<PathBuf> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("data directory of the current user: {:?}", user::data_dir().unwrap());
+/// assert!(user::data_dir().is_ok());
 /// ```
 pub fn data_dir() -> Result<PathBuf> {
     Ok(match env::var("XDG_DATA_HOME") {
@@ -112,10 +112,15 @@ pub fn runtime_dir() -> PathBuf {
 /// properly cleaned up when done with.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
-/// println!("temp generated directory for the current user: {:?}", user::temp_dir("foo").unwrap());
+/// let tmpdir = user::temp_dir("foo").unwrap();
+/// assert_eq!(tmpdir.exists(), true);
+/// {
+///     let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
+/// }
+/// assert_eq!(tmpdir.exists(), false);
 /// ```
 pub fn temp_dir<T: AsRef<str>>(prefix: T) -> Result<PathBuf> {
     loop {
@@ -135,7 +140,7 @@ pub fn temp_dir<T: AsRef<str>>(prefix: T) -> Result<PathBuf> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("data directories of the current user: {:?}", user::data_dirs().unwrap());
+/// assert!(user::data_dirs().is_ok());
 /// ```
 pub fn data_dirs() -> Result<Vec<PathBuf>> {
     Ok(match env::var("XDG_DATA_DIRS") {
@@ -152,7 +157,7 @@ pub fn data_dirs() -> Result<Vec<PathBuf>> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("config directories of the current user: {:?}", user::config_dirs().unwrap());
+/// assert!(user::config_dirs().is_ok());
 /// ```
 pub fn config_dirs() -> Result<Vec<PathBuf>> {
     Ok(match env::var("XDG_CONFIG_DIRS") {
@@ -168,7 +173,7 @@ pub fn config_dirs() -> Result<Vec<PathBuf>> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("path directories of the current user: {:?}", user::path_dirs().unwrap());
+/// assert!(user::path_dirs().is_ok());
 /// ```
 pub fn path_dirs() -> Result<Vec<PathBuf>> {
     sys::parse_paths(env::var("PATH")?)
@@ -196,12 +201,26 @@ pub struct User {
 #[cfg(feature = "_libc_")]
 impl User {
     /// Returns true if the user is root
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(user::current().unwrap().is_root(), false);
+    /// ```
     pub fn is_root(&self) -> bool {
         self.uid == 0
     }
 }
 
 /// Get the current user
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert!(user::current().is_ok());
+/// ```
 #[cfg(feature = "_libc_")]
 pub fn current() -> Result<User> {
     let user = lookup(unsafe { libc::getuid() })?;
@@ -211,10 +230,10 @@ pub fn current() -> Result<User> {
 /// Switches back to the original user under the sudo mask with no way to go back.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
-/// user::drop_sudo().unwrap();
+/// assert!(user::drop_sudo().is_ok());
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn drop_sudo() -> Result<()> {
@@ -233,7 +252,7 @@ pub fn drop_sudo() -> Result<()> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("user id of the current user: {:?}", user::getuid());
+/// assert!(user::getuid() != 0);
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn getuid() -> u32 {
@@ -246,7 +265,7 @@ pub fn getuid() -> u32 {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("group id of the current user: {:?}", user::getgid());
+/// assert!(user::getgid() != 0);
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn getgid() -> u32 {
@@ -259,7 +278,7 @@ pub fn getgid() -> u32 {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("user effective id of the current user: {:?}", user::geteuid());
+/// assert!(user::geteuid() != 0);
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn geteuid() -> u32 {
@@ -272,7 +291,7 @@ pub fn geteuid() -> u32 {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("group effective id of the current user: {:?}", user::getegid());
+/// assert!(user::getegid() != 0);
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn getegid() -> u32 {
@@ -285,7 +304,7 @@ pub fn getegid() -> u32 {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("real user ids of the given user: {:?}", user::getrids(0, 0));
+/// assert_eq!(user::getrids(user::getuid(), user::getgid()), (user::getuid(), user::getgid()));
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn getrids(uid: u32, gid: u32) -> (u32, u32) {
@@ -307,7 +326,7 @@ pub fn getrids(uid: u32, gid: u32) -> (u32, u32) {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("is the user root: {:?}", user::is_root());
+/// assert_eq!(user::is_root(), false);
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn is_root() -> bool {
@@ -317,10 +336,11 @@ pub fn is_root() -> bool {
 /// Lookup a user by user id
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
-/// println!("lookup the given user: {:?}", user::lookup(1000).unwrap);
+/// let uid = user::getuid();
+/// println!("lookup the given user: {:?}", user::lookup(uid).unwrap());
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn lookup(uid: u32) -> Result<User> {
@@ -385,7 +405,7 @@ pub fn lookup(uid: u32) -> Result<User> {
 /// Returns the current user's name.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
 /// println!("current user name: {:?}", user::name().unwrap());
@@ -402,7 +422,7 @@ pub fn name() -> Result<String> {
 /// ```ignore
 /// use fungus::prelude::*;
 ///
-/// user::pause_sudo().unwrap();
+/// assert!(user::pause_sudo().is_ok());
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn pause_sudo() -> Result<()> {
@@ -418,10 +438,10 @@ pub fn pause_sudo() -> Result<()> {
 /// Set the user ID for the current user.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
-/// user::setuid(1000);
+/// assert!(user::setuid(user::getuid()).is_ok());
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn setuid(uid: u32) -> Result<()> {
@@ -434,10 +454,10 @@ pub fn setuid(uid: u32) -> Result<()> {
 /// Set the user effective ID for the current user.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
-/// user::seteuid(1000);
+/// assert!(user::seteuid(user::geteuid()).is_ok());
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn seteuid(euid: u32) -> Result<()> {
@@ -450,10 +470,10 @@ pub fn seteuid(euid: u32) -> Result<()> {
 /// Set the group ID for the current user.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
-/// user::setgid(1000);
+/// assert!(user::setgid(user::getgid()).is_ok());
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn setgid(gid: u32) -> Result<()> {
@@ -466,10 +486,10 @@ pub fn setgid(gid: u32) -> Result<()> {
 /// Set the group effective ID for the current user.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
-/// user::setegid(1000);
+/// assert!(user::setegid(user::getegid()).is_ok());
 /// ```
 #[cfg(feature = "_libc_")]
 pub fn setegid(egid: u32) -> Result<()> {
