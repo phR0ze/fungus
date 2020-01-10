@@ -40,7 +40,7 @@ impl Repo {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// println!("curren linux kernel version: {:?}", arch::abs::kernel_ver().unwrap());
+/// println!("curren linux kernel version: {:?}", abs::kernel_ver().unwrap());
 /// ```
 #[cfg(feature = "_arch_")]
 pub fn kernel_ver() -> Result<String> {
@@ -62,7 +62,7 @@ pub fn kernel_ver() -> Result<String> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// assert_eq!(arch::abs::repo("pkgfile").unwrap(), arch::abs::Repo::Packages);
+/// assert_eq!(abs::repo("pkgfile").unwrap(), abs::Repo::Packages);
 /// ```
 #[cfg(feature = "_arch_")]
 pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
@@ -84,7 +84,7 @@ pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("abs_soure_doc");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 ///
-/// assert!(arch::abs::source("pkgfile", &tmpdir).is_ok());
+/// assert!(abs::source("pkgfile", &tmpdir).is_ok());
 /// assert_eq!(tmpdir.is_dir(), true);
 /// assert_eq!(tmpdir.mash("PKGBUILD").exists(), true);
 ///
@@ -141,12 +141,14 @@ mod tests {
 
     #[test]
     fn test_kernel_ver() {
-        assert!(arch::abs::kernel_ver().is_ok());
+        assert!(abs::kernel_ver().is_ok());
     }
 
     #[test]
     fn test_repo() {
-        assert_eq!(arch::abs::repo("pkgfile").unwrap(), arch::abs::Repo::Packages);
+        assert!(abs::repo("foobar").is_err());
+        assert_eq!(abs::repo("albert").unwrap(), abs::Repo::Community);
+        assert_eq!(abs::repo("pkgfile").unwrap(), abs::Repo::Packages);
     }
 
     #[test]
@@ -155,9 +157,10 @@ mod tests {
         let tmpdir = setup.temp.mash("abs_source");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
-        assert!(arch::abs::source("pkgfile", &tmpdir).is_ok());
+        assert!(abs::source("pkgfile", &tmpdir).is_ok());
         assert_eq!(tmpdir.is_dir(), true);
         assert_eq!(tmpdir.mash("PKGBUILD").exists(), true);
+        assert!(abs::source("foobar", &tmpdir).is_err());
 
         assert!(sys::remove_all(&tmpdir).is_ok());
     }

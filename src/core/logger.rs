@@ -368,9 +368,12 @@ mod tests {
         trace!("hello trace");
         let data = Logger::data().unwrap();
         assert!(data.starts_with("TRACE["));
+        Logger::enable_color();
+        debug!("hello trace");
         assert!(data.ends_with("hello trace\n"));
 
         // Test silent mode
+        Logger::disable_color();
         if !Logger::silent() {
             Logger::enable_silence();
         }
@@ -380,7 +383,9 @@ mod tests {
         Logger::disable_silence();
 
         // Test stdio
+        info!("hello info");
         Logger::disable_buffer();
+        Logger::flush_buffer();
         Logger::enable_stdout();
         trace!("hello trace");
         Logger::disable_stdout();
@@ -388,6 +393,8 @@ mod tests {
         // Test file logging
         assert_eq!(file1.exists(), false);
         assert!(Logger::enable_file(&file1).is_ok());
+        assert!(Logger::enable_file(&file1).is_ok());
+        assert_eq!(Logger::file(), true);
         info!("hello info");
         warn!("hello warn");
         assert_eq!(file1.exists(), true);
