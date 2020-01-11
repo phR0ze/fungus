@@ -1,5 +1,5 @@
 [package]
-name = "live"
+name = "root"
 version = "0.1.0"
 authors = ["phR0ze"]
 edition = "2018"

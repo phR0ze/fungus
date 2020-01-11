@@ -1,6 +1,7 @@
 #[macro_use]
 pub mod core;
 pub mod arch;
+pub mod enc;
 pub mod net;
 pub mod sys;
 
@@ -16,6 +17,7 @@ pub mod sys;
 pub mod prelude {
     pub use super::arch::*;
     pub use super::core::*;
+    pub use super::enc;
     pub use super::net;
     pub use super::sys::{self, exec, ext::*, user};
     pub use super::{cfgblock, fatal};

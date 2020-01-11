@@ -1,6 +1,6 @@
 [package]
 name = "fungus"
-version = "0.0.65"
+version = "0.0.68"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -28,6 +28,7 @@ lazy_static = "1.4.0"
 chrono = "0.4.10"
 colored = "1.9.1"
 rand = "0.7.2"
+hex = "0.4.0"
 
 # Optional dependencies based on features
 libc = { version = "0.2.66", optional = true }
