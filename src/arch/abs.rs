@@ -147,8 +147,9 @@ mod tests {
     #[test]
     fn test_repo() {
         assert!(abs::repo("foobar").is_err());
-        assert_eq!(abs::repo("albert").unwrap(), abs::Repo::Community);
         assert_eq!(abs::repo("pkgfile").unwrap(), abs::Repo::Packages);
+        //assert_eq!(abs::repo("acme").unwrap(), abs::Repo::Community);
+        assert_eq!(abs::repo("linux").unwrap(), abs::Repo::Packages);
     }
 
     #[test]

@@ -62,36 +62,15 @@ pub fn remote_name<T: AsRef<str>>(repo: T) -> Result<String> {
 mod tests {
     use crate::prelude::*;
 
-    // // Reusable teset setup
-    // struct Setup {
-    //     temp: PathBuf,
-    // }
-    // impl Setup {
-    //     fn init() -> Self {
-    //         let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-    //         sys::mkdir(&setup.temp).unwrap();
-    //         setup
-    //     }
-    // }
-
-    // #[test]
-    // fn test_init() {
-    //     let setup = Setup::init();
-    //     let tmpdir = setup.temp.mash("abs_init");
-    //     assert!(sys::remove_all(&tmpdir).is_ok());
-
-    //     assert!(abs::init(&tmpdir).is_ok());
-
-    //     // assert!(sys::remove_all(&tmpdir).is_ok());
-    // }
-
-    // #[test]
-    // fn test_repo() {
-    //     assert_eq!(abs::repo("pkgfile").unwrap(), abs::Repo::Packages);
-    // }
+    #[test]
+    fn test_remote_branch_exists() {
+        assert_eq!(net::git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "foobar"), false);
+        assert_eq!(net::git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "pkgfile"), true);
+    }
 
     #[test]
     fn test_remote_branch_exists_err() {
+        assert!(net::git::remote_branch_exists_err("https://git.archlinux.org/svntogit/packages.git", "foobar").is_err());
         assert!(net::git::remote_branch_exists_err("https://git.archlinux.org/svntogit/packages.git", "pkgfile").is_ok());
     }
 

@@ -135,15 +135,17 @@ impl Logger {
         opts.stdout = true;
     }
 
-    /// Flush buffer to stdout
+    /// Flush buffer to stdout if not in silent mode else just drop the buffer contents
     pub fn flush_buffer() {
         let mut opts = LOGOPTS.lock().unwrap();
         if opts.output.len() != 0 {
-            if let Ok(x) = str::from_utf8(&opts.output) {
-                let data = x.to_string();
-                opts.output.clear();
-                write!(io::stdout(), "{}", data).unwrap();
+            if !opts.silent {
+                if let Ok(x) = str::from_utf8(&opts.output) {
+                    let data = x.to_string();
+                    write!(io::stdout(), "{}", data).unwrap();
+                }
             }
+            opts.output.clear();
         }
     }
 
@@ -373,19 +375,19 @@ mod tests {
         assert!(data.ends_with("hello trace\n"));
 
         // Test silent mode
+        Logger::flush_buffer();
         Logger::disable_color();
         if !Logger::silent() {
             Logger::enable_silence();
         }
         info!("hello info");
-        let data = Logger::data().unwrap();
-        assert_eq!(data.len(), 0);
+        assert_eq!(Logger::data().unwrap().len(), 0);
+        Logger::flush_buffer();
         Logger::disable_silence();
+        Logger::disable_buffer();
 
         // Test stdio
         info!("hello info");
-        Logger::disable_buffer();
-        Logger::flush_buffer();
         Logger::enable_stdout();
         trace!("hello trace");
         Logger::disable_stdout();

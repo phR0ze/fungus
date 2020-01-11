@@ -5,7 +5,8 @@ authors = ["phR0ze"]
 edition = "2018"
 
 [dependencies.fungus]
-features = ["_libc_", "_crypto_", "_net_"]
+features = ["_libc_", "_crypto_", "_net_", "_arch_"]
 
 [patch.crates-io]
 fungus = { path = "../../../" }
+git2 = { git = "https://github.com/phR0ze/git2-rs", branch = "master" }
