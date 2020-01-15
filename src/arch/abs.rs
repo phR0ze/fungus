@@ -1,6 +1,8 @@
 // Arch Linux ABS
 // https://wiki.archlinux.org/index.php/Arch_Build_System
 // https://wiki.archlinux.org/index.php/Arch_Build_System#Retrieve_PKGBUILD_source_using_Git
+//
+// Inspired by the `asp` tool. Modify `/usr/bin/asp` add `set -x` to top before running
 cfgblock! {
     #[cfg(feature = "_arch_")]
     use git2::{self, build::RepoBuilder};
@@ -67,8 +69,9 @@ pub fn kernel_ver() -> Result<String> {
 #[cfg(feature = "_arch_")]
 pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
     for name in &vec![REPO_PACKAGES_NAME, REPO_COMMUNITY_NAME] {
-        let remote = format!("{}/{}.git", REPO_BASE, name);
-        if net::git::remote_branch_exists(remote, pkg.as_ref()) {
+        let url = format!("{}/{}.git", REPO_BASE, name);
+        let branch = format!("packages/{}", pkg.as_ref());
+        if net::git::remote_branch_exists(url, branch) {
             return Repo::from(name);
         }
     }
@@ -82,6 +85,7 @@ pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("abs_soure_doc");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 ///
 /// assert!(abs::source("pkgfile", &tmpdir).is_ok());
@@ -93,24 +97,13 @@ pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
 #[cfg(feature = "_arch_")]
 pub fn source<T: AsRef<str>, U: AsRef<Path>>(pkg: T, dst: U) -> Result<PathBuf> {
     for name in &vec![REPO_PACKAGES_NAME, REPO_COMMUNITY_NAME] {
-        let remote = format!("{}/{}.git", REPO_BASE, name);
-        let branch = format!("{}/{}", name, pkg.as_ref());
-
-        // Create the new temp repo
-        let mut builder = RepoBuilder::new();
-        builder.branch(&branch);
-
-        // Create the remote with the --single-branch refspec override so that when clone is
-        // called only the indicated branch is downloaded from the server not the whole repo.
-        builder.remote_create(|repo, name, url| {
-            let refspec = format!("+refs/heads/{0:}:refs/remotes/origin/{0:}", &branch);
-            repo.remote_with_fetch(name, url, &refspec)
-        });
+        let url = format!("{}/{}.git", REPO_BASE, name);
+        let branch = format!("packages/{}", pkg.as_ref());
 
         // Clone the single branch from the repo if it exists
         let tmpdir = user::temp_dir(TMPDIR)?;
         let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
-        if let Ok(_) = builder.clone(&remote, &tmpdir) {
+        if let Ok(_) = net::git::clone_branch(url, branch, &tmpdir) {
             // Copy out the target source in <tmpdir>/trunk/* to dst
             let dir = sys::mkdir(&dst)?;
             sys::copy(tmpdir.mash("trunk/*"), &dir)?;
@@ -148,7 +141,7 @@ mod tests {
     fn test_repo() {
         assert!(abs::repo("foobar").is_err());
         assert_eq!(abs::repo("pkgfile").unwrap(), abs::Repo::Packages);
-        //assert_eq!(abs::repo("acme").unwrap(), abs::Repo::Community);
+        assert_eq!(abs::repo("acme").unwrap(), abs::Repo::Community);
         assert_eq!(abs::repo("linux").unwrap(), abs::Repo::Packages);
     }
 

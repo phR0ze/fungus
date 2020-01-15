@@ -65,6 +65,7 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_all_dirs");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let dir1 = tmpdir.mash("dir1");
 /// let dir2 = dir1.mash("dir2");
 /// assert!(sys::mkdir(&dir2).is_ok());
@@ -104,6 +105,7 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_all_files");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let dir1 = tmpdir.mash("dir1");
 /// let file2 = dir1.mash("file2");
@@ -146,6 +148,7 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_all_paths");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let dir1 = tmpdir.mash("dir1");
 /// let file2 = dir1.mash("file2");
@@ -204,6 +207,7 @@ pub fn cwd() -> Result<PathBuf> {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_dirs");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let dir1 = tmpdir.mash("dir1");
 /// let dir2 = tmpdir.mash("dir2");
 /// assert!(sys::mkdir(&dir1).is_ok());
@@ -255,6 +259,7 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_files");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let file1 = tmpdir.mash("file1");
 /// let file2 = tmpdir.mash("file2");
 /// assert!(sys::mkdir(&tmpdir).is_ok());
@@ -463,6 +468,7 @@ pub fn gid<T: AsRef<Path>>(path: T) -> Result<u32> {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_glob");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let dir1 = tmpdir.mash("dir1");
 /// let dir2 = tmpdir.mash("dir2");
 /// let file1 = tmpdir.mash("file1");
@@ -544,6 +550,7 @@ pub fn parse_paths<T: AsRef<str>>(value: T) -> Result<Vec<PathBuf>> {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("path_doc_paths");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let dir1 = tmpdir.mash("dir1");
 /// let dir2 = tmpdir.mash("dir2");
 /// let file1 = tmpdir.mash("file1");

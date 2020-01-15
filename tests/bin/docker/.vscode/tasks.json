@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "command": "bash",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "command": [
+                //"cargo build --release --target x86_64-unknown-linux-musl &&",
+                "docker run --rm -it -v \"$(pwd)\":/home/rust/src -v \"/home/${USER}/.cargo\":/home/rust/.cargo ekidd/rust-musl-builder cargo build --release --target x86_64-unknown-linux-musl &&",
+                "docker build --no-cache=true -t docker:latest ."
+            ]
+        },
+        {
+            "label": "Test",
+            "type": "shell",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "command": [
+                "docker run --rm -it --env RUST_BACKTRACE=1 docker:latest /docker",
+            ]
+        }
+    ]
+}

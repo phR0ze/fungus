@@ -19,6 +19,7 @@ impl<T: FnOnce()> Drop for Finally<T> {
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("core_finally_doc");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 ///
 /// // Create scope that will trigger finally destructor

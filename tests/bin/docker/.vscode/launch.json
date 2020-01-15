@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'live'",
+            "name": "Debug executable 'docker'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=live",
-                    "--package=live"
+                    "--bin=docker",
+                    "--package=docker"
                 ],
                 "filter": {
-                    "name": "live",
+                    "name": "docker",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'live'",
+            "name": "Debug unit tests in executable 'docker'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=live",
-                    "--package=live"
+                    "--bin=docker",
+                    "--package=docker"
                 ],
                 "filter": {
-                    "name": "live",
+                    "name": "docker",
                     "kind": "bin"
                 }
             },
