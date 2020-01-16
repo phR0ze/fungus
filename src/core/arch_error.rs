@@ -8,9 +8,6 @@ cfgblock! {
 #[cfg(feature = "_arch_")]
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Fail)]
 pub enum ArchError {
-    /// An error indicating a failure to convert the file value to a string.
-    FailedToString,
-
     /// An error indicating that the given package was not found.
     PackageNotFound(String),
 
@@ -34,7 +31,6 @@ impl ArchError {
 impl fmt::Display for ArchError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ArchError::FailedToString => write!(f, "failed to convert file value to string"),
             ArchError::PackageNotFound(ref pkg) => write!(f, "failed to find package: {}", pkg),
             ArchError::RepoNotFound(ref repo) => write!(f, "failed to find repo: {}", repo),
         }
@@ -48,7 +44,6 @@ mod tests {
 
     #[test]
     fn test_errors() {
-        assert_eq!(format!("{}", ArchError::FailedToString), "failed to convert file value to string");
         assert_eq!(ArchError::package_not_found("foo"), ArchError::PackageNotFound("foo".to_string()));
         assert_eq!(format!("{}", ArchError::PackageNotFound("foo".to_string())), "failed to find package: foo");
         assert_eq!(ArchError::repo_not_found("foo"), ArchError::RepoNotFound("foo".to_string()));

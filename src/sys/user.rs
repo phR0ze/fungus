@@ -25,8 +25,8 @@ use crate::prelude::*;
 /// assert!(user::home_dir().is_ok());
 /// ```
 pub fn home_dir() -> Result<PathBuf> {
-    let os_str = env::var("HOME")?;
-    let dir = PathBuf::from(os_str);
+    let home = env::var("HOME")?;
+    let dir = PathBuf::from(home);
     Ok(dir)
 }
 

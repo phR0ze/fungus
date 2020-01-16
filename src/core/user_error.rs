@@ -6,9 +6,6 @@ use std::fmt;
 pub enum UserError {
     /// An error indicating that the use does not exist.
     DoesNotExistById(u32),
-
-    /// An error indicating a failure to convert the user value to a string.
-    FailedToString,
 }
 impl UserError {
     /// Return an error indicating that the user does not exist
@@ -21,7 +18,6 @@ impl fmt::Display for UserError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             UserError::DoesNotExistById(ref uid) => write!(f, "user does not exist: {}", uid),
-            UserError::FailedToString => write!(f, "failed to convert user value to string"),
         }
     }
 }
@@ -34,6 +30,5 @@ mod tests {
     fn test_errors() {
         assert_eq!(UserError::does_not_exist_by_id(1000), UserError::DoesNotExistById(1000));
         assert_eq!(format!("{}", UserError::DoesNotExistById(1000)), "user does not exist: 1000");
-        assert_eq!(format!("{}", UserError::FailedToString), "failed to convert user value to string");
     }
 }

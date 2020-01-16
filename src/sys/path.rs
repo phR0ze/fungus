@@ -250,6 +250,69 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
     }
 }
 
+/// Expand all environment variables in the path as well as the home directory.
+///
+/// WARNING: Does not expand partials e.g. "/foo${BAR}ing/blah" only complete components
+/// e.g. "/foo/${BAR}/blah"
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let home = env::var("HOME").unwrap();
+/// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
+/// ```
+pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+    let mut path = path.as_ref().to_path_buf();
+    let pathstr = path.to_string()?;
+
+    // Expand home directory
+    match pathstr.matches("~").count() {
+        // Only home expansion at the begining of the path is allowed
+        cnt if cnt > 1 => return Err(PathError::multiple_home_symbols(path).into()),
+
+        // Invalid home expansion requested
+        cnt if cnt == 1 && !path.has_prefix("~/") && pathstr != "~" => {
+            return Err(PathError::invalid_expansion(path).into());
+        }
+
+        // Single tilda only
+        cnt if cnt == 1 && pathstr == "~" => {
+            path = user::home_dir()?;
+        }
+
+        // Replace prefix with home directory
+        1 => path = user::home_dir()?.mash(&pathstr[2..]),
+        _ => (),
+    }
+
+    // Expand other variables that may exist in the path
+    let pathstr = path.to_string()?;
+    if pathstr.matches("$").some() {
+        let mut path_buf = PathBuf::new();
+        for x in path.components() {
+            match x {
+                Component::Normal(y) => {
+                    let seg = y.to_string()?;
+                    if seg.starts_with("${") {
+                        let var = env::var(&seg[2..seg.size() - 1])?;
+                        path_buf.push(var);
+                    } else if seg.starts_with("$") {
+                        let var = env::var(&seg[1..])?;
+                        path_buf.push(var);
+                    } else {
+                        path_buf.push(seg);
+                    }
+                }
+                _ => path_buf.push(x),
+            }
+        }
+        path = path_buf;
+    }
+
+    Ok(path)
+}
+
 /// Returns all files for the given path, sorted by filename. Handles path expansion.
 /// Paths are returned as abs paths. Doesn't include the path itself only its children nor
 /// is this recursive.
@@ -1040,16 +1103,6 @@ pub trait PathExt {
     /// ```
     fn setperms(&self, perms: fs::Permissions) -> Result<PathBuf>;
 
-    /// Returns a new [`String`] from the `path`.
-    ///
-    /// ### Examples
-    /// ```
-    /// use fungus::prelude::*;
-    ///
-    /// assert_eq!(PathBuf::from("/foo").to_string().unwrap(), "/foo".to_string());
-    /// ```
-    fn to_string(&self) -> Result<String>;
-
     /// Returns a new [`PathBuf`] with the file extension trimmed off.
     ///
     /// ### Examples
@@ -1147,9 +1200,7 @@ impl PathExt for Path {
     }
 
     fn base(&self) -> Result<String> {
-        let os_str = self.file_name().ok_or_else(|| PathError::filename_not_found(self))?;
-        let filename = os_str.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
-        Ok(String::from(filename))
+        self.file_name().ok_or_else(|| PathError::filename_not_found(self))?.to_string()
     }
 
     fn chmod(&self, mode: u32) -> Result<()> {
@@ -1222,35 +1273,12 @@ impl PathExt for Path {
     }
 
     fn expand(&self) -> Result<PathBuf> {
-        let path_str = self.to_string()?;
-        let mut expanded = self.to_path_buf();
-
-        // Check for invalid home expansion
-        match path_str.matches("~").count() {
-            // Only home expansion at the begining of the path is allowed
-            cnt if cnt > 1 => return Err(PathError::multiple_home_symbols(self).into()),
-
-            // Invalid home expansion requested
-            cnt if cnt == 1 && !self.has_prefix("~/") && path_str != "~" => {
-                return Err(PathError::invalid_expansion(self).into());
-            }
-
-            // Single tilda only
-            cnt if cnt == 1 && path_str == "~" => {
-                expanded = user::home_dir()?;
-            }
-
-            // Replace prefix with home directory
-            1 => expanded = user::home_dir()?.mash(&path_str[2..]),
-            _ => (),
-        }
-
-        Ok(expanded)
+        expand(&self)
     }
 
     fn ext(&self) -> Result<String> {
         match self.extension() {
-            Some(val) => Ok(val.to_str().ok_or_else(|| PathError::failed_to_string(self))?.to_string()),
+            Some(val) => val.to_string(),
             None => Err(PathError::extension_not_found(self).into()),
         }
     }
@@ -1381,17 +1409,9 @@ impl PathExt for Path {
         Ok(self.to_path_buf())
     }
 
-    fn to_string(&self) -> Result<String> {
-        let _str = self.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
-        Ok(String::from(_str))
-    }
-
     fn trim_ext(&self) -> Result<PathBuf> {
         Ok(match self.extension() {
-            Some(val) => {
-                let _str = val.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
-                self.trim_suffix(format!(".{}", _str.to_string()))
-            }
+            Some(val) => self.trim_suffix(format!(".{}", val.to_string()?)),
             None => self.to_path_buf(),
         })
     }
@@ -1406,7 +1426,7 @@ impl PathExt for Path {
 
     fn trim_prefix<T: AsRef<Path>>(&self, prefix: T) -> PathBuf {
         match (self.to_string(), prefix.as_ref().to_string()) {
-            (Ok(base), Ok(prefix)) if base.starts_with(&prefix) => PathBuf::from(&base[prefix.len()..]),
+            (Ok(base), Ok(prefix)) if base.starts_with(&prefix) => PathBuf::from(&base[prefix.size()..]),
             _ => self.to_path_buf(),
         }
     }
@@ -1435,7 +1455,7 @@ impl PathExt for Path {
 
     fn trim_suffix<T: AsRef<Path>>(&self, suffix: T) -> PathBuf {
         match (self.to_string(), suffix.as_ref().to_string()) {
-            (Ok(base), Ok(suffix)) if base.ends_with(&suffix) => PathBuf::from(&base[..base.len() - suffix.len()]),
+            (Ok(base), Ok(suffix)) if base.ends_with(&suffix) => PathBuf::from(&base[..base.size() - suffix.size()]),
             _ => self.to_path_buf(),
         }
     }
@@ -2307,13 +2327,13 @@ mod tests {
         // empty path - nothing to do but no error
         assert_eq!(PathBuf::from(""), PathBuf::from("").expand().unwrap());
 
-        // can't safely do this without locking as test are run in parallel
-        // // home not set
-        // {
-        //     env::remove_var("HOME");
-        //     assert!(PathBuf::from("~/foo").expand().is_err());
-        //     env::set_var("HOME", &home);
-        // }
+        // Expand other variables in the path
+        assert_eq!(PathBuf::from("$XDG_CONFIG_HOME").expand().unwrap(), home.mash(".config"));
+        assert_eq!(PathBuf::from("${XDG_CONFIG_HOME}").expand().unwrap(), home.mash(".config"));
+        env::set_var("PATHEXT_EXPAND", "bar");
+        assert_eq!(PathBuf::from("~/foo/$PATHEXT_EXPAND").expand().unwrap(), home.mash("foo/bar"));
+        assert_eq!(PathBuf::from("~/foo/${PATHEXT_EXPAND}").expand().unwrap(), home.mash("foo/bar"));
+        assert_eq!(PathBuf::from("~/foo/$PATHEXT_EXPAND/blah").expand().unwrap(), home.mash("foo/bar/blah"));
     }
 
     #[test]
@@ -2515,11 +2535,6 @@ mod tests {
 
         // share grandparent directory
         assert_eq!(PathBuf::from("blah1/foo1/bar1").relative_from("blah2/foo2/bar2").unwrap(), PathBuf::from("../../blah1/foo1/bar1"));
-    }
-
-    #[test]
-    fn test_pathext_to_string() {
-        assert_eq!("/foo".to_string(), PathBuf::from("/foo").to_string().unwrap());
     }
 
     #[test]

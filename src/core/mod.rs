@@ -14,6 +14,8 @@ mod option;
 mod os_error;
 mod path_error;
 mod result;
+mod string;
+mod string_error;
 mod user_error;
 
 // Exports
@@ -30,6 +32,8 @@ pub use option::*;
 pub use os_error::*;
 pub use path_error::*;
 pub use result::*;
+pub use string::*;
+pub use string_error::*;
 pub use user_error::*;
 
 // Re-exports

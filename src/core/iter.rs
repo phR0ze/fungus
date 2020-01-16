@@ -115,7 +115,7 @@ pub trait IteratorExt: Iterator {
     where
         Self: Sized;
 
-    /// If the iterator yields as single element, that element will be returned, otherwise an
+    /// If the iterator yields a single element, that element will be returned, otherwise an
     /// error will be returned.
     ///
     /// # Examples
@@ -155,6 +155,18 @@ pub trait IteratorExt: Iterator {
         Self: Sized,
         Self: Clone,
         Self: DoubleEndedIterator;
+
+    /// If the iterator yields at least one element, true will be returned else false
+    ///
+    /// # Examples
+    /// ```
+    /// use fungus::core::*;
+    ///
+    /// assert_eq!((0..10).filter(|&x| x == 2).some(), true);
+    /// ```
+    fn some(self) -> bool
+    where
+        Self: Sized;
 }
 
 impl<T: ?Sized> IteratorExt for T
@@ -266,6 +278,16 @@ where
 
         self
     }
+
+    fn some(mut self) -> bool
+    where
+        Self: Sized,
+    {
+        match self.next() {
+            Some(_) => true,
+            None => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -370,5 +392,11 @@ mod tests {
         assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
         assert_eq!((0..10).filter(|&x| x > 2).single().unwrap_err().downcast_ref::<IterError>(), Some(&IterError::multiple_items_found()));
         assert_eq!((0..10).filter(|&x| x > 2 && x < 5).single().unwrap_err().downcast_ref::<IterError>(), Some(&IterError::multiple_items_found()));
+    }
+
+    #[test]
+    fn test_some() {
+        assert_eq!((0..10).filter(|&x| x == 2).some(), true);
+        assert_eq!((0..10).filter(|&x| x == 11).some(), false);
     }
 }
