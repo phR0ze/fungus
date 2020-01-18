@@ -1,6 +1,7 @@
 cfgblock! {
     #[cfg(any(feature = "_net_", feature = "_arch_"))]
-    use git2::{self, build::RepoBuilder};
+    use git2::{self, FetchOptions, Progress, RemoteCallbacks};
+    use git2::build::{CheckoutBuilder, RepoBuilder};
     const TMPDIR: &str = "git";
 }
 
@@ -116,6 +117,27 @@ pub fn remote_branch_exists_err<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U)
     Ok(())
 }
 
+/// Clone the repo locally with progress callback. Clones the entire repo.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_clone_with_progress_doc");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("README.md");
+/// assert_eq!(tmpfile.exists(), false);
+/// assert!(git::clone("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
+/// assert_eq!(tmpfile.exists(), true);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+#[cfg(any(feature = "_net_", feature = "_arch_"))]
+pub fn clone_with_progress<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U, fetchopts: FetchOptions, checkout: CheckoutBuilder) -> Result<PathBuf> {
+    RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout).clone(url.as_ref(), dst.as_ref())?;
+    Ok(dst.as_ref().to_path_buf())
+}
+
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
@@ -123,22 +145,53 @@ pub fn remote_branch_exists_err<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U)
 mod tests {
     use crate::prelude::*;
 
-    // Reusable teset setup
-    struct Setup {
-        temp: PathBuf,
+    // Test setup
+    fn setup<T: AsRef<Path>>(path: T) -> PathBuf {
+        let temp = PathBuf::from("tests/temp").abs().unwrap();
+        sys::mkdir(&temp).unwrap();
+        temp.mash(path.as_ref())
     }
-    impl Setup {
-        fn init() -> Self {
-            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-            sys::mkdir(&setup.temp).unwrap();
-            setup
-        }
+
+    #[test]
+    fn test_clone_with_progress() {
+        let tmpdir = setup("git_cone_with_progress");
+        let repo1 = tmpdir.mash("repo1");
+        let repo1file = repo1.mash("README.md");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+
+        // // Transfer progress callback
+        // let mut cb = git::RemoteCallbacks::new();
+        // cb.transfer_progress(|stats| {
+        //     println!("Total Objects: {:?}", stats.total_objects());
+        //     println!("Indexed Objects: {:?}", stats.indexed_objects());
+        //     println!("Received Objects: {:?}", stats.received_objects());
+        //     println!("Local Objects: {:?}", stats.local_objects());
+        //     println!("Total Deltas: {:?}", stats.total_deltas());
+        //     println!("Indexed Deltas: {:?}", stats.indexed_deltas());
+        //     println!("Received Bytes: {:?}", stats.received_bytes());
+        //     true
+        // });
+        // let mut fo = git::FetchOptions::new();
+        // fo.remote_callbacks(cb);
+
+        // // Checkout progress callback
+        // let mut co = git::CheckoutBuilder::new();
+        // co.progress(|path, cur, total| {
+        //     //
+        // });
+
+        // // Clone repo 1
+        // assert_eq!(repo1file.exists(), false);
+        // assert!(git::clone_with_progress("https://github.com/phR0ze/alpine-base.git", &repo1, fo, co).is_ok());
+        // assert_eq!(sys::readlines(&repo1file).unwrap()[0], "alpine-base".to_string());
+        // assert_eq!(repo1file.exists(), true);
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
     }
 
     #[test]
     fn test_clone() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("git_clone");
+        let tmpdir = setup("git_clone");
         let repo1 = tmpdir.mash("repo1");
         let repo2 = tmpdir.mash("repo2");
         let repo1file = repo1.mash("README.md");
@@ -162,8 +215,7 @@ mod tests {
 
     #[test]
     fn test_clone_branch() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("git_clone_branch");
+        let tmpdir = setup("git_clone_branch");
         let repo1 = tmpdir.mash("repo1");
         let repo2 = tmpdir.mash("repo2");
         let repo1file = repo1.mash("README.md");

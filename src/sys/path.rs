@@ -1668,16 +1668,11 @@ impl PathColorExt for Path {
 mod tests {
     use crate::prelude::*;
 
-    // Reusable teset setup
-    struct Setup {
-        temp: PathBuf,
-    }
-    impl Setup {
-        fn init() -> Self {
-            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-            sys::mkdir(&setup.temp).unwrap();
-            setup
-        }
+    // Test setup
+    fn setup() -> PathBuf {
+        let temp = PathBuf::from("tests/temp").abs().unwrap();
+        sys::mkdir(&temp).unwrap();
+        temp
     }
 
     #[test]
@@ -1721,8 +1716,7 @@ mod tests {
 
     #[test]
     fn test_all_dirs() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_all_dirs");
+        let tmpdir = setup().mash("path_all_dirs");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir1.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -1760,8 +1754,7 @@ mod tests {
 
     #[test]
     fn test_all_files() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_all_files");
+        let tmpdir = setup().mash("path_all_files");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir1.mash("dir2");
         let tmpfile1 = tmpdir1.mash("file1");
@@ -1799,8 +1792,7 @@ mod tests {
 
     #[test]
     fn test_all_paths() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_all_paths");
+        let tmpdir = setup().mash("path_all_paths");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir1.mash("dir2");
         let tmpfile1 = tmpdir1.mash("file1");
@@ -1838,8 +1830,7 @@ mod tests {
 
     #[test]
     fn test_dirs() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_dirs");
+        let tmpdir = setup().mash("path_dirs");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -1877,8 +1868,7 @@ mod tests {
 
     #[test]
     fn test_exists() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_exists");
+        let tmpdir = setup().mash("path_exists");
         let tmpfile = tmpdir.mash("file");
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
@@ -1890,8 +1880,7 @@ mod tests {
 
     #[test]
     fn test_files() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_files");
+        let tmpdir = setup().mash("path_files");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -1941,16 +1930,14 @@ mod tests {
 
     #[test]
     fn test_is_dir() {
-        let setup = Setup::init();
         assert_eq!(sys::is_dir("."), true);
-        assert_eq!(sys::is_dir(setup.temp), true);
+        assert_eq!(sys::is_dir(setup()), true);
         assert_eq!(sys::is_dir("/foobar"), false);
     }
 
     #[test]
     fn test_is_exec() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_is_exec");
+        let tmpdir = setup().mash("path_is_exec");
         let file1 = tmpdir.mash("file1");
 
         // setup
@@ -1972,8 +1959,7 @@ mod tests {
 
     #[test]
     fn test_is_file() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_is_file");
+        let tmpdir = setup().mash("path_is_file");
         let tmpfile = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1988,8 +1974,7 @@ mod tests {
 
     #[test]
     fn test_is_readonly() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_is_readonly");
+        let tmpdir = setup().mash("path_is_readonly");
         let file1 = tmpdir.mash("file1");
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
@@ -2005,8 +1990,7 @@ mod tests {
 
     #[test]
     fn test_is_symlink() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_is_symlink");
+        let tmpdir = setup().mash("path_is_symlink");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
 
@@ -2023,8 +2007,7 @@ mod tests {
 
     #[test]
     fn test_is_symlink_dir() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_is_symlink_dir");
+        let tmpdir = setup().mash("path_is_symlink_dir");
         let dir1 = tmpdir.mash("dir1");
         let link1 = tmpdir.mash("link1");
         let link2 = tmpdir.mash("link2");
@@ -2049,8 +2032,7 @@ mod tests {
 
     #[test]
     fn test_is_symlink_file() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_is_symlink_file");
+        let tmpdir = setup().mash("path_is_symlink_file");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
         let link2 = tmpdir.mash("link2");
@@ -2079,8 +2061,7 @@ mod tests {
 
     #[test]
     fn test_glob() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_glob");
+        let tmpdir = setup().mash("path_glob");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -2111,15 +2092,13 @@ mod tests {
 
     #[test]
     fn test_metadata() {
-        let setup = Setup::init();
-        let meta = sys::metadata(setup.temp).unwrap();
+        let meta = sys::metadata(setup()).unwrap();
         assert_eq!(meta.is_dir(), true);
     }
 
     #[test]
     fn test_paths() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_paths");
+        let tmpdir = setup().mash("path_paths");
         let tmpdir1 = tmpdir.mash("dir1");
         let tmpdir2 = tmpdir.mash("dir2");
         let tmpfile1 = tmpdir.mash("file1");
@@ -2166,8 +2145,7 @@ mod tests {
 
     #[test]
     fn test_readlink() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_readlink");
+        let tmpdir = setup().mash("path_readlink");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
 
@@ -2216,8 +2194,7 @@ mod tests {
 
     #[test]
     fn test_pathext_chmod() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_pathbuf_chmod");
+        let tmpdir = setup().mash("path_pathbuf_chmod");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -2306,8 +2283,7 @@ mod tests {
 
     #[test]
     fn test_pathext_exists() {
-        let setup = Setup::init();
-        assert_eq!(setup.temp.exists(), true);
+        assert_eq!(setup().exists(), true);
     }
 
     #[test]
@@ -2379,8 +2355,7 @@ mod tests {
 
     #[test]
     fn test_pathext_is_dir() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_pathext_is_dir");
+        let tmpdir = setup().mash("path_pathext_is_dir");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert_eq!(tmpdir.is_dir(), false);
@@ -2393,8 +2368,7 @@ mod tests {
 
     #[test]
     fn test_pathext_is_file() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_pathext_is_file");
+        let tmpdir = setup().mash("path_pathext_is_file");
         let tmpfile = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -2408,8 +2382,7 @@ mod tests {
 
     #[test]
     fn test_pathext_is_symlink_file() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_pathext_is_symlink_file");
+        let tmpdir = setup().mash("path_pathext_is_symlink_file");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
 
@@ -2435,8 +2408,7 @@ mod tests {
 
     #[test]
     fn test_pathext_metadata() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_pathext_metadata");
+        let tmpdir = setup().mash("path_pathext_metadata");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(tmpdir.metadata().is_err());
@@ -2458,15 +2430,13 @@ mod tests {
 
     #[test]
     fn test_pathext_meta() {
-        let setup = Setup::init();
-        let meta = setup.temp.metadata().unwrap();
+        let meta = setup().metadata().unwrap();
         assert_eq!(meta.is_dir(), true);
     }
 
     #[test]
     fn test_pathext_mode() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_pathbuf_mode");
+        let tmpdir = setup().mash("path_pathbuf_mode");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -2487,8 +2457,7 @@ mod tests {
 
     #[test]
     fn test_pathext_perms() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_pathbuf_perms");
+        let tmpdir = setup().mash("path_pathbuf_perms");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -2501,8 +2470,7 @@ mod tests {
 
     #[test]
     fn test_pathext_setperms() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("path_pathbuf_setperms");
+        let tmpdir = setup().mash("path_pathbuf_setperms");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());

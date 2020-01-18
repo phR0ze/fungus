@@ -36,22 +36,16 @@ pub fn finally<T: FnOnce()>(func: T) -> Finally<T> {
 mod tests {
     use crate::prelude::*;
 
-    // Reusable teset setup
-    struct Setup {
-        temp: PathBuf,
-    }
-    impl Setup {
-        fn init() -> Self {
-            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-            sys::mkdir(&setup.temp).unwrap();
-            setup
-        }
+    // Test setup
+    fn setup<T: AsRef<Path>>(path: T) -> PathBuf {
+        let temp = PathBuf::from("tests/temp").abs().unwrap();
+        sys::mkdir(&temp).unwrap();
+        temp.mash(path.as_ref())
     }
 
     #[test]
     fn test_finally() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("core_finally");
+        let tmpdir = setup("core_finally");
         assert!(sys::mkdir(&tmpdir).is_ok());
 
         // Create scope that will trigger finally destructor

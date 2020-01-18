@@ -274,16 +274,11 @@ impl log::Log for Logger {
 mod tests {
     use crate::prelude::*;
 
-    // Reusable teset setup
-    struct Setup {
-        temp: PathBuf,
-    }
-    impl Setup {
-        fn init() -> Self {
-            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-            sys::mkdir(&setup.temp).unwrap();
-            setup
-        }
+    // Test setup
+    fn setup<T: AsRef<Path>>(path: T) -> PathBuf {
+        let temp = PathBuf::from("tests/temp").abs().unwrap();
+        sys::mkdir(&temp).unwrap();
+        temp.mash(path.as_ref())
     }
 
     #[test]
@@ -302,8 +297,7 @@ mod tests {
 
     #[test]
     fn test_init() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("logger_log");
+        let tmpdir = setup("logger_log");
         let file1 = tmpdir.mash("file1");
         assert!(sys::remove_all(&tmpdir).is_ok());
 

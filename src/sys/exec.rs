@@ -72,21 +72,8 @@ pub fn name() -> Result<String> {
 mod tests {
     use crate::prelude::*;
 
-    // Reusable teset setup
-    struct Setup {
-        temp: PathBuf,
-    }
-    impl Setup {
-        fn init() -> Self {
-            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-            sys::mkdir(&setup.temp).unwrap();
-            setup
-        }
-    }
-
     #[test]
     fn test_dir() {
-        Setup::init();
         let cwd = env::current_dir().unwrap();
         let dir = cwd.mash("target/debug/deps");
         assert_eq!(exec::dir().unwrap(), dir);
@@ -95,7 +82,6 @@ mod tests {
     // Can't modify PATH in parallel
     // #[test]
     // fn test_lookup() {
-    //     let setup = Setup::init();
     //     let tmpdir = setup.temp.mash("exec_lookup");
     //     let file1 = tmpdir.mash("file1");
     //     assert!(sys::remove_all(&tmpdir).is_ok());

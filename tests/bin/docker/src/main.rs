@@ -2,7 +2,7 @@ use fungus::prelude::*;
 
 fn main() -> Result<()> {
     println!("=====================================================================");
-    println!("=                         LIVE TESTING                              =");
+    println!("=                        DOCKER TESTING                             =");
     println!("=====================================================================");
     println!("HOME: {:?}", user::home_dir().unwrap());
     test_git()?;
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
 fn test_git() -> Result<()> {
     assert_eq!(git::remote_branch_exists("https://github.com/phR0ze/fungus", "master"), true);
-    //assert_eq!(git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "pkgfile"), true);
+    assert_eq!(git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "packages/pkgfile"), true);
     println!("Git tests passed!");
     Ok(())
 }

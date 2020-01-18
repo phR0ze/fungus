@@ -5,7 +5,6 @@
 // Inspired by the `asp` tool. Modify `/usr/bin/asp` add `set -x` to top before running
 cfgblock! {
     #[cfg(feature = "_arch_")]
-    use git2::{self, build::RepoBuilder};
     const TMPDIR: &str = "abs";
     const REPO_PACKAGES_NAME: &str = "packages";
     const REPO_COMMUNITY_NAME: &str = "community";
@@ -120,16 +119,11 @@ pub fn source<T: AsRef<str>, U: AsRef<Path>>(pkg: T, dst: U) -> Result<PathBuf> 
 mod tests {
     use crate::prelude::*;
 
-    // Reusable teset setup
-    struct Setup {
-        temp: PathBuf,
-    }
-    impl Setup {
-        fn init() -> Self {
-            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-            sys::mkdir(&setup.temp).unwrap();
-            setup
-        }
+    // Test setup
+    fn setup<T: AsRef<Path>>(path: T) -> PathBuf {
+        let temp = PathBuf::from("tests/temp").abs().unwrap();
+        sys::mkdir(&temp).unwrap();
+        temp.mash(path.as_ref())
     }
 
     #[test]
@@ -147,8 +141,7 @@ mod tests {
 
     #[test]
     fn test_source() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("abs_source");
+        let tmpdir = setup("abs_source");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
         assert!(abs::source("pkgfile", &tmpdir).is_ok());

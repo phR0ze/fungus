@@ -954,22 +954,16 @@ pub fn writelines_p<T: AsRef<Path>>(path: T, data: &Vec<String>, mode: u32) -> R
 mod tests {
     use crate::prelude::*;
 
-    // Reusable teset setup
-    struct Setup {
-        temp: PathBuf,
-    }
-    impl Setup {
-        fn init() -> Self {
-            let setup = Self { temp: PathBuf::from("tests/temp").abs().unwrap() };
-            sys::mkdir(&setup.temp).unwrap();
-            setup
-        }
+    // Test setup
+    fn setup() -> PathBuf {
+        let temp = PathBuf::from("tests/temp").abs().unwrap();
+        sys::mkdir(&temp).unwrap();
+        temp
     }
 
     #[test]
     fn test_chmod() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_chmod");
+        let tmpdir = setup().mash("file_chmod");
         let file1 = tmpdir.mash("file1");
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -986,8 +980,7 @@ mod tests {
 
     #[test]
     fn test_chmod_p() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_chmod_p");
+        let tmpdir = setup().mash("file_chmod_p");
         let dir1 = tmpdir.mash("dir1");
         let file1 = dir1.mash("file1");
         let dir2 = dir1.mash("dir2");
@@ -1041,8 +1034,7 @@ mod tests {
 
     #[test]
     fn test_chmod_p_symbolic() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_chmod_p_symbolic");
+        let tmpdir = setup().mash("file_chmod_p_symbolic");
         let file1 = tmpdir.mash("file1");
 
         // setup
@@ -1096,8 +1088,7 @@ mod tests {
 
     #[test]
     fn test_copy_empty() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_copy_empty");
+        let tmpdir = setup().mash("file_copy_empty");
         let file1 = tmpdir.mash("file1");
 
         // source doesn't exist
@@ -1107,8 +1098,7 @@ mod tests {
 
     #[test]
     fn test_copy_link_dir() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_copy_link_dir");
+        let tmpdir = setup().mash("file_copy_link_dir");
         let dirlink = tmpdir.mash("dirlink");
         let dir1 = tmpdir.mash("dir1");
         let dir1file = dir1.mash("file");
@@ -1143,8 +1133,7 @@ mod tests {
 
     #[test]
     fn test_copy_dir_copy() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_copy_dir_copy");
+        let tmpdir = setup().mash("file_copy_dir_copy");
         let dir1 = tmpdir.mash("dir1");
         let dir1file = dir1.mash("file");
         let dir2 = tmpdir.mash("dir2");
@@ -1170,8 +1159,7 @@ mod tests {
 
     #[test]
     fn test_copy_dir_clone() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_copy_dir_clone");
+        let tmpdir = setup().mash("file_copy_dir_clone");
         let dir1 = tmpdir.mash("dir1");
         let dir1file = dir1.mash("file");
         let dir2 = tmpdir.mash("dir2");
@@ -1196,8 +1184,7 @@ mod tests {
 
     #[test]
     fn test_copy_single_file() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_copy_single_file");
+        let tmpdir = setup().mash("file_copy_single_file");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
 
@@ -1220,8 +1207,7 @@ mod tests {
 
     #[test]
     fn test_copyfile() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_copyfile");
+        let tmpdir = setup().mash("file_copyfile");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
         let link1 = tmpdir.mash("link1");
@@ -1265,8 +1251,7 @@ mod tests {
 
     #[test]
     fn test_copyfile_p() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_copyfile_p");
+        let tmpdir = setup().mash("file_copyfile_p");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
 
@@ -1286,8 +1271,7 @@ mod tests {
     #[test]
     #[cfg(feature = "_crypto_")]
     fn test_digest() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_digest");
+        let tmpdir = setup().mash("file_digest");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
 
@@ -1306,8 +1290,7 @@ mod tests {
 
     #[test]
     fn test_extract_string() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_extract_string");
+        let tmpdir = setup().mash("file_extract_string");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1329,8 +1312,7 @@ mod tests {
 
     #[test]
     fn test_extract_strings() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_extract_strings");
+        let tmpdir = setup().mash("file_extract_strings");
         let file1 = tmpdir.mash("file1");
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(sys::mkdir(&tmpdir).is_ok());
@@ -1353,8 +1335,7 @@ mod tests {
 
     #[test]
     fn test_mkdir_p() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_mkdir_p");
+        let tmpdir = setup().mash("file_mkdir_p");
         let dir1 = tmpdir.mash("dir1");
         let dir2 = tmpdir.mash("dir2");
 
@@ -1373,8 +1354,7 @@ mod tests {
 
     #[test]
     fn test_move_p() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_move_p");
+        let tmpdir = setup().mash("file_move_p");
         let file1 = tmpdir.mash("file1");
         let file2 = tmpdir.mash("file2");
         let dir1 = tmpdir.mash("dir1");
@@ -1419,8 +1399,7 @@ mod tests {
 
     #[test]
     fn test_readbytes() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_readbytes");
+        let tmpdir = setup().mash("file_readbytes");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1437,8 +1416,7 @@ mod tests {
 
     #[test]
     fn test_readlines() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_readlines");
+        let tmpdir = setup().mash("file_readlines");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1455,8 +1433,7 @@ mod tests {
 
     #[test]
     fn test_readlines_p() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_readlines_p");
+        let tmpdir = setup().mash("file_readlines_p");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1473,8 +1450,7 @@ mod tests {
 
     #[test]
     fn test_readstring() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_readstring");
+        let tmpdir = setup().mash("file_readstring");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1491,9 +1467,8 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_remove_dir");
-        let tmpfile = setup.temp.mash("remove_file");
+        let tmpdir = setup().mash("file_remove_dir");
+        let tmpfile = setup().mash("remove_file");
 
         // Remove empty directory
         assert!(sys::mkdir(&tmpdir).is_ok());
@@ -1510,8 +1485,7 @@ mod tests {
 
     #[test]
     fn test_remove_all() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_remove_all");
+        let tmpdir = setup().mash("file_remove_all");
 
         assert!(sys::mkdir(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), true);
@@ -1549,8 +1523,7 @@ mod tests {
 
     #[test]
     fn test_symlink() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_symlink");
+        let tmpdir = setup().mash("file_symlink");
         let file1 = tmpdir.mash("file1");
         let link1 = tmpdir.mash("link1");
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -1567,8 +1540,7 @@ mod tests {
 
     #[test]
     fn test_touch() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_touch");
+        let tmpdir = setup().mash("file_touch");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1584,8 +1556,7 @@ mod tests {
 
     #[test]
     fn test_touch_p() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_touch_p");
+        let tmpdir = setup().mash("file_touch_p");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1602,8 +1573,7 @@ mod tests {
 
     #[test]
     fn test_write() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_write");
+        let tmpdir = setup().mash("file_write");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1620,8 +1590,7 @@ mod tests {
 
     #[test]
     fn test_write_p() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_write_p");
+        let tmpdir = setup().mash("file_write_p");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1639,8 +1608,7 @@ mod tests {
 
     #[test]
     fn test_writelines() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_writelines");
+        let tmpdir = setup().mash("file_writelines");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
@@ -1658,8 +1626,7 @@ mod tests {
 
     #[test]
     fn test_writelines_p() {
-        let setup = Setup::init();
-        let tmpdir = setup.temp.mash("file_writelines_p");
+        let tmpdir = setup().mash("file_writelines_p");
         let tmpfile = tmpdir.mash("file1");
 
         // setup
