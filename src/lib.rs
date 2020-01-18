@@ -18,9 +18,14 @@ pub mod prelude {
     pub use super::arch::*;
     pub use super::core::*;
     pub use super::enc;
-    pub use super::net::{self, agent, git};
+    pub use super::net::{self, agent};
     pub use super::sys::{self, exec, ext::*, user};
     pub use super::{cfgblock, fatal};
+
+    cfgblock! {
+        #[cfg(any(feature = "_net_", feature = "_arch_"))]
+        pub use super::net::git;
+    }
 
     // Re-exports
     //----------------------------------------------------------------------------------------------
