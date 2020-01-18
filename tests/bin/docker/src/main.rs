@@ -20,8 +20,8 @@ fn main() -> Result<()> {
 // }
 
 fn test_git() -> Result<()> {
-    assert_eq!(net::git::remote_branch_exists("https://github.com/phR0ze/fungus", "master"), true);
-    //assert_eq!(net::git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "pkgfile"), true);
+    assert_eq!(git::remote_branch_exists("https://github.com/phR0ze/fungus", "master"), true);
+    //assert_eq!(git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "pkgfile"), true);
     println!("Git tests passed!");
     Ok(())
 }

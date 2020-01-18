@@ -17,7 +17,7 @@ use crate::prelude::*;
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("README.md");
 /// assert_eq!(tmpfile.exists(), false);
-/// assert!(net::git::clone("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
+/// assert!(git::clone("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
 /// assert_eq!(tmpfile.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
@@ -40,7 +40,7 @@ pub fn clone<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U) -> Result<PathBuf> {
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("README.md");
 /// assert_eq!(tmpfile.exists(), false);
-/// assert!(net::git::clone_branch("https://github.com/phR0ze/alpine-base.git", "master", &tmpdir).is_ok());
+/// assert!(git::clone_branch("https://github.com/phR0ze/alpine-base.git", "master", &tmpdir).is_ok());
 /// assert_eq!(tmpfile.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
@@ -80,7 +80,7 @@ pub fn clone_branch<T: AsRef<str>, U: AsRef<str>, V: AsRef<Path>>(url: T, branch
 /// ```
 /// use fungus::prelude::*;
 ///
-/// assert!(net::git::remote_branch_exists("https://github.com/phR0ze/alpine-base.git", "master"));
+/// assert!(git::remote_branch_exists("https://github.com/phR0ze/alpine-base.git", "master"));
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
 pub fn remote_branch_exists<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U) -> bool {
@@ -97,7 +97,7 @@ pub fn remote_branch_exists<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U) -> 
 /// ```
 /// use fungus::prelude::*;
 ///
-/// assert!(net::git::remote_branch_exists_err("https://github.com/phR0ze/alpine-base.git", "master").is_ok());
+/// assert!(git::remote_branch_exists_err("https://github.com/phR0ze/alpine-base.git", "master").is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
 pub fn remote_branch_exists_err<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U) -> Result<()> {
@@ -147,13 +147,13 @@ mod tests {
 
         // Clone repo 1
         assert_eq!(repo1file.exists(), false);
-        assert!(net::git::clone("https://github.com/phR0ze/alpine-base.git", &repo1).is_ok());
+        assert!(git::clone("https://github.com/phR0ze/alpine-base.git", &repo1).is_ok());
         assert_eq!(sys::readlines(&repo1file).unwrap()[0], "alpine-base".to_string());
         assert_eq!(repo1file.exists(), true);
 
         // Clone repo 2
         assert_eq!(repo2file.exists(), false);
-        assert!(net::git::clone("https://github.com/phR0ze/alpine-core.git", &repo2).is_ok());
+        assert!(git::clone("https://github.com/phR0ze/alpine-core.git", &repo2).is_ok());
         assert_eq!(sys::readlines(&repo2file).unwrap()[0], "alpine-core".to_string());
         assert_eq!(repo2file.exists(), true);
 
@@ -172,13 +172,13 @@ mod tests {
 
         // Clone single branch only repo 1
         assert_eq!(repo1file.exists(), false);
-        assert!(net::git::clone_branch("https://github.com/phR0ze/alpine-base.git", "master", &repo1).is_ok());
+        assert!(git::clone_branch("https://github.com/phR0ze/alpine-base.git", "master", &repo1).is_ok());
         assert_eq!(sys::readlines(&repo1file).unwrap()[0], "alpine-base".to_string());
         assert_eq!(repo1file.exists(), true);
 
         // Clone single branch only repo 2
         assert_eq!(repo2file.exists(), false);
-        assert!(net::git::clone_branch("https://git.archlinux.org/svntogit/packages.git", "packages/pkgfile", &repo2).is_ok());
+        assert!(git::clone_branch("https://git.archlinux.org/svntogit/packages.git", "packages/pkgfile", &repo2).is_ok());
         assert_eq!(repo2file.exists(), true);
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -186,17 +186,17 @@ mod tests {
 
     #[test]
     fn test_remote_branch_exists() {
-        assert_eq!(net::git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "packages/foobar"), false);
-        assert_eq!(net::git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "packages/pkgfile"), true);
-        assert_eq!(net::git::remote_branch_exists("https://github.com/phR0ze/alpine-base.git", "master"), true);
-        assert_eq!(net::git::remote_branch_exists("https://git.archlinux.org/svntogit/community.git", "packages/acme"), true);
+        assert_eq!(git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "packages/foobar"), false);
+        assert_eq!(git::remote_branch_exists("https://git.archlinux.org/svntogit/packages.git", "packages/pkgfile"), true);
+        assert_eq!(git::remote_branch_exists("https://github.com/phR0ze/alpine-base.git", "master"), true);
+        assert_eq!(git::remote_branch_exists("https://git.archlinux.org/svntogit/community.git", "packages/acme"), true);
     }
 
     #[test]
     fn test_remote_branch_exists_err() {
-        assert!(net::git::remote_branch_exists_err("https://github.com/phR0ze/alpine-base.git", "master").is_ok());
-        assert!(net::git::remote_branch_exists_err("https://git.archlinux.org/svntogit/packages.git", "packages/foobar").is_err());
-        assert!(net::git::remote_branch_exists_err("https://git.archlinux.org/svntogit/packages.git", "packages/pkgfile").is_ok());
-        assert!(net::git::remote_branch_exists_err("https://git.archlinux.org/svntogit/community.git", "packages/acme").is_ok());
+        assert!(git::remote_branch_exists_err("https://github.com/phR0ze/alpine-base.git", "master").is_ok());
+        assert!(git::remote_branch_exists_err("https://git.archlinux.org/svntogit/packages.git", "packages/foobar").is_err());
+        assert!(git::remote_branch_exists_err("https://git.archlinux.org/svntogit/packages.git", "packages/pkgfile").is_ok());
+        assert!(git::remote_branch_exists_err("https://git.archlinux.org/svntogit/community.git", "packages/acme").is_ok());
     }
 }

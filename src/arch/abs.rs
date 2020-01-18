@@ -71,7 +71,7 @@ pub fn repo<T: AsRef<str>>(pkg: T) -> Result<Repo> {
     for name in &vec![REPO_PACKAGES_NAME, REPO_COMMUNITY_NAME] {
         let url = format!("{}/{}.git", REPO_BASE, name);
         let branch = format!("packages/{}", pkg.as_ref());
-        if net::git::remote_branch_exists(url, branch) {
+        if git::remote_branch_exists(url, branch) {
             return Repo::from(name);
         }
     }
@@ -103,7 +103,7 @@ pub fn source<T: AsRef<str>, U: AsRef<Path>>(pkg: T, dst: U) -> Result<PathBuf> 
         // Clone the single branch from the repo if it exists
         let tmpdir = user::temp_dir(TMPDIR)?;
         let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
-        if let Ok(_) = net::git::clone_branch(url, branch, &tmpdir) {
+        if let Ok(_) = git::clone_branch(url, branch, &tmpdir) {
             // Copy out the target source in <tmpdir>/trunk/* to dst
             let dir = sys::mkdir(&dst)?;
             sys::copy(tmpdir.mash("trunk/*"), &dir)?;

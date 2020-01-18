@@ -37,4 +37,6 @@ pub use string_error::*;
 pub use user_error::*;
 
 // Re-exports
+pub use failure::Fail;
 pub use log::{debug, error, info, log, trace, warn};
+pub use std::fmt;
