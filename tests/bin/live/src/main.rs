@@ -1,4 +1,5 @@
 use fungus::prelude::*;
+use std::collections::HashMap;
 
 fn main() -> Result<()> {
     println!("=====================================================================");
@@ -13,9 +14,16 @@ fn main() -> Result<()> {
 
 fn test_git_clone_term_progress() -> Result<()> {
     let tmpdir = setup("git_clone_term_progress");
+    let repo1 = tmpdir.mash("repo1");
+    let repo2 = tmpdir.mash("repo2");
+    let repo3 = tmpdir.mash("repo3");
     assert!(sys::remove_all(&tmpdir).is_ok());
 
-    assert!(git::clone_term_progress("https://github.com/phR0ze/cyberlinux", &tmpdir).is_ok());
+    let mut repos = HashMap::new();
+    repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
+    repos.insert("https://github.com/phR0ze/alpine-core", &repo2);
+    repos.insert("https://github.com/phR0ze/cyberlinux", &repo3);
+    assert!(git::clone_term_progress(&repos).is_ok());
 
     // Clean up
     assert!(sys::remove_all(&tmpdir).is_ok());

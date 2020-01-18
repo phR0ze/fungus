@@ -4,7 +4,9 @@ cfgblock! {
     use git2::build::{CheckoutBuilder, RepoBuilder};
     const TMPDIR: &str = "git";
 }
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::collections::HashMap;
+use std::thread;
 
 use crate::prelude::*;
 
@@ -91,51 +93,51 @@ pub fn clone_branch<T: AsRef<str>, U: AsRef<str>, V: AsRef<Path>>(url: T, branch
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn clone_term_progress<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U) -> Result<PathBuf> {
-    let mut xfer_bar: Option<ProgressBar> = None;
-    let mut checkout_bar: Option<ProgressBar> = None;
+pub fn clone_term_progress<T: AsRef<str>, U: AsRef<Path>>(repos: &HashMap<T, U>) -> Result<()> {
+    let progress = MultiProgress::new();
+    let mut style = ProgressStyle::default_bar();
+    style = style.progress_chars("=>-").template("[{elapsed_precise}][{bar:75.cyan/blue}] {pos:>7}/{len:7} ({eta}) - {msg}");
 
-    // Tracking transfer with indexed as this seems smoother and more logical for doneness
-    let mut callback = RemoteCallbacks::new();
-    callback.transfer_progress(|stats| {
-        match &xfer_bar {
-            Some(x) => x.set_position(stats.indexed_objects() as u64),
-            None => {
-                xfer_bar = Some({
-                    let pb = ProgressBar::new(stats.total_objects() as u64).with_style(
-                        ProgressStyle::default_bar()
-                            .template("{msg} [{elapsed_precise}][{bar:100.cyan/blue}] {pos:>7}/{len:7} ({eta})")
-                            .progress_chars("=>-"),
-                    );
-                    pb.set_message("  :: Cloning ");
-                    pb
-                });
-            }
-        }
-        true
-    });
-    let mut fetchopts = FetchOptions::new();
-    fetchopts.remote_callbacks(callback);
+    // Spin off the cloning into separate threads leaving the main thread for multi-progress
+    for (url, dst) in repos {
+        let url = url.as_ref().to_string();
+        let dst = dst.as_ref().to_path_buf();
+        let xfer_bar = progress.add(ProgressBar::new(0).with_style(style.clone()));
 
-    // Tracking checkout separately
-    let mut checkout = CheckoutBuilder::new();
-    checkout.progress(|_, cur, total| match &checkout_bar {
-        Some(x) => x.set_position(cur as u64),
-        None => {
-            checkout_bar = Some({
-                let pb = ProgressBar::new(total as u64).with_style(
-                    ProgressStyle::default_bar()
-                        .template("{msg}: [{elapsed_precise}][{bar:100.cyan/blue}] {pos:>7}/{len:7} ({eta})")
-                        .progress_chars("=>-"),
-                );
-                pb.set_message("  :: Checkout");
-                pb
+        thread::spawn(move || {
+            let mut xfer_init = false;
+            let mut check_init = false;
+
+            // Tracking transfer with indexed as this seems smoother and more logical for doneness
+            let mut callback = RemoteCallbacks::new();
+            callback.transfer_progress(|stats| {
+                if !xfer_init {
+                    xfer_bar.set_length(stats.total_objects() as u64);
+                    xfer_bar.set_message(&url);
+                    xfer_init = true;
+                }
+                xfer_bar.set_position(stats.indexed_objects() as u64);
+                true
             });
-        }
-    });
+            let mut fetchopts = FetchOptions::new();
+            fetchopts.remote_callbacks(callback);
 
-    RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout).clone(url.as_ref(), dst.as_ref())?;
-    Ok(dst.as_ref().to_path_buf())
+            // Tracking checkout separately
+            let mut checkout = CheckoutBuilder::new();
+            checkout.progress(|_, cur, total| {
+                if !check_init {
+                    xfer_bar.set_length(total as u64);
+                    check_init = true;
+                }
+                xfer_bar.set_position(cur as u64);
+            });
+
+            RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout).clone(&url, &dst).unwrap();
+            xfer_bar.finish_with_message(&url);
+        });
+    }
+    progress.join()?;
+    Ok(())
 }
 
 /// Returns true if the remote `repo` `branch` exists.
@@ -199,13 +201,20 @@ mod tests {
     fn test_clone_term_progress() {
         let tmpdir = setup("git_cone_term_progress");
         let repo1 = tmpdir.mash("repo1");
+        let repo2 = tmpdir.mash("repo2");
         let repo1file = repo1.mash("README.md");
+        let repo2file = repo2.mash("README.md");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
-        assert_eq!(repo1file.exists(), false);
-        assert!(git::clone_term_progress("https://github.com/phR0ze/alpine-base.git", &repo1).is_ok());
-        assert_eq!(sys::readlines(&repo1file).unwrap()[0], "alpine-base".to_string());
+        let mut repos = HashMap::new();
+        repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
+        repos.insert("https://github.com/phR0ze/alpine-core", &repo2);
+        assert!(git::clone_term_progress(&repos).is_ok());
+
         assert_eq!(repo1file.exists(), true);
+        assert_eq!(repo2file.exists(), true);
+        assert_eq!(sys::readlines(&repo1file).unwrap()[0].starts_with("alpine-"), true);
+        assert_eq!(sys::readlines(&repo2file).unwrap()[0].starts_with("alpine-"), true);
 
         assert!(sys::remove_all(&tmpdir).is_ok());
     }

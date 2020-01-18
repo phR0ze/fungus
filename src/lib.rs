@@ -34,6 +34,7 @@ pub mod prelude {
     pub use lazy_static::*;
     pub use log;
     pub use regex::Regex;
+    pub use std::collections::HashMap;
     pub use std::env;
     pub use std::ffi::OsStr;
     pub use std::fmt;
