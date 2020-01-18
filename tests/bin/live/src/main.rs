@@ -5,39 +5,20 @@ fn main() -> Result<()> {
     println!("=                         LIVE TESTING                              =");
     println!("=====================================================================");
     println!("HOME: {:?}", user::home_dir().unwrap());
-    test_git_clone_with_progress()?;
+    test_git_clone_term_progress()?;
     test_libc()?;
     test_crypto()?;
     Ok(())
 }
 
-fn test_git_clone_with_progress() -> Result<()> {
-    let tmpdir = setup("git_clone_with_progress");
+fn test_git_clone_term_progress() -> Result<()> {
+    let tmpdir = setup("git_clone_term_progress");
     assert!(sys::remove_all(&tmpdir).is_ok());
 
-    let mut cb = git::RemoteCallbacks::new();
-    cb.transfer_progress(|stats| {
-        println!("Total Objects: {:?}", stats.total_objects());
-        println!("Indexed Objects: {:?}", stats.indexed_objects());
-        println!("Received Objects: {:?}", stats.received_objects());
-        println!("Local Objects: {:?}", stats.local_objects());
-        println!("Total Deltas: {:?}", stats.total_deltas());
-        println!("Indexed Deltas: {:?}", stats.indexed_deltas());
-        println!("Received Bytes: {:?}", stats.received_bytes());
-        true
-    });
-    let mut fo = git::FetchOptions::new();
-    fo.remote_callbacks(cb);
+    assert!(git::clone_term_progress("https://github.com/phR0ze/cyberlinux", &tmpdir).is_ok());
 
-    let mut co = git::CheckoutBuilder::new();
-    co.progress(|path, cur, total| {
-        //
-    });
-
-    // Clone repo 1
-    assert_eq!(repo1file.exists(), false);
-    assert!(git::clone_with_progress("https://github.com/phR0ze/alpine-base.git", &repo1, fo, co).is_ok());
-
+    // Clean up
+    assert!(sys::remove_all(&tmpdir).is_ok());
     println!("Git tests passed!");
     Ok(())
 }

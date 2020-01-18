@@ -1,9 +1,10 @@
 cfgblock! {
     #[cfg(any(feature = "_net_", feature = "_arch_"))]
-    use git2::{self, FetchOptions, Progress, RemoteCallbacks};
+    use git2::{self, FetchOptions, RemoteCallbacks};
     use git2::build::{CheckoutBuilder, RepoBuilder};
     const TMPDIR: &str = "git";
 }
+use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::prelude::*;
 
@@ -74,6 +75,69 @@ pub fn clone_branch<T: AsRef<str>, U: AsRef<str>, V: AsRef<Path>>(url: T, branch
     Ok(dst.as_ref().to_path_buf())
 }
 
+/// Clone the repo locally with progress. Clones the entire repo.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_clone_with_progress_doc");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("README.md");
+/// assert_eq!(tmpfile.exists(), false);
+/// assert!(git::clone_term_progress("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
+/// assert_eq!(tmpfile.exists(), true);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+#[cfg(any(feature = "_net_", feature = "_arch_"))]
+pub fn clone_term_progress<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U) -> Result<PathBuf> {
+    let mut xfer_bar: Option<ProgressBar> = None;
+    let mut checkout_bar: Option<ProgressBar> = None;
+
+    // Tracking transfer with indexed as this seems smoother and more logical for doneness
+    let mut callback = RemoteCallbacks::new();
+    callback.transfer_progress(|stats| {
+        match &xfer_bar {
+            Some(x) => x.set_position(stats.indexed_objects() as u64),
+            None => {
+                xfer_bar = Some({
+                    let pb = ProgressBar::new(stats.total_objects() as u64).with_style(
+                        ProgressStyle::default_bar()
+                            .template("{msg} [{elapsed_precise}][{bar:100.cyan/blue}] {pos:>7}/{len:7} ({eta})")
+                            .progress_chars("=>-"),
+                    );
+                    pb.set_message("  :: Cloning ");
+                    pb
+                });
+            }
+        }
+        true
+    });
+    let mut fetchopts = FetchOptions::new();
+    fetchopts.remote_callbacks(callback);
+
+    // Tracking checkout separately
+    let mut checkout = CheckoutBuilder::new();
+    checkout.progress(|_, cur, total| match &checkout_bar {
+        Some(x) => x.set_position(cur as u64),
+        None => {
+            checkout_bar = Some({
+                let pb = ProgressBar::new(total as u64).with_style(
+                    ProgressStyle::default_bar()
+                        .template("{msg}: [{elapsed_precise}][{bar:100.cyan/blue}] {pos:>7}/{len:7} ({eta})")
+                        .progress_chars("=>-"),
+                );
+                pb.set_message("  :: Checkout");
+                pb
+            });
+        }
+    });
+
+    RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout).clone(url.as_ref(), dst.as_ref())?;
+    Ok(dst.as_ref().to_path_buf())
+}
+
 /// Returns true if the remote `repo` `branch` exists.
 /// Does not clone repo as is meant to be as lite as possible.
 ///
@@ -117,27 +181,6 @@ pub fn remote_branch_exists_err<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U)
     Ok(())
 }
 
-/// Clone the repo locally with progress callback. Clones the entire repo.
-///
-/// ### Examples
-/// ```
-/// use fungus::prelude::*;
-///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_clone_with_progress_doc");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
-/// let tmpfile = tmpdir.mash("README.md");
-/// assert_eq!(tmpfile.exists(), false);
-/// assert!(git::clone("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
-/// assert_eq!(tmpfile.exists(), true);
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// ```
-#[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn clone_with_progress<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U, fetchopts: FetchOptions, checkout: CheckoutBuilder) -> Result<PathBuf> {
-    RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout).clone(url.as_ref(), dst.as_ref())?;
-    Ok(dst.as_ref().to_path_buf())
-}
-
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
@@ -153,38 +196,16 @@ mod tests {
     }
 
     #[test]
-    fn test_clone_with_progress() {
-        let tmpdir = setup("git_cone_with_progress");
+    fn test_clone_term_progress() {
+        let tmpdir = setup("git_cone_term_progress");
         let repo1 = tmpdir.mash("repo1");
         let repo1file = repo1.mash("README.md");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
-        // // Transfer progress callback
-        // let mut cb = git::RemoteCallbacks::new();
-        // cb.transfer_progress(|stats| {
-        //     println!("Total Objects: {:?}", stats.total_objects());
-        //     println!("Indexed Objects: {:?}", stats.indexed_objects());
-        //     println!("Received Objects: {:?}", stats.received_objects());
-        //     println!("Local Objects: {:?}", stats.local_objects());
-        //     println!("Total Deltas: {:?}", stats.total_deltas());
-        //     println!("Indexed Deltas: {:?}", stats.indexed_deltas());
-        //     println!("Received Bytes: {:?}", stats.received_bytes());
-        //     true
-        // });
-        // let mut fo = git::FetchOptions::new();
-        // fo.remote_callbacks(cb);
-
-        // // Checkout progress callback
-        // let mut co = git::CheckoutBuilder::new();
-        // co.progress(|path, cur, total| {
-        //     //
-        // });
-
-        // // Clone repo 1
-        // assert_eq!(repo1file.exists(), false);
-        // assert!(git::clone_with_progress("https://github.com/phR0ze/alpine-base.git", &repo1, fo, co).is_ok());
-        // assert_eq!(sys::readlines(&repo1file).unwrap()[0], "alpine-base".to_string());
-        // assert_eq!(repo1file.exists(), true);
+        assert_eq!(repo1file.exists(), false);
+        assert!(git::clone_term_progress("https://github.com/phR0ze/alpine-base.git", &repo1).is_ok());
+        assert_eq!(sys::readlines(&repo1file).unwrap()[0], "alpine-base".to_string());
+        assert_eq!(repo1file.exists(), true);
 
         assert!(sys::remove_all(&tmpdir).is_ok());
     }
