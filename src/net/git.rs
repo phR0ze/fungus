@@ -83,13 +83,19 @@ pub fn clone_branch<T: AsRef<str>, U: AsRef<str>, V: AsRef<Path>>(url: T, branch
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_clone_with_progress_doc");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_clone_term_progress_doc");
+/// let repo1 = tmpdir.mash("repo1");
+/// let repo2 = tmpdir.mash("repo2");
+/// let repo1file = repo1.mash("README.md");
+/// let repo2file = repo2.mash("README.md");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
-/// let tmpfile = tmpdir.mash("README.md");
-/// assert_eq!(tmpfile.exists(), false);
-/// assert!(git::clone_term_progress("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
-/// assert_eq!(tmpfile.exists(), true);
+/// let mut repos = HashMap::new();
+/// repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
+/// repos.insert("https://github.com/phR0ze/alpine-core", &repo2);
+/// assert!(git::clone_term_progress(&repos).is_ok());
+/// assert_eq!(repo1file.exists(), true);
+/// assert_eq!(repo2file.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
