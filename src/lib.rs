@@ -41,6 +41,6 @@ pub mod prelude {
     pub use std::fs::{self, File, OpenOptions};
     pub use std::io::{self, prelude::*, BufRead, BufReader};
     pub use std::os::unix::fs::{MetadataExt, PermissionsExt};
-    pub use std::path::{Component, Path, PathBuf};
+    pub use std::path::{Path, PathBuf};
     pub use std::str;
 }

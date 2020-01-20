@@ -813,6 +813,7 @@ pub trait PathExt {
     /// ### Examples
     /// ```
     /// use fungus::prelude::*;
+    /// use std::path::Component;
     ///
     /// let first = Component::Normal(OsStr::new("foo"));
     /// assert_eq!(PathBuf::from("foo/bar").first().unwrap(), first);
@@ -982,6 +983,7 @@ pub trait PathExt {
     /// ### Examples
     /// ```
     /// use fungus::prelude::*;
+    /// use std::path::Component;
     ///
     /// let first = Component::Normal(OsStr::new("bar"));
     /// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
@@ -1667,6 +1669,7 @@ impl PathColorExt for Path {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use std::path::Component;
 
     // Test setup
     fn setup() -> PathBuf {

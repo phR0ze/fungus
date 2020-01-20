@@ -77,7 +77,7 @@ pub fn clone_branch<T: AsRef<str>, U: AsRef<str>, V: AsRef<Path>>(url: T, branch
     Ok(dst.as_ref().to_path_buf())
 }
 
-/// Clone the repo locally with progress. Clones the entire repo.
+/// Clone the given repos emitting terminal progress. Clones the entire repo.
 ///
 /// ### Examples
 /// ```
@@ -102,7 +102,7 @@ pub fn clone_branch<T: AsRef<str>, U: AsRef<str>, V: AsRef<Path>>(url: T, branch
 pub fn clone_term_progress<T: AsRef<str>, U: AsRef<Path>>(repos: &HashMap<T, U>) -> Result<()> {
     let progress = MultiProgress::new();
     let mut style = ProgressStyle::default_bar();
-    style = style.progress_chars("=>-").template("[{elapsed_precise}][{bar:75.cyan/blue}] {pos:>7}/{len:7} ({eta}) - {msg}");
+    style = style.progress_chars("=>-").template("[{elapsed_precise}][{bar:50.cyan/blue}] {pos:>7}/{len:7} ({eta}) - {msg}");
 
     // Spin off the cloning into separate threads leaving the main thread for multi-progress
     for (url, dst) in repos {
