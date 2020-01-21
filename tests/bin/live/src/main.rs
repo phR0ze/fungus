@@ -1,34 +1,28 @@
 use fungus::prelude::*;
-use std::collections::HashMap;
 
 fn main() -> Result<()> {
     println!("=====================================================================");
     println!("=                         LIVE TESTING                              =");
     println!("=====================================================================");
     println!("HOME: {:?}", user::home_dir().unwrap());
-    test_git_clone_term_progress()?;
-    test_libc()?;
-    test_crypto()?;
+    test_tar();
+    // test_git_clone_term_progress()?;
+    // test_libc()?;
+    // test_crypto()?;
     Ok(())
 }
 
-fn test_git_clone_term_progress() -> Result<()> {
-    let tmpdir = setup("git_clone_term_progress");
-    let repo1 = tmpdir.mash("repo1");
-    let repo2 = tmpdir.mash("repo2");
-    let repo3 = tmpdir.mash("repo3");
+fn test_tar() {
+    let tmpdir = setup("tar_create");
+    let file1 = tmpdir.mash("file1");
     assert!(sys::remove_all(&tmpdir).is_ok());
+    assert!(sys::mkdir(&tmpdir).is_ok());
 
-    let mut repos = HashMap::new();
-    repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
-    repos.insert("https://github.com/phR0ze/alpine-core", &repo2);
-    repos.insert("https://github.com/phR0ze/cyberlinux", &repo3);
-    assert!(git::clone_term_progress(&repos).is_ok());
+    // Single file tarball
+    assert!(sys::touch(file1).is_ok());
+    //assert!(tar::create().is_ok());
 
-    // Clean up
-    assert!(sys::remove_all(&tmpdir).is_ok());
-    println!("Git tests passed!");
-    Ok(())
+    // assert!(sys::remove_all(&tmpdir).is_ok());
 }
 
 fn test_libc() -> Result<()> {

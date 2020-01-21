@@ -8,7 +8,7 @@ edition = "2018"
 lto = true
 
 [dependencies.fungus]
-features = ["_libc_", "_crypto_", "_net_", "_arch_"]
+features = ["_libc_", "_crypto_", "_net_", "_arch_", "_enc_"]
 
 [patch.crates-io]
 fungus = { path = "../../../" }

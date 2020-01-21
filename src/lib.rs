@@ -23,6 +23,12 @@ pub mod prelude {
     pub use super::{cfgblock, fatal};
 
     cfgblock! {
+        #[cfg(feature = "_enc_")]
+        pub use super::enc::tar;
+        pub use super::enc::gzip;
+    }
+
+    cfgblock! {
         #[cfg(any(feature = "_net_", feature = "_arch_"))]
         pub use super::net::git;
     }
