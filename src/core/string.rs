@@ -4,7 +4,7 @@ use std::str;
 
 use crate::core::*;
 
-pub trait StringSizeExt {
+pub trait StringExt {
     /// Returns the length in characters rather than bytes i.e. this is a human understandable
     /// value. However it is more costly to perform.
     ///
@@ -18,13 +18,13 @@ pub trait StringSizeExt {
     /// ```
     fn size(&self) -> usize;
 }
-impl StringSizeExt for str {
+impl StringExt for str {
     fn size(&self) -> usize {
         self.chars().count()
     }
 }
 
-impl StringSizeExt for String {
+impl StringExt for String {
     fn size(&self) -> usize {
         self.chars().count()
     }

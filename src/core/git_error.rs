@@ -14,6 +14,9 @@ pub enum GitError {
     /// An error indicating that only fast forwards are allowed.
     FastForwardOnly,
 
+    /// An error indicating that no message was found.
+    NoMessageWasFound,
+
     /// An error indicating that the given repo was not found.
     RepoNotFound(String),
 }
@@ -37,6 +40,7 @@ impl fmt::Display for GitError {
         match *self {
             GitError::BranchNotFound(ref pkg) => write!(f, "failed to find branch: {}", pkg),
             GitError::FastForwardOnly => write!(f, "only fast-forward supported"),
+            GitError::NoMessageWasFound => write!(f, "no message was found for commit"),
             GitError::RepoNotFound(ref repo) => write!(f, "failed to find repo: {}", repo),
         }
     }
@@ -52,6 +56,7 @@ mod tests {
         assert_eq!(GitError::branch_not_found("foo"), GitError::BranchNotFound("foo".to_string()));
         assert_eq!(format!("{}", GitError::BranchNotFound("foo".to_string())), "failed to find branch: foo");
         assert_eq!(format!("{}", GitError::FastForwardOnly), "only fast-forward supported");
+        assert_eq!(format!("{}", GitError::NoMessageWasFound), "no message was found for commit");
         assert_eq!(GitError::repo_not_found("foo"), GitError::RepoNotFound("foo".to_string()));
         assert_eq!(format!("{}", GitError::RepoNotFound("foo".to_string())), "failed to find repo: foo");
     }
