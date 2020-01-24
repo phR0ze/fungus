@@ -26,18 +26,22 @@ use crate::prelude::*;
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn clone<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U) -> Result<PathBuf> {
-    let dst = dst.as_ref().abs()?;
+pub fn clone<T, U>(url: T, path: U) -> Result<PathBuf>
+where
+    T: AsRef<str>,
+    U: AsRef<Path>,
+{
+    let path = path.as_ref().abs()?;
     let mut builder = RepoBuilder::new();
-    builder.clone(url.as_ref(), dst.as_ref())?;
-    Ok(dst)
+    builder.clone(url.as_ref(), path.as_ref())?;
+    Ok(path)
 }
 
 /// Clone the repo locally. Clones the entire repo. Provides progress callbacks for the clone
 /// transfer and the final checkout.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_clone_with_progress_doc");
@@ -45,12 +49,12 @@ pub fn clone<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U) -> Result<PathBuf> {
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("README.md");
 /// assert_eq!(tmpfile.exists(), false);
-/// assert!(git::clone("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
+/// assert!(git::clone_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {},).is_ok());
 /// assert_eq!(tmpfile.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn clone_with_progress<T, U, V, W>(url: T, dst: U, mut xfer_progress: V, mut check_progress: W) -> Result<PathBuf>
+pub fn clone_with_progress<T, U, V, W>(url: T, dst: U, mut xfer: V, mut checkout: W) -> Result<PathBuf>
 where
     T: AsRef<str>,
     U: AsRef<Path>,
@@ -59,23 +63,21 @@ where
 {
     let dst = dst.as_ref().abs()?;
     let url = url.as_ref().to_string();
-    let mut builder = RepoBuilder::new();
-    builder.clone(url.as_ref(), dst.as_ref())?;
 
     // Tracking transfer with indexed as this seems smoother and more logical for doneness
     let mut callback = RemoteCallbacks::new();
     callback.transfer_progress(|stats| {
-        xfer_progress(stats.total_objects() as u64, stats.indexed_objects() as u64);
+        xfer(stats.total_objects() as u64, stats.indexed_objects() as u64);
         true
     });
     let mut fetchopts = FetchOptions::new();
     fetchopts.remote_callbacks(callback);
 
     // Tracking checkout separately
-    let mut checkout = CheckoutBuilder::new();
-    checkout.progress(|_, cur, total| check_progress(total as u64, cur as u64));
+    let mut checkout_bldr = CheckoutBuilder::new();
+    checkout_bldr.progress(|_, cur, total| checkout(total as u64, cur as u64));
 
-    RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout).clone(&url, &dst).unwrap();
+    RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout_bldr).clone(&url, &dst).unwrap();
     Ok(dst)
 }
 
@@ -137,11 +139,11 @@ where
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_clone_term_progress_doc");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let repo1 = tmpdir.mash("repo1");
 /// let repo2 = tmpdir.mash("repo2");
 /// let repo1file = repo1.mash("README.md");
 /// let repo2file = repo2.mash("README.md");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let mut repos = HashMap::new();
 /// repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
@@ -163,51 +165,36 @@ where
 
     // Spin off the cloning into separate threads leaving the main thread for multi-progress
     for (url, dst) in repos {
-        let url = url.as_ref().to_string();
-        let dst = dst.as_ref().abs()?;
         let xfer_bar = progress.add(ProgressBar::new(0).with_style(style.clone()));
+        let dst = dst.as_ref().abs()?;
+        let url = url.as_ref().to_string();
+        xfer_bar.set_message(&url);
+        let msg = url.clone();
 
         thread::spawn(move || {
             let mut xfer_init = false;
             let mut check_init = false;
-            git::clone_with_progress(url, dst, |total, cur| {
-                if !xfer_init {
-                    xfer_bar.set_length(total);
-                    xfer_bar.set_message(&url);
-                    xfer_init = true;
-                }
-                xfer_bar.set_position(cur);
-            }, |total, cur| {
-                //
-            })
+            clone_with_progress(
+                url,
+                dst,
+                |total, cur| {
+                    if !xfer_init {
+                        xfer_bar.set_length(total);
+                        xfer_init = true;
+                    }
+                    xfer_bar.set_position(cur);
+                },
+                |total, cur| {
+                    if !check_init {
+                        xfer_bar.set_length(total);
+                        check_init = true;
+                    }
+                    xfer_bar.set_position(cur);
+                },
+            )
+            .unwrap();
 
-            // Tracking transfer with indexed as this seems smoother and more logical for doneness
-            let mut callback = RemoteCallbacks::new();
-            callback.transfer_progress(|stats| {
-                if !xfer_init {
-                    xfer_bar.set_length(stats.total_objects() as u64);
-                    xfer_bar.set_message(&url);
-                    xfer_init = true;
-                }
-                xfer_bar.set_position(stats.indexed_objects() as u64);
-                true
-            });
-            let mut fetchopts = FetchOptions::new();
-            fetchopts.remote_callbacks(callback);
-
-            // Tracking checkout separately
-            let mut checkout = CheckoutBuilder::new();
-            checkout.progress(|_, cur, total| {
-                if !check_init {
-                    xfer_bar.set_length(total as u64);
-                    check_init = true;
-                }
-                xfer_bar.set_position(cur as u64);
-            });
-
-            RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout).clone(&url, &dst).unwrap();
-
-            xfer_bar.finish_with_message(&url);
+            xfer_bar.finish_with_message(&msg);
         });
     }
     progress.join()?;
@@ -228,7 +215,10 @@ where
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn is_repo<T: AsRef<Path>>(path: T) -> bool {
+pub fn is_repo<T>(path: T) -> bool
+where
+    T: AsRef<Path>,
+{
     sys::is_dir(path.as_ref().mash(".git"))
 }
 
@@ -246,7 +236,10 @@ pub fn is_repo<T: AsRef<Path>>(path: T) -> bool {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn last_msg<T: AsRef<Path>>(path: T) -> Result<String> {
+pub fn last_msg<T>(path: T) -> Result<String>
+where
+    T: AsRef<Path>,
+{
     let path = path.as_ref().abs()?;
 
     let repo = Repository::open(&path)?;
@@ -266,7 +259,11 @@ pub fn last_msg<T: AsRef<Path>>(path: T) -> Result<String> {
 /// assert!(git::remote_branch_exists("https://github.com/phR0ze/alpine-base.git", "master"));
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn remote_branch_exists<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U) -> bool {
+pub fn remote_branch_exists<T, U>(url: T, branch: U) -> bool
+where
+    T: AsRef<str>,
+    U: AsRef<str>,
+{
     match remote_branch_exists_err(url, branch) {
         Ok(_) => true,
         Err(_) => false,
@@ -283,7 +280,11 @@ pub fn remote_branch_exists<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U) -> 
 /// assert!(git::remote_branch_exists_err("https://github.com/phR0ze/alpine-base.git", "master").is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn remote_branch_exists_err<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U) -> Result<()> {
+pub fn remote_branch_exists_err<T, U>(url: T, branch: U) -> Result<()>
+where
+    T: AsRef<str>,
+    U: AsRef<str>,
+{
     // Create the temp dir and set a finally to clean it up
     let tmpdir = user::temp_dir(TMPDIR)?;
     let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
@@ -315,15 +316,19 @@ pub fn remote_branch_exists_err<T: AsRef<str>, U: AsRef<str>>(url: T, branch: U)
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn update<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U) -> Result<PathBuf> {
-    let dst = dst.as_ref().abs()?;
+pub fn update<T, U>(url: T, path: U) -> Result<PathBuf>
+where
+    T: AsRef<str>,
+    U: AsRef<Path>,
+{
+    let path = path.as_ref().abs()?;
 
     // Clone instead of update
-    if !is_repo(&dst) {
+    if !is_repo(&path) {
         let mut builder = RepoBuilder::new();
-        builder.clone(url.as_ref(), dst.as_ref())?;
+        builder.clone(url.as_ref(), path.as_ref())?;
     } else {
-        let repo = Repository::open(&dst)?;
+        let repo = Repository::open(&path)?;
 
         // Fetch the latest from origin/master
         repo.find_remote("origin")?.fetch(&["master"], None, None)?;
@@ -333,7 +338,7 @@ pub fn update<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U) -> Result<PathBuf> 
 
         // Check if we need to update or not
         if analysis.is_up_to_date() {
-            return Ok(dst);
+            return Ok(path);
         } else if analysis.is_fast_forward() {
             let refname = "refs/heads/master";
             let mut reference = repo.find_reference(&refname)?;
@@ -344,76 +349,146 @@ pub fn update<T: AsRef<str>, U: AsRef<Path>>(url: T, dst: U) -> Result<PathBuf> 
             return Err(GitError::FastForwardOnly.into());
         }
     }
-    Ok(dst)
+    Ok(path)
 }
 
-/// Update the given repos emitting terminal progress. Clones the entire repo if they don't exist.
-/// Fetches the master branch and rebases on it.
+/// Update the given repo, cloning the repo if it doesn't exist. Accepts progress callbacks.
 ///
 /// ### Examples
-/// ```ignore
+/// ```
+/// use fungus::prelude::*;
+///
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_update_with_progress_doc");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// assert!(sys::mkdir(&tmpdir).is_ok());
+/// let tmpfile = tmpdir.mash("README.md");
+/// assert_eq!(tmpfile.exists(), false);
+/// assert!(git::update_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {}, |_, _| {},).is_ok());
+/// assert_eq!(tmpfile.exists(), true);
+/// assert!(sys::remove_all(&tmpdir).is_ok());
+/// ```
+#[cfg(any(feature = "_net_", feature = "_arch_"))]
+pub fn update_with_progress<T, U, V, W, X>(url: T, path: U, xfer: V, checkout: W, mut update: X) -> Result<PathBuf>
+where
+    T: AsRef<str>,
+    U: AsRef<Path>,
+    V: FnMut(u64, u64),
+    W: FnMut(u64, u64),
+    X: FnMut(u64, u64),
+{
+    let path = path.as_ref().abs()?;
+
+    // Clone instead of update
+    if !is_repo(&path) {
+        clone_with_progress(url.as_ref(), &path, xfer, checkout)?;
+    } else {
+        let repo = Repository::open(&path)?;
+
+        // Tracking transfer with indexed as this seems smoother and more logical for doneness
+        let mut callback = RemoteCallbacks::new();
+        callback.transfer_progress(|stats| {
+            update(stats.total_objects() as u64, stats.indexed_objects() as u64);
+            true
+        });
+        let mut fetchopts = FetchOptions::new();
+        fetchopts.remote_callbacks(callback);
+
+        // Fetch the latest from origin/master
+        repo.find_remote("origin")?.fetch(&["master"], Some(&mut fetchopts), None)?;
+        let fetch_head = repo.find_reference("FETCH_HEAD")?;
+        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+        let (analysis, _) = repo.merge_analysis(&[&fetch_commit])?;
+
+        // Check if we need to update or not
+        if analysis.is_up_to_date() {
+            return Ok(path);
+        } else if analysis.is_fast_forward() {
+            let refname = "refs/heads/master";
+            let mut reference = repo.find_reference(&refname)?;
+            reference.set_target(fetch_commit.id(), "Fast-Forward")?;
+            repo.set_head(&refname)?;
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+        } else {
+            return Err(GitError::FastForwardOnly.into());
+        }
+    }
+    Ok(path)
+}
+
+/// Update the given repos emitting terminal progress. Clones the entire repo if necessary.
+///
+/// ### Examples
+/// ```
 /// use fungus::prelude::*;
 ///
 /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_update_term_progress_doc");
+/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// let repo1 = tmpdir.mash("repo1");
 /// let repo2 = tmpdir.mash("repo2");
 /// let repo1file = repo1.mash("README.md");
 /// let repo2file = repo2.mash("README.md");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let mut repos = HashMap::new();
 /// repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
 /// repos.insert("https://github.com/phR0ze/alpine-core", &repo2);
-/// assert!(git::clone_term_progress(&repos).is_ok());
+/// assert!(git::update_term_progress(&repos).is_ok());
 /// assert_eq!(repo1file.exists(), true);
 /// assert_eq!(repo2file.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn update_term_progress<T: AsRef<str>, U: AsRef<Path>>(repos: &HashMap<T, U>) -> Result<()> {
+pub fn update_term_progress<T, U>(repos: &HashMap<T, U>) -> Result<()>
+where
+    T: AsRef<str>,
+    U: AsRef<Path>,
+{
     let progress = MultiProgress::new();
-    // let mut style = ProgressStyle::default_bar();
-    // style = style.progress_chars("=>-").template("[{elapsed_precise}][{bar:50.cyan/blue}] {pos:>7}/{len:7} ({eta}) - {msg}");
+    let mut style = ProgressStyle::default_bar();
+    style = style.progress_chars("=>-").template("[{elapsed_precise}][{bar:50.cyan/blue}] {pos:>7}/{len:7} ({eta}) - {msg}");
 
-    // // Spin off the updating into separate threads leaving the main thread for multi-progress
-    // for (url, dst) in repos {
-    //     let url = url.as_ref().to_string();
-    //     let dst = dst.as_ref().to_path_buf();
-    //     let xfer_bar = progress.add(ProgressBar::new(0).with_style(style.clone()));
+    // Spin off the updating into separate threads leaving the main thread for multi-progress
+    for (url, dst) in repos {
+        let bar = progress.add(ProgressBar::new(0).with_style(style.clone()));
+        let dst = dst.as_ref().abs()?;
+        let url = url.as_ref().to_string();
+        bar.set_message(&url);
+        let msg = url.clone();
 
-    //     thread::spawn(move || {
-    //         let mut xfer_init = false;
-    //         let mut check_init = false;
+        thread::spawn(move || {
+            let mut xfer_init = false;
+            let mut check_init = false;
+            let mut update_init = false;
+            update_with_progress(
+                url,
+                dst,
+                |total, cur| {
+                    if !xfer_init {
+                        bar.set_length(total);
+                        xfer_init = true;
+                    }
+                    bar.set_position(cur);
+                },
+                |total, cur| {
+                    if !check_init {
+                        bar.set_length(total);
+                        check_init = true;
+                    }
+                    bar.set_position(cur);
+                },
+                |total, cur| {
+                    if !update_init {
+                        bar.set_length(total);
+                        update_init = true;
+                    }
+                    bar.set_position(cur);
+                },
+            )
+            .unwrap();
 
-    //         // Tracking transfer with indexed as this seems smoother and more logical for doneness
-    //         let mut callback = RemoteCallbacks::new();
-    //         callback.transfer_progress(|stats| {
-    //             if !xfer_init {
-    //                 xfer_bar.set_length(stats.total_objects() as u64);
-    //                 xfer_bar.set_message(&url);
-    //                 xfer_init = true;
-    //             }
-    //             xfer_bar.set_position(stats.indexed_objects() as u64);
-    //             true
-    //         });
-    //         let mut fetchopts = FetchOptions::new();
-    //         fetchopts.remote_callbacks(callback);
-
-    //         // Tracking checkout separately
-    //         let mut checkout = CheckoutBuilder::new();
-    //         checkout.progress(|_, cur, total| {
-    //             if !check_init {
-    //                 xfer_bar.set_length(total as u64);
-    //                 check_init = true;
-    //             }
-    //             xfer_bar.set_position(cur as u64);
-    //         });
-
-    //         RepoBuilder::new().fetch_options(fetchopts).with_checkout(checkout).clone(&url, &dst).unwrap();
-    //         xfer_bar.finish_with_message(&url);
-    //     });
-    // }
-    // progress.join()?;
+            bar.finish_with_message(&msg);
+        });
+    }
+    progress.join()?;
     Ok(())
 }
 
@@ -458,8 +533,30 @@ mod tests {
     }
 
     #[test]
+    fn test_clone_with_progress() {
+        let tmpdir = setup("git_clone_with_progress");
+        let readme = tmpdir.mash("README.md");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+
+        assert!(git::clone_with_progress(
+            "https://github.com/phR0ze/alpine-base",
+            &tmpdir,
+            |_total, _cur| {
+                //println!("Xfer Total: {}, Cur: {}", total, cur);
+            },
+            |_total, _cur| {
+                //println!("Checkout Total: {}, Cur: {}", total, cur);
+            },
+        )
+        .is_ok());
+        assert_eq!(readme.exists(), true);
+        assert_eq!(sys::readlines(&readme).unwrap()[0].starts_with("alpine-base"), true);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_clone_term_progress() {
-        let tmpdir = setup("git_cone_term_progress");
+        let tmpdir = setup("git_clone_term_progress");
         let repo1 = tmpdir.mash("repo1");
         let repo2 = tmpdir.mash("repo2");
         let repo1file = repo1.mash("README.md");
@@ -559,6 +656,59 @@ mod tests {
         assert_eq!(git::last_msg(&tmpdir).unwrap(), "Use the workflow name for the badge".to_string());
         assert!(git::update("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
         assert_ne!(git::last_msg(&tmpdir).unwrap(), "Use the workflow name for the badge".to_string());
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_update_with_progress() {
+        let tmpdir = setup("git_update_with_progress");
+        let tarball = tmpdir.mash("../../alpine-base.tgz");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+
+        assert_eq!(git::is_repo(&tmpdir), false);
+        assert!(git::update_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {}, |_, _| {},).is_ok());
+        assert_eq!(git::is_repo(&tmpdir), true);
+        assert!(git::update_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {}, |_, _| {},).is_ok());
+
+        // Now wipe it out and extract a tarball of the repo that needs updated
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(tar::extract_all(&tarball, &tmpdir).is_ok());
+        assert_eq!(git::last_msg(&tmpdir).unwrap(), "Use the workflow name for the badge".to_string());
+        assert!(git::update_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {}, |_, _| {},).is_ok());
+        assert_ne!(git::last_msg(&tmpdir).unwrap(), "Use the workflow name for the badge".to_string());
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_update_term_progress() {
+        let tmpdir = setup("git_update_term_progress");
+        let tarball = tmpdir.mash("../../alpine-base.tgz");
+        let repo1 = tmpdir.mash("repo1");
+        let repo2 = tmpdir.mash("repo2");
+        let repo1file = repo1.mash("README.md");
+        let repo2file = repo2.mash("README.md");
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        let mut repos = HashMap::new();
+        repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
+        repos.insert("https://github.com/phR0ze/alpine-core", &repo2);
+        assert!(git::update_term_progress(&repos).is_ok());
+
+        assert_eq!(repo1file.exists(), true);
+        assert_eq!(repo2file.exists(), true);
+        assert_eq!(sys::readlines(&repo1file).unwrap()[0].starts_with("alpine-"), true);
+        assert_eq!(sys::readlines(&repo2file).unwrap()[0].starts_with("alpine-"), true);
+
+        // Now wipe it out and extract a tarball of the repo that needs updated
+        assert!(sys::remove_all(&tmpdir).is_ok());
+        assert!(tar::extract_all(&tarball, &tmpdir).is_ok());
+        assert_eq!(git::last_msg(&tmpdir).unwrap(), "Use the workflow name for the badge".to_string());
+        let mut repos = HashMap::new();
+        repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
+        assert!(git::update_term_progress(&repos).is_ok());
+        assert_ne!(git::last_msg(&repo1).unwrap(), "Use the workflow name for the badge".to_string());
 
         assert!(sys::remove_all(&tmpdir).is_ok());
     }

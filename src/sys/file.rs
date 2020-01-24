@@ -1343,7 +1343,7 @@ mod tests {
         assert!(sys::remove_all(&tmpdir).is_ok());
 
         // test
-        assert!(sys::mkdir(&dir1).is_ok());
+        assert!(sys::mkdir_p(&dir1, 0o755).is_ok());
         assert_eq!(dir1.mode().unwrap(), 0o40755);
         assert!(sys::mkdir_p(&dir2, 0o555).is_ok());
         assert_eq!(dir2.mode().unwrap(), 0o40555);
