@@ -10,6 +10,217 @@ use std::thread;
 
 use crate::prelude::*;
 
+/// Git repository
+#[derive(Default)]
+pub struct Repo<'a> {
+    path: PathBuf,                                            // Repo location on disk
+    url: Option<String>,                                      // Repo location on the network
+    branch_only: bool,                                        // Clone only the given branch
+    branch: Option<String>,                                   // Specific branch to work with
+    xfer_progress: Option<Box<dyn FnMut(u64, u64) + 'a>>,     // Transfer progress callback
+    update_progress: Option<Box<dyn FnMut(u64, u64) + 'a>>,   // Update progress callback
+    checkout_progress: Option<Box<dyn FnMut(u64, u64) + 'a>>, // Checkout progress callback
+}
+
+impl<'a> Repo<'a> {
+    // ---------------------------------------------------------------------------------------------
+    // Field getters/setters
+    // ---------------------------------------------------------------------------------------------
+
+    /// Returns the target branch for this repo. Defaults to `master` internally when not set.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(git::Repo::new("foo").unwrap().branch("foobar").branch_val(), Some("foobar"));
+    /// ```
+    pub fn branch_val(&self) -> Option<&str> {
+        self.branch.as_deref()
+    }
+
+    /// Returns the branch flag's value for this repo.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(git::Repo::new("foo").unwrap().branch_only(true).branch_only_val(), true);
+    /// ```
+    pub fn branch_only_val(&self) -> bool {
+        self.branch_only
+    }
+
+    /// Returns the local location on disk for this repo
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(git::Repo::new("foo").unwrap().path_val(), Path::new("foo").abs().unwrap().as_path());
+    /// ```
+    pub fn path_val(&self) -> &Path {
+        &self.path
+    }
+
+    /// Returns the remote location for this repo
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(git::Repo::new("foo").unwrap().url("foobar").url_val(), Some("foobar"));
+    /// ```
+    pub fn url_val(&self) -> Option<&str> {
+        self.url.as_deref()
+    }
+
+    /// Set the branch to target for this repo
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(git::Repo::new("foo").unwrap().branch("foobar").branch_val(), Some("foobar"));
+    /// ```
+    pub fn branch<T>(mut self, branch: T) -> Self
+    where
+        T: AsRef<str>,
+    {
+        self.branch = Some(branch.as_ref().to_string());
+        self
+    }
+
+    /// Set to target the branch only and not the entire repo.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!(git::Repo::new("foo").unwrap().branch_only(true).branch_only_val(), true);
+    /// ```
+    pub fn branch_only(mut self, yes: bool) -> Self {
+        self.branch_only = yes;
+        self
+    }
+
+    /// Set the remote location for this repo
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// git::Repo::new("foo").unwrap().url("foobar");
+    /// ```
+    pub fn url<T>(mut self, url: T) -> Self
+    where
+        T: AsRef<str>,
+    {
+        self.url = Some(url.as_ref().to_string());
+        self
+    }
+
+    /// Set the transfer progress callback to use.
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use fungus::prelude::*;
+    ///
+    /// git::Repo::new("foo").unwrap().url("foobar");
+    /// ```
+    pub fn xfer_progress<T>(mut self, func: T) -> Self
+    where
+        T: FnMut(u64, u64) + 'a,
+    {
+        self.xfer_progress = Some(Box::new(func));
+        self
+    }
+
+    /// Set the checkout progress callback to use.
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use fungus::prelude::*;
+    ///
+    /// git::Repo::new("foo").unwrap().url("foobar");
+    /// ```
+    pub fn checkout_progress<T>(mut self, func: T) -> Self
+    where
+        T: FnMut(u64, u64) + 'a,
+    {
+        self.checkout_progress = Some(Box::new(func));
+        self
+    }
+
+    /// Set the update progress callback to use.
+    ///
+    /// ### Examples
+    /// ```ignore
+    /// use fungus::prelude::*;
+    ///
+    /// git::Repo::new("foo").unwrap().url("foobar");
+    /// ```
+    pub fn update_progress<T>(mut self, func: T) -> Self
+    where
+        T: FnMut(u64, u64) + 'a,
+    {
+        self.update_progress = Some(Box::new(func));
+        self
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Functions/Methods
+    // ---------------------------------------------------------------------------------------------
+
+    /// Create a new repo instance based on the given path
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert!(git::Repo::new("foo").is_ok());
+    /// ```
+    pub fn new<T>(path: T) -> Result<Self>
+    where
+        T: AsRef<Path>,
+    {
+        let path = path.as_ref().abs()?;
+        Ok(Self { path: path, ..Default::default() })
+    }
+
+    /// Clone the repo locally. Clones the entire repo unless branch_only is set to true.
+    /// Calling this function consumes any progress callbacks you may have set.
+    pub fn clone(mut self) -> Result<PathBuf> {
+        let mut builder = RepoBuilder::new();
+
+        // Transfer progress callback
+        if self.xfer_progress.is_some() {
+            let mut xfer = self.xfer_progress.take().unwrap();
+            let mut callback = RemoteCallbacks::new();
+            callback.transfer_progress(move |stats| {
+                xfer(stats.total_objects() as u64, stats.indexed_objects() as u64);
+                true
+            });
+            let mut fetchopts = FetchOptions::new();
+            fetchopts.remote_callbacks(callback);
+            builder.fetch_options(fetchopts);
+        }
+
+        // Checkout progress callback
+        if self.checkout_progress.is_some() {
+            let mut checkout = self.checkout_progress.take().unwrap();
+            let mut checkout_bldr = CheckoutBuilder::new();
+            checkout_bldr.progress(move |_, cur, total| checkout(total as u64, cur as u64));
+            builder.with_checkout(checkout_bldr);
+        }
+
+        let url = self.url_val().ok_or_else(|| GitError::UrlNotSet)?;
+        let path = self.path_val();
+        builder.clone(url, path)?;
+        Ok(self.path.clone())
+    }
+}
+
 /// Clone the repo locally. Clones the entire repo.
 ///
 /// ### Examples
@@ -21,15 +232,15 @@ use crate::prelude::*;
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 /// let tmpfile = tmpdir.mash("README.md");
 /// assert_eq!(tmpfile.exists(), false);
-/// assert!(git::clone("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
+/// assert!(git::clone(&tmpdir, "https://github.com/phR0ze/alpine-base.git").is_ok());
 /// assert_eq!(tmpfile.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn clone<T, U>(url: T, path: U) -> Result<PathBuf>
+pub fn clone<T, U>(path: T, url: U) -> Result<PathBuf>
 where
-    T: AsRef<str>,
-    U: AsRef<Path>,
+    T: AsRef<Path>,
+    U: AsRef<str>,
 {
     let path = path.as_ref().abs()?;
     let mut builder = RepoBuilder::new();
@@ -509,6 +720,91 @@ mod tests {
     }
 
     #[test]
+    fn test_repo_branch() {
+        // chained
+        assert_eq!(git::Repo::new("foo").unwrap().branch("foobar").branch_val(), Some("foobar"));
+
+        // unchained
+        let mut repo = git::Repo::new("foo").unwrap();
+        assert_eq!(repo.branch_val(), None);
+        repo = repo.branch("foobar");
+        assert_eq!(repo.branch_val(), Some("foobar"));
+    }
+
+    #[test]
+    fn test_repo_branch_only() {
+        // chained
+        assert_eq!(git::Repo::new("foo").unwrap().branch_only(true).branch_only_val(), true);
+
+        // unchained
+        let mut repo = git::Repo::new("foo").unwrap();
+        assert_eq!(repo.branch_only_val(), false);
+        repo = repo.branch_only(true);
+        assert_eq!(repo.branch_only_val(), true);
+    }
+
+    #[test]
+    fn test_repo_path() {
+        assert_eq!(git::Repo::new("foo").unwrap().path_val(), Path::new("foo").abs().unwrap().as_path());
+    }
+
+    #[test]
+    fn test_repo_url() {
+        // chained
+        assert_eq!(git::Repo::new("foo").unwrap().url("foobar").url_val(), Some("foobar"));
+
+        // unchained
+        let mut repo = git::Repo::new("foo").unwrap();
+        assert_eq!(repo.url_val(), None);
+        repo = repo.url("foobar");
+        assert_eq!(repo.url_val(), Some("foobar"));
+    }
+
+    #[test]
+    fn test_repo_clone() {
+        let tmpdir = setup("git_repo_clone");
+        let repo1 = tmpdir.mash("repo1");
+        let repo2 = tmpdir.mash("repo2");
+        let repo1file = repo1.mash("README.md");
+        let repo2file = repo2.mash("README.md");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+
+        // Clone repo 1
+        assert_eq!(repo1file.exists(), false);
+        assert!(git::Repo::new(&repo1).unwrap().url("https://github.com/phR0ze/alpine-base.git").clone().is_ok());
+        assert_eq!(sys::readlines(&repo1file).unwrap()[0], "alpine-base".to_string());
+        assert_eq!(repo1file.exists(), true);
+
+        // Clone repo 2
+        assert_eq!(repo2file.exists(), false);
+        assert!(git::Repo::new(&repo2).unwrap().url("https://github.com/phR0ze/alpine-core.git").clone().is_ok());
+        assert_eq!(sys::readlines(&repo2file).unwrap()[0], "alpine-core".to_string());
+        assert_eq!(repo2file.exists(), true);
+
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
+    fn test_repo_clone_with_progress() {
+        let tmpdir = setup("git_repo_clone_with_progress");
+        let readme = tmpdir.mash("README.md");
+        assert!(sys::remove_all(&tmpdir).is_ok());
+
+        assert!(git::Repo::new(&tmpdir)
+            .unwrap()
+            .url("https://github.com/phR0ze/alpine-base")
+            //.xfer_progress(|total, cur| println!("Xfer: {}, {}", total, cur))
+            .xfer_progress(|total, cur| { let _ = total + cur; } )
+            //.checkout_progress(|total, cur| println!("Checkout: {}, {}", total, cur))
+            .checkout_progress(|total, cur| { let _ = total + cur; } )
+            .clone()
+            .is_ok());
+        assert_eq!(readme.exists(), true);
+        assert_eq!(sys::readlines(&readme).unwrap()[0].starts_with("alpine-base"), true);
+        assert!(sys::remove_all(&tmpdir).is_ok());
+    }
+
+    #[test]
     fn test_clone() {
         let tmpdir = setup("git_clone");
         let repo1 = tmpdir.mash("repo1");
@@ -519,13 +815,13 @@ mod tests {
 
         // Clone repo 1
         assert_eq!(repo1file.exists(), false);
-        assert!(git::clone("https://github.com/phR0ze/alpine-base.git", &repo1).is_ok());
+        assert!(git::clone(&repo1, "https://github.com/phR0ze/alpine-base.git").is_ok());
         assert_eq!(sys::readlines(&repo1file).unwrap()[0], "alpine-base".to_string());
         assert_eq!(repo1file.exists(), true);
 
         // Clone repo 2
         assert_eq!(repo2file.exists(), false);
-        assert!(git::clone("https://github.com/phR0ze/alpine-core.git", &repo2).is_ok());
+        assert!(git::clone(&repo2, "https://github.com/phR0ze/alpine-core.git").is_ok());
         assert_eq!(sys::readlines(&repo2file).unwrap()[0], "alpine-core".to_string());
         assert_eq!(repo2file.exists(), true);
 

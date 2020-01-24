@@ -19,6 +19,9 @@ pub enum GitError {
 
     /// An error indicating that the given repo was not found.
     RepoNotFound(String),
+
+    /// An error indicating that the URL was not set for the repo.
+    UrlNotSet,
 }
 
 #[cfg(any(feature = "_net_", feature = "_arch_"))]
@@ -42,6 +45,7 @@ impl fmt::Display for GitError {
             GitError::FastForwardOnly => write!(f, "only fast-forward supported"),
             GitError::NoMessageWasFound => write!(f, "no message was found for commit"),
             GitError::RepoNotFound(ref repo) => write!(f, "failed to find repo: {}", repo),
+            GitError::UrlNotSet => write!(f, "no url was set for the repo"),
         }
     }
 }
@@ -59,5 +63,6 @@ mod tests {
         assert_eq!(format!("{}", GitError::NoMessageWasFound), "no message was found for commit");
         assert_eq!(GitError::repo_not_found("foo"), GitError::RepoNotFound("foo".to_string()));
         assert_eq!(format!("{}", GitError::RepoNotFound("foo".to_string())), "failed to find repo: foo");
+        assert_eq!(format!("{}", GitError::UrlNotSet), "no url was set for the repo");
     }
 }
