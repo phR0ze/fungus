@@ -419,6 +419,64 @@ impl<'a> Repo<'a> {
         builder.clone(url, path)?;
         Ok(self.path.clone())
     }
+
+    /// Update the given repo, cloning the repo if it doesn't exist.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_repo_update_doc");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// assert!(sys::mkdir(&tmpdir).is_ok());
+    /// let tmpfile = tmpdir.mash("README.md");
+    /// assert_eq!(tmpfile.exists(), false);
+    /// assert!(git::Repo::new(&tmpdir).unwrap().url("https://github.com/phR0ze/alpine-base").update().is_ok());
+    /// assert!(git::update("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
+    /// assert_eq!(tmpfile.exists(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn update(mut self) -> Result<PathBuf> {
+        if !is_repo(self.path_val()) {
+            return self.clone();
+        } else {
+            let mut fetch_opts = Default::default();
+            let repo = Repository::open(self.path_val())?;
+
+            // Fetch the latest with optional progress callback
+            if self.update_progress.is_some() {
+                let mut xfer = self.xfer_progress.take().unwrap();
+                let mut callback = RemoteCallbacks::new();
+                callback.transfer_progress(move |stats| {
+                    xfer(stats.total_objects() as u64, stats.indexed_objects() as u64);
+                    true
+                });
+                let mut fetchopts = FetchOptions::new();
+                fetchopts.remote_callbacks(callback);
+                fetch_opts = fetchopts;
+            }
+
+            // Fetch the latest from origin/master
+            repo.find_remote("origin")?.fetch(&["master"], Some(&mut fetch_opts), None)?;
+            let fetch_head = repo.find_reference("FETCH_HEAD")?;
+            let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+            let (analysis, _) = repo.merge_analysis(&[&fetch_commit])?;
+
+            // Check if we need to update or not
+            if analysis.is_up_to_date() {
+                return Ok(self.path.clone());
+            } else if analysis.is_fast_forward() {
+                let refname = "refs/heads/master";
+                let mut reference = repo.find_reference(&refname)?;
+                reference.set_target(fetch_commit.id(), "Fast-Forward")?;
+                repo.set_head(&refname)?;
+                repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+            } else {
+                return Err(GitError::FastForwardOnly.into());
+            }
+        }
+        Ok(self.path.clone())
+    }
 }
 
 /// Returns true if the `path` directory is a repositiory
@@ -491,58 +549,6 @@ where
     remote.fetch(&[&refspec], None, None)?;
     repo.find_reference("FETCH_HEAD")?;
     Ok(())
-}
-
-/// Update the given repo, cloning the repo if it doesn't exist.
-///
-/// ### Examples
-/// ```
-/// use fungus::prelude::*;
-///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_update_doc");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
-/// let tmpfile = tmpdir.mash("README.md");
-/// assert_eq!(tmpfile.exists(), false);
-/// assert!(git::update("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
-/// assert_eq!(tmpfile.exists(), true);
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// ```
-#[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn update<T, U>(url: T, path: U) -> Result<PathBuf>
-where
-    T: AsRef<str>,
-    U: AsRef<Path>,
-{
-    let path = path.as_ref().abs()?;
-
-    // Clone instead of update
-    if !is_repo(&path) {
-        let mut builder = RepoBuilder::new();
-        builder.clone(url.as_ref(), path.as_ref())?;
-    } else {
-        let repo = Repository::open(&path)?;
-
-        // Fetch the latest from origin/master
-        repo.find_remote("origin")?.fetch(&["master"], None, None)?;
-        let fetch_head = repo.find_reference("FETCH_HEAD")?;
-        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
-        let (analysis, _) = repo.merge_analysis(&[&fetch_commit])?;
-
-        // Check if we need to update or not
-        if analysis.is_up_to_date() {
-            return Ok(path);
-        } else if analysis.is_fast_forward() {
-            let refname = "refs/heads/master";
-            let mut reference = repo.find_reference(&refname)?;
-            reference.set_target(fetch_commit.id(), "Fast-Forward")?;
-            repo.set_head(&refname)?;
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-        } else {
-            return Err(GitError::FastForwardOnly.into());
-        }
-    }
-    Ok(path)
 }
 
 /// Update the given repo, cloning the repo if it doesn't exist. Accepts progress callbacks.
@@ -691,8 +697,6 @@ where
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use git2::build::{CheckoutBuilder, RepoBuilder};
-    use git2::{self, FetchOptions, RemoteCallbacks, Repository};
 
     // Test setup
     fn setup<T: AsRef<Path>>(path: T) -> PathBuf {
@@ -907,22 +911,21 @@ mod tests {
     }
 
     #[test]
-    fn test_update() {
-        let tmpdir = setup("git_update");
+    fn test_repo_update() {
+        let tmpdir = setup("git_repo_update");
         let tarball = tmpdir.mash("../../alpine-base.tgz");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
         assert_eq!(git::is_repo(&tmpdir), false);
-        assert!(git::update("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
+        assert!(git::Repo::new(&tmpdir).unwrap().url("https://github.com/phR0ze/alpine-base.git").update().is_ok());
         assert_eq!(git::is_repo(&tmpdir), true);
-        assert!(git::update("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
 
         // Now wipe it out and extract a tarball of the repo that needs updated
         let repo = git::Repo::new(&tmpdir).unwrap();
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(tar::extract_all(&tarball, &tmpdir).is_ok());
         assert_eq!(repo.last_msg().unwrap(), "Use the workflow name for the badge".to_string());
-        assert!(git::update("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
+        assert!(git::Repo::new(&tmpdir).unwrap().url("https://github.com/phR0ze/alpine-base.git").update().is_ok());
         assert_ne!(repo.last_msg().unwrap(), "Use the workflow name for the badge".to_string());
 
         assert!(sys::remove_all(&tmpdir).is_ok());
@@ -930,21 +933,60 @@ mod tests {
 
     #[test]
     fn test_update_with_progress() {
-        let tmpdir = setup("git_update_with_progress");
+        let tmpdir = setup("git_repo_update_with_progress");
         let tarball = tmpdir.mash("../../alpine-base.tgz");
         assert!(sys::remove_all(&tmpdir).is_ok());
 
         assert_eq!(git::is_repo(&tmpdir), false);
-        assert!(git::update_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {}, |_, _| {},).is_ok());
+        assert!(git::Repo::new(&tmpdir)
+            .unwrap()
+            .url("https://github.com/phR0ze/alpine-base")
+            .xfer_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .checkout_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .update_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .update()
+            .is_ok());
         assert_eq!(git::is_repo(&tmpdir), true);
-        assert!(git::update_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {}, |_, _| {},).is_ok());
+        assert!(git::Repo::new(&tmpdir)
+            .unwrap()
+            .url("https://github.com/phR0ze/alpine-base")
+            .xfer_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .checkout_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .update_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .update()
+            .is_ok());
 
         // Now wipe it out and extract a tarball of the repo that needs updated
         let repo = git::Repo::new(&tmpdir).unwrap();
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(tar::extract_all(&tarball, &tmpdir).is_ok());
         assert_eq!(repo.last_msg().unwrap(), "Use the workflow name for the badge".to_string());
-        assert!(git::update_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {}, |_, _| {},).is_ok());
+        assert!(git::Repo::new(&tmpdir)
+            .unwrap()
+            .url("https://github.com/phR0ze/alpine-base")
+            .xfer_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .checkout_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .update_progress(|total, cur| {
+                let _ = total + cur;
+            })
+            .update()
+            .is_ok());
         assert_ne!(repo.last_msg().unwrap(), "Use the workflow name for the badge".to_string());
 
         assert!(sys::remove_all(&tmpdir).is_ok());
