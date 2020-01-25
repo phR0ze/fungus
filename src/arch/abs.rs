@@ -102,8 +102,9 @@ pub fn source<T: AsRef<str>, U: AsRef<Path>>(pkg: T, dst: U) -> Result<PathBuf> 
         // Clone the single branch from the repo if it exists
         let tmpdir = user::temp_dir(TMPDIR)?;
         let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
-        if let Ok(_) = git::clone_branch(url, branch, &tmpdir) {
-            // Copy out the target source in <tmpdir>/trunk/* to dst
+
+        // Copy out the target source in <tmpdir>/trunk/* to dst
+        if let Ok(_) = git::Repo::new(&tmpdir)?.url(url).branch(branch).branch_only(true).clone() {
             let dir = sys::mkdir(&dst)?;
             sys::copy(tmpdir.mash("trunk/*"), &dir)?;
             return Ok(dir);
