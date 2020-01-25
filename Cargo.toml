@@ -1,6 +1,6 @@
 [package]
 name = "fungus"
-version = "0.0.84"
+version = "0.0.85"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -39,7 +39,7 @@ blake2 = { version = "0.8", optional = true }
 git2 = { version = "0.11", optional = true, default = false, features = ["https"] }
 
 [features]
-default = ["_enc_", "_net_"]
+default = []
 
 # Includes Arch linux specific features
 # arch::abs

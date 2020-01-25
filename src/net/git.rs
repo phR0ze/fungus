@@ -145,6 +145,93 @@ impl<'a> RepoGroup<'a> {
         }
         Ok(())
     }
+
+    /// Update the given repos emitting terminal progress. Clones the entire repo if necessary.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_repo_update_many_doc");
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// let repo1 = tmpdir.mash("repo1");
+    /// let repo2 = tmpdir.mash("repo2");
+    /// let repo1file = repo1.mash("README.md");
+    /// let repo2file = repo2.mash("README.md");
+    /// assert!(sys::mkdir(&tmpdir).is_ok());
+    /// let repos = git::RepoGroup::new()
+    ///    .with_progress(true)
+    ///    .add(git::Repo::new(&repo1).unwrap().url("https://github.com/phR0ze/alpine-base"))
+    ///    .add(git::Repo::new(&repo2).unwrap().url("https://github.com/phR0ze/alpine-core"));
+    /// assert!(repos.update().is_ok());
+    /// assert_eq!(repo1file.exists(), true);
+    /// assert_eq!(repo2file.exists(), true);
+    /// assert!(sys::remove_all(&tmpdir).is_ok());
+    /// ```
+    pub fn update(&self) -> Result<()> {
+        let mut threads = Vec::new();
+        for repo in &self.repos {
+            // Note: I had to make 'path' and 'url' owned types for the thread lifetime to work
+            let path = repo.path_val().to_path_buf();
+            let url = repo.url_val().ok_or_else(|| GitError::UrlNotSet)?.to_string();
+
+            if self.progress.is_none() {
+                threads.push(thread::spawn(move || {
+                    Repo::new(path).unwrap().url(url).clone().unwrap();
+                }));
+            } else {
+                let progress = self.progress.as_ref().unwrap();
+                let progress_bar = progress.add(ProgressBar::new(0).with_style(self.style.as_ref().unwrap().clone()));
+                progress_bar.set_message(&url);
+                let msg = url.clone();
+
+                thread::spawn(move || {
+                    let mut xfer_init = false;
+                    let mut check_init = false;
+                    let mut update_init = false;
+                    Repo::new(path)
+                        .unwrap()
+                        .url(url)
+                        .xfer_progress(|total, cur| {
+                            if !xfer_init {
+                                progress_bar.set_length(total);
+                                xfer_init = true;
+                            }
+                            progress_bar.set_position(cur);
+                        })
+                        .checkout_progress(|total, cur| {
+                            if !check_init {
+                                progress_bar.set_length(total);
+                                check_init = true;
+                            }
+                            progress_bar.set_position(cur);
+                        })
+                        .update_progress(|total, cur| {
+                            if !update_init {
+                                progress_bar.set_length(total);
+                                update_init = true;
+                            }
+                            progress_bar.set_position(cur);
+                        })
+                        .update()
+                        .unwrap();
+
+                    progress_bar.finish_with_message(&msg);
+                });
+            }
+        }
+
+        // Wait for other threads to finish.
+        if self.progress.is_none() {
+            for thread in threads {
+                thread.join().unwrap();
+            }
+        } else {
+            let progress = self.progress.as_ref().unwrap();
+            progress.join()?;
+        }
+        Ok(())
+    }
 }
 
 /// Git repository
@@ -432,7 +519,6 @@ impl<'a> Repo<'a> {
     /// let tmpfile = tmpdir.mash("README.md");
     /// assert_eq!(tmpfile.exists(), false);
     /// assert!(git::Repo::new(&tmpdir).unwrap().url("https://github.com/phR0ze/alpine-base").update().is_ok());
-    /// assert!(git::update("https://github.com/phR0ze/alpine-base.git", &tmpdir).is_ok());
     /// assert_eq!(tmpfile.exists(), true);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
@@ -548,146 +634,6 @@ where
     let refspec = format!("+refs/heads/{0:}:refs/remotes/origin/{0:}", branch.as_ref());
     remote.fetch(&[&refspec], None, None)?;
     repo.find_reference("FETCH_HEAD")?;
-    Ok(())
-}
-
-/// Update the given repo, cloning the repo if it doesn't exist. Accepts progress callbacks.
-///
-/// ### Examples
-/// ```
-/// use fungus::prelude::*;
-///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_update_with_progress_doc");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// assert!(sys::mkdir(&tmpdir).is_ok());
-/// let tmpfile = tmpdir.mash("README.md");
-/// assert_eq!(tmpfile.exists(), false);
-/// assert!(git::update_with_progress("https://github.com/phR0ze/alpine-base", &tmpdir, |_, _| {}, |_, _| {}, |_, _| {},).is_ok());
-/// assert_eq!(tmpfile.exists(), true);
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// ```
-#[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn update_with_progress<T, U, V, W, X>(url: T, path: U, xfer: V, checkout: W, mut update: X) -> Result<PathBuf>
-where
-    T: AsRef<str>,
-    U: AsRef<Path>,
-    V: FnMut(u64, u64),
-    W: FnMut(u64, u64),
-    X: FnMut(u64, u64),
-{
-    let path = path.as_ref().abs()?;
-
-    // Clone instead of update
-    if !is_repo(&path) {
-        Repo::new(&path)?.url(url).xfer_progress(xfer).checkout_progress(checkout).clone()?;
-    } else {
-        let repo = Repository::open(&path)?;
-
-        // Tracking transfer with indexed as this seems smoother and more logical for doneness
-        let mut callback = RemoteCallbacks::new();
-        callback.transfer_progress(|stats| {
-            update(stats.total_objects() as u64, stats.indexed_objects() as u64);
-            true
-        });
-        let mut fetchopts = FetchOptions::new();
-        fetchopts.remote_callbacks(callback);
-
-        // Fetch the latest from origin/master
-        repo.find_remote("origin")?.fetch(&["master"], Some(&mut fetchopts), None)?;
-        let fetch_head = repo.find_reference("FETCH_HEAD")?;
-        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
-        let (analysis, _) = repo.merge_analysis(&[&fetch_commit])?;
-
-        // Check if we need to update or not
-        if analysis.is_up_to_date() {
-            return Ok(path);
-        } else if analysis.is_fast_forward() {
-            let refname = "refs/heads/master";
-            let mut reference = repo.find_reference(&refname)?;
-            reference.set_target(fetch_commit.id(), "Fast-Forward")?;
-            repo.set_head(&refname)?;
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-        } else {
-            return Err(GitError::FastForwardOnly.into());
-        }
-    }
-    Ok(path)
-}
-
-/// Update the given repos emitting terminal progress. Clones the entire repo if necessary.
-///
-/// ### Examples
-/// ```
-/// use fungus::prelude::*;
-///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("git_update_term_progress_doc");
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// let repo1 = tmpdir.mash("repo1");
-/// let repo2 = tmpdir.mash("repo2");
-/// let repo1file = repo1.mash("README.md");
-/// let repo2file = repo2.mash("README.md");
-/// assert!(sys::mkdir(&tmpdir).is_ok());
-/// let mut repos = HashMap::new();
-/// repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
-/// repos.insert("https://github.com/phR0ze/alpine-core", &repo2);
-/// assert!(git::update_term_progress(&repos).is_ok());
-/// assert_eq!(repo1file.exists(), true);
-/// assert_eq!(repo2file.exists(), true);
-/// assert!(sys::remove_all(&tmpdir).is_ok());
-/// ```
-#[cfg(any(feature = "_net_", feature = "_arch_"))]
-pub fn update_term_progress<T, U>(repos: &HashMap<T, U>) -> Result<()>
-where
-    T: AsRef<str>,
-    U: AsRef<Path>,
-{
-    let progress = MultiProgress::new();
-    let mut style = ProgressStyle::default_bar();
-    style = style.progress_chars("=>-").template("[{elapsed_precise}][{bar:50.cyan/blue}] {pos:>7}/{len:7} ({eta}) - {msg}");
-
-    // Spin off the updating into separate threads leaving the main thread for multi-progress
-    for (url, dst) in repos {
-        let bar = progress.add(ProgressBar::new(0).with_style(style.clone()));
-        let dst = dst.as_ref().abs()?;
-        let url = url.as_ref().to_string();
-        bar.set_message(&url);
-        let msg = url.clone();
-
-        thread::spawn(move || {
-            let mut xfer_init = false;
-            let mut check_init = false;
-            let mut update_init = false;
-            update_with_progress(
-                url,
-                dst,
-                |total, cur| {
-                    if !xfer_init {
-                        bar.set_length(total);
-                        xfer_init = true;
-                    }
-                    bar.set_position(cur);
-                },
-                |total, cur| {
-                    if !check_init {
-                        bar.set_length(total);
-                        check_init = true;
-                    }
-                    bar.set_position(cur);
-                },
-                |total, cur| {
-                    if !update_init {
-                        bar.set_length(total);
-                        update_init = true;
-                    }
-                    bar.set_position(cur);
-                },
-            )
-            .unwrap();
-
-            bar.finish_with_message(&msg);
-        });
-    }
-    progress.join()?;
     Ok(())
 }
 
@@ -993,20 +939,20 @@ mod tests {
     }
 
     #[test]
-    fn test_update_term_progress() {
-        let tmpdir = setup("git_update_term_progress");
+    fn test_update_many_with_progress() {
+        let tmpdir = setup("git_update_many_with_progress");
         let tarball = tmpdir.mash("../../alpine-base.tgz");
         let repo1 = tmpdir.mash("repo1");
         let repo2 = tmpdir.mash("repo2");
         let repo1file = repo1.mash("README.md");
         let repo2file = repo2.mash("README.md");
-
         assert!(sys::remove_all(&tmpdir).is_ok());
-        let mut repos = HashMap::new();
-        repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
-        repos.insert("https://github.com/phR0ze/alpine-core", &repo2);
-        assert!(git::update_term_progress(&repos).is_ok());
 
+        let repos = git::RepoGroup::new()
+            .with_progress(true)
+            .add(git::Repo::new(&repo1).unwrap().url("https://github.com/phR0ze/alpine-base"))
+            .add(git::Repo::new(&repo2).unwrap().url("https://github.com/phR0ze/alpine-core"));
+        assert!(repos.update().is_ok());
         assert_eq!(repo1file.exists(), true);
         assert_eq!(repo2file.exists(), true);
         assert_eq!(sys::readlines(&repo1file).unwrap()[0].starts_with("alpine-"), true);
@@ -1016,9 +962,8 @@ mod tests {
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert!(tar::extract_all(&tarball, &tmpdir).is_ok());
         assert_eq!(git::Repo::new(&tmpdir).unwrap().last_msg().unwrap(), "Use the workflow name for the badge".to_string());
-        let mut repos = HashMap::new();
-        repos.insert("https://github.com/phR0ze/alpine-base", &repo1);
-        assert!(git::update_term_progress(&repos).is_ok());
+        let repos = git::RepoGroup::new().with_progress(true).add(git::Repo::new(&repo1).unwrap().url("https://github.com/phR0ze/alpine-base"));
+        assert!(repos.update().is_ok());
         assert_ne!(git::Repo::new(&repo1).unwrap().last_msg().unwrap(), "Use the workflow name for the badge".to_string());
 
         assert!(sys::remove_all(&tmpdir).is_ok());
