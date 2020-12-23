@@ -1,0 +1,51 @@
+name: build
+
+# Triggered on pushes to the repo
+on: 
+  push:
+    branches:
+    - main
+
+# Jobs to execute when triggered
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install stable Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build application
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-features
+
+      - name: Test application
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features
+
+      - name: Lint application
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean
+        uses: actions-rs/cargo@v1
+        with:
+          command: clean
+
+      - name: Tarpaulin code coverage
+        id: coverage
+        uses: actions-rs/tarpaulin@v0.1
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}

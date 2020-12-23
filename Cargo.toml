@@ -1,6 +1,6 @@
 [package]
 name = "fungus"
-version = "0.0.85"
+version = "0.0.86"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -9,60 +9,77 @@ readme = "README.md"
 homepage = "https://github.com/phR0ze/fungus"
 repository = "https://github.com/phR0ze/fungus"
 exclude = [
-	"examples",
+    "docs",
+    "examples",
+    ".git",
+    ".githooks",
+    ".github",
 	"tests",
-	"benches/*"
+	"benches",
+	"target",
+	".vscode"
 ]
 
+# Higher the opt-level value the slower the compile time
 [profile.release]
-lto = true
+opt-level = 3   # Optimize for speed over size
+lto = true      # Futher assist in optimization
+debug = true    # keep symbols in release for debug
+
+[profile.dev]
+opt-level = 0   # Default no optimization
 
 [dependencies]
-log = { version = "0.4", features = ["std"] }
-glob = "0.3"
-failure = "0.1"
-failure_derive = "0.1"
-indicatif = "0.13"
-walkdir = "2.3"
-regex = "1.3"
-lazy_static = "1.4"
-chrono = "0.4"
-colored = "1.9"
-rand = "0.7"
-hex = "0.4"
+lazy_static = "1"
+libc = { version = "0.2", default-features = false }
 
-# Optional dependencies based on features
-tar2 = { package = "tar", version = "0.4", optional = true }
-flate2 = { version = "1.0", optional = true }
-libc = { version = "0.2", optional = true }
-blake2 = { version = "0.8", optional = true }
-git2 = { version = "0.11", optional = true, default = false, features = ["https"] }
+[dev-dependencies]
 
-[features]
-default = []
+# log = { version = "0.4", features = ["std"] }
+# glob = "0.3"
+# failure = "0.1"
+# failure_derive = "0.1"
+# indicatif = "0.14"
+# walkdir = "2.3"
+# regex = "1.3"
+# lazy_static = "1.4"
+# chrono = "0.4"
+# colored = "1.9"
+# rand = "0.7"
+# hex = "0.4"
 
-# Includes Arch linux specific features
-# arch::abs
-_arch_ = ["git2"]
+# # Optional dependencies based on features
+# tar2 = { package = "tar", version = "0.4", optional = true }
+# flate2 = { version = "1.0", optional = true }
+# libc = { version = "0.2", optional = true }
+# blake2 = { version = "0.8", optional = true }
+# git2 = { version = "0.11", optional = true, default = false, features = ["https"] }
 
-# Includes cypto dependent functions/types/mods:
-# sys::digest
-_crypto_ = ["blake2"]
+# [features]
+# default = ["_enc_", "_net_", "_arch_"]
 
-# Includes encoders/decoders
-# enc::gzip
-_enc_ = ["libc", "flate2", "tar2"]
+# # Includes Arch linux specific features
+# # arch::abs
+# _arch_ = ["git2"]
 
-# Includes net dependent functions/types/mods:
-# net::agent, net::git
-_net_ = ["git2"]
+# # Includes cypto dependent functions/types/mods:
+# # sys::digest
+# _crypto_ = ["blake2"]
 
-# Includes libc dependent functions/types/mods:
-# sys::chown, sys::lchown, user::User, user::current, user::drop_sudo, user::getuid,
-# user::getgid, user::geteuid, user::getegid, user::getrids, user::is_root,
-# user::lookup, user::name, user::pause_sudo, user::setuid, user::setgid, user::seteuid,
-# user::setegid, user::sudo, user::switchuser
-_libc_ = ["libc"]
+# # Includes encoders/decoders
+# # enc::gzip
+# _enc_ = ["libc", "flate2", "tar2"]
 
-[patch.crates-io]
-git2 = { git = "https://github.com/phR0ze/git2-rs", branch = "master" }
+# # Includes net dependent functions/types/mods:
+# # net::agent, net::git
+# _net_ = ["git2"]
+
+# # Includes libc dependent functions/types/mods:
+# # sys::chown, sys::lchown, user::User, user::current, user::drop_sudo, user::getuid,
+# # user::getgid, user::geteuid, user::getegid, user::getrids, user::is_root,
+# # user::lookup, user::name, user::pause_sudo, user::setuid, user::setgid, user::seteuid,
+# # user::setegid, user::sudo, user::switchuser
+# _libc_ = ["libc"]
+
+# [patch.crates-io]
+# git2 = { git = "https://github.com/phR0ze/git2-rs", branch = "master" }

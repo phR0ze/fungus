@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MIT License
-#Copyright (c) 2017-2019 phR0ze
+#Copyright (c) 2017-2020 phR0ze
 #
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal
@@ -19,10 +19,12 @@
 #LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #SOFTWARE.
-source .githooks/utils
+source "$(dirname $(find . -name pre-commit))/utils"
 
+# Prepend version to every commit message (use POSIX ERE for compatibility)
 # Note: the cwd is always the full path of your project root
+msgfile="$1"    # message file passed in from git
 get_version 'Cargo.toml' '.*version =.*"([0-9]+\.[0-9]+\.[0-9]+)".*' ver
-prepend_version "$1" '[0-9]+\.[0-9]+\.[0-9]+:[[:space:]]*(.*)' "$ver"
+prepend_version "$msgfile" '[0-9]+\.[0-9]+\.[0-9]+:[[:space:]]*(.*)' "$ver"
 
 # vim: ts=2:sw=2:sts=2
