@@ -1,5 +1,5 @@
-use std::fmt;
 use std::error::Error as StdError;
+use std::fmt;
 
 // An error indicating that something went wrong with a user operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -34,7 +34,7 @@ impl UserError {
     }
 }
 
-impl StdError for UserError{}
+impl StdError for UserError {}
 
 impl AsRef<dyn StdError> for UserError {
     fn as_ref(&self) -> &(dyn StdError + 'static) {
@@ -52,7 +52,7 @@ impl fmt::Display for UserError {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::*;
+    use crate::prelude::*;
 
     #[test]
     fn test_errors() {

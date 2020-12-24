@@ -1,15 +1,15 @@
 #[cfg(feature = "_crypto_")]
 use blake2::{Blake2b, Digest};
 
+use crate::error::*;
+use crate::sys::{self, PathExt};
+use crate::Result;
+use regex::Regex;
 use std::fs::{self, File};
 use std::io::{self, prelude::*, BufRead, BufReader};
 use std::os::unix::{self, fs::PermissionsExt};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-use regex::Regex;
-use crate::Result;
-use crate::core::{FileError, PathError};
-use crate::sys::{self, PathExt};
 
 /// Chmod provides flexible options for changing file permission with optional configuration.
 #[derive(Debug, Clone)]
@@ -110,6 +110,7 @@ impl Chmod {
     }
 
     /// Execute the [`Chmod`] options against the set `path` with the set `mode`.
+    #[allow(clippy::all)]
     pub fn chmod(&self) -> Result<()> {
         // Handle globbing
         let sources = sys::glob(&self.path)?;
@@ -126,7 +127,7 @@ impl Chmod {
 
             // Grant permissions on the way in
             if (!self.dirs && !self.files) || (self.dirs && is_dir) || (self.files && !is_dir) {
-                if !self.recursive || !is_dir || (self.recursive && !revoking_mode(old_mode, self.mode)) {
+                if !self.recursive || !is_dir || !revoking_mode(old_mode, self.mode) {
                     source.setperms(fs::Permissions::from_mode(self.mode))?;
                 }
             }
@@ -197,7 +198,7 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
         Ok(x) => x,
         _ => 0o644,
     };
-    Ok(Chmod { path: path, mode: mode, dirs: false, files: false, recursive: true })
+    Ok(Chmod { path, mode, dirs: false, files: false, recursive: true })
 }
 
 /// Change the ownership of the `path` providing path expansion, globbing, recursion and error
@@ -536,6 +537,7 @@ pub fn extract_string_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> Result
 /// assert_eq!(sys::extract_strings(&tmpfile, &rx).unwrap(), vec!["Citizen Kane", "1941"]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
+#[allow(clippy::all)]
 pub fn extract_strings<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<Vec<String>> {
     let data = readstring(path)?;
     let caps = rx.captures(&data).ok_or(FileError::FailedToExtractString)?;
@@ -659,9 +661,7 @@ pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 /// ```
 pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
     let path = path.as_ref().abs()?;
-    let wrapped_meta = fs::metadata(&path);
-    if wrapped_meta.is_ok() {
-        let meta = wrapped_meta.unwrap();
+    if let Ok(meta) = fs::metadata(&path) {
         if meta.is_file() {
             fs::remove_file(path)?;
         } else if meta.is_dir() {

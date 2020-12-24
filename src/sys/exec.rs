@@ -1,8 +1,8 @@
-use std::env;
-use std::path::{Path, PathBuf};
+use crate::core::ToStringExt;
+use crate::error::*;
+use crate::sys::{self, user, PathExt};
 use crate::Result;
-use crate::core::{PathError, ToStringExt};
-use crate::sys::{self, PathExt, user};
+use std::path::{Path, PathBuf};
 
 /// Returns the full path to the directory of the current running executable.
 ///
@@ -14,7 +14,7 @@ use crate::sys::{self, PathExt, user};
 /// assert_eq!(exec::dir().unwrap(), dir);
 /// ```
 pub fn dir() -> Result<PathBuf> {
-    Ok(env::current_exe()?.dir()?)
+    Ok(sys::exe()?.dir()?)
 }
 
 /// Check if the given executable exists in the `PATH` and is executable.
@@ -37,7 +37,7 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
                 return Err(PathError::is_not_exec(path).into());
             }
             Ok(path)
-        },
+        }
 
         // Target is a name
         false => {
@@ -63,17 +63,16 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
 /// assert_eq!(exec::name().unwrap(), base);
 /// ```
 pub fn name() -> Result<String> {
-    Ok(env::current_exe()?.base()?)
+    Ok(sys::exe()?.base()?)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use std::env;
 
     #[test]
     fn test_dir() {
-        let cwd = env::current_dir().unwrap();
+        let cwd = sys::cwd().unwrap();
         let dir = cwd.mash("target/debug/deps");
         assert_eq!(exec::dir().unwrap(), dir);
     }

@@ -1,8 +1,7 @@
+use crate::error::*;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str;
-use crate::Result;
-use crate::core::{PathError, StringError};
 
 pub trait StringExt {
     /// Returns the length in characters rather than bytes i.e. this is a human understandable

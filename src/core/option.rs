@@ -1,6 +1,3 @@
-// Option extensions and utilities
-//--------------------------------------------------------------------------------------------------
-
 pub trait OptionExt<T> {
     fn has<U>(&self, value: &U) -> bool
     where

@@ -1,7 +1,6 @@
+use crate::error::*;
 use std::fmt;
 use std::iter::Iterator;
-use crate::Result;
-use crate::core::IterError;
 
 // Iterator extensions and utilities
 //--------------------------------------------------------------------------------------------------
@@ -173,6 +172,7 @@ impl<T: ?Sized> IteratorExt for T
 where
     T: Iterator,
 {
+    #[allow(clippy::all)]
     fn consume(mut self) -> Self
     where
         Self: Sized,

@@ -1,6 +1,6 @@
-use std::{env, fmt, io};
+use crate::error::*;
 use std::error::Error as StdError;
-use crate::core::{FileError, IterError, PathError, StringError, UserError};
+use std::{env, fmt, io};
 
 /// `Result<T>` provides a simplified result type with a common error type
 pub type Result<T> = std::result::Result<T, Error>;
@@ -8,12 +8,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Define common error wrapper type
 #[derive(Debug)]
 pub enum Error {
-    //BadPath {path: PathRef},
     File(FileError),
     GlobPattern(glob::PatternError),
     Io(io::Error),
     Iter(IterError),
     Path(PathError),
+    Os(OsError),
     Regex(regex::Error),
     String(StringError),
     User(UserError),
@@ -21,7 +21,6 @@ pub enum Error {
     WalkDir(walkdir::Error),
 }
 impl Error {
-
     /// Implemented directly on the `Error` type to reduce casting required
     pub fn is<T: StdError + 'static>(&self) -> bool {
         <dyn StdError + 'static>::is::<T>(self)
@@ -47,16 +46,17 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             //BadPath {path: PathRef} => write!(f, "{}", path),
-            Error::File(ref err)=> write!(f, "{}", err),
-            Error::GlobPattern(ref err)=> write!(f, "{}", err),
-            Error::Io(ref err)=> write!(f, "{}", err),
-            Error::Iter(ref err)=> write!(f, "{}", err),
-            Error::Path(ref err)=> write!(f, "{}", err),
-            Error::Regex(ref err)=> write!(f, "{}", err),
-            Error::String(ref err)=> write!(f, "{}", err),
-            Error::User(ref err)=> write!(f, "{}", err),
-            Error::Var(ref err)=> write!(f, "{}", err),
-            Error::WalkDir(ref err)=> write!(f, "{}", err),
+            Error::File(ref err) => write!(f, "{}", err),
+            Error::GlobPattern(ref err) => write!(f, "{}", err),
+            Error::Io(ref err) => write!(f, "{}", err),
+            Error::Iter(ref err) => write!(f, "{}", err),
+            Error::Path(ref err) => write!(f, "{}", err),
+            Error::Os(ref err) => write!(f, "{}", err),
+            Error::Regex(ref err) => write!(f, "{}", err),
+            Error::String(ref err) => write!(f, "{}", err),
+            Error::User(ref err) => write!(f, "{}", err),
+            Error::Var(ref err) => write!(f, "{}", err),
+            Error::WalkDir(ref err) => write!(f, "{}", err),
         }
     }
 }
@@ -76,6 +76,7 @@ impl StdError for Error {
             Error::Io(ref err) => Some(err),
             Error::Iter(ref err) => Some(err),
             Error::Path(ref err) => Some(err),
+            Error::Os(ref err) => Some(err),
             Error::Regex(ref err) => Some(err),
             Error::String(ref err) => Some(err),
             Error::User(ref err) => Some(err),
@@ -115,6 +116,12 @@ impl From<PathError> for Error {
     }
 }
 
+impl From<OsError> for Error {
+    fn from(err: OsError) -> Error {
+        Error::Os(err)
+    }
+}
+
 impl From<regex::Error> for Error {
     fn from(err: regex::Error) -> Error {
         Error::Regex(err)
@@ -144,3 +151,11 @@ impl From<walkdir::Error> for Error {
         Error::WalkDir(err)
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use crate::prelude::*;
+
+//     #[test]
+//     fn test_errors() {}
+// }

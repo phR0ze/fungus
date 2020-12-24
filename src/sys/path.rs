@@ -1,12 +1,12 @@
+use crate::core::*;
+use crate::error::*;
+use crate::sys::{self, user};
 use colored::*;
 use std::collections::HashMap;
-use std::{env, fs, io};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
+use std::{env, fs, io};
 use walkdir::WalkDir;
-use crate::Result;
-use crate::core::{IteratorExt, OptionExt, PathError, StringExt, ToStringExt};
-use crate::sys::{self, user};
 
 /// Return the path in an absolute clean form
 ///
@@ -81,11 +81,9 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
                 let path = entry?.into_path();
 
                 // Ensure the path is a directory and distinct
-                if path.is_dir() {
-                    if !distinct.contains_key(&path) {
-                        distinct.insert(path.clone(), true);
-                        paths.push(path);
-                    }
+                if path.is_dir() && !distinct.contains_key(&path) {
+                    distinct.insert(path.clone(), true);
+                    paths.push(path);
                 }
             }
             return Ok(paths);
@@ -124,11 +122,9 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
                 let path = entry?.into_path();
 
                 // Ensure the path is a directory and distinct
-                if path.is_file() {
-                    if !distinct.contains_key(&path) {
-                        distinct.insert(path.clone(), true);
-                        paths.push(path);
-                    }
+                if path.is_file() && !distinct.contains_key(&path) {
+                    distinct.insert(path.clone(), true);
+                    paths.push(path);
                 }
             }
             return Ok(paths);
@@ -179,22 +175,6 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
         return Err(PathError::is_not_dir(abs).into());
     }
     Err(PathError::does_not_exist(abs).into())
-}
-
-/// Returns the current working directory. Just wraps the Rust env function but I kept forgetting
-/// where it was located.
-///
-/// ### Examples
-/// ```
-/// use fungus::prelude::*;
-///
-/// println!("current working directory: {:?}", sys::cwd().unwrap());
-/// ```
-pub fn cwd() -> Result<PathBuf> {
-    match env::current_dir() {
-        Ok(cwd) => Ok(cwd),
-        Err(err) => Err(err.into()),
-    }
 }
 
 /// Returns all directories for the given path, sorted by filename. Handles path expansion.
@@ -290,11 +270,11 @@ pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
             match x {
                 Component::Normal(y) => {
                     let seg = y.to_string()?;
-                    if seg.starts_with("${") {
-                        let var = env::var(&seg[2..seg.size() - 1])?;
+                    if let Some(key) = seg.strip_prefix("${") {
+                        let var = env::var(key)?;
                         path_buf.push(var);
-                    } else if seg.starts_with('$') {
-                        let var = env::var(&seg[1..])?;
+                    } else if let Some(key) = seg.strip_prefix('$') {
+                        let var = env::var(key)?;
                         path_buf.push(var);
                     } else {
                         path_buf.push(seg);
@@ -730,11 +710,11 @@ pub trait PathExt {
     /// links correctly in some cases, use canonicalize in those cases. It applies the following rules
     /// interatively until no further processing can be done.
     ///
-    ///	1. Replace multiple slashes with a single
-    ///	2. Eliminate each . path name element (the current directory)
-    ///	3. Eliminate each inner .. path name element (the parent directory)
+    /// 1. Replace multiple slashes with a single
+    /// 2. Eliminate each . path name element (the current directory)
+    /// 3. Eliminate each inner .. path name element (the parent directory)
     ///    along with the non-.. element that precedes it.
-    ///	4. Eliminate .. elements that begin a rooted path:
+    /// 4. Eliminate .. elements that begin a rooted path:
     ///    that is, replace "/.." by "/" at the beginning of a path.
     /// 5. Leave intact ".." elements that begin a non-rooted path.
     /// 6. Drop trailing '/' unless it is the root
@@ -1665,7 +1645,7 @@ impl PathColorExt for Path {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use std::path::Component;
+    use colored::*;
 
     // Test setup
     fn setup() -> PathBuf {
@@ -1676,8 +1656,8 @@ mod tests {
 
     #[test]
     fn test_abs() {
-        let home = PathBuf::from(env::var("HOME").unwrap());
-        let cwd = env::current_dir().unwrap();
+        let home = PathBuf::from(sys::env_var("HOME").unwrap());
+        let cwd = sys::cwd().unwrap();
         let prev = cwd.dir().unwrap();
 
         // expand previous directory and drop trailing slashes
@@ -2486,7 +2466,7 @@ mod tests {
 
     #[test]
     fn test_pathext_relative_from() {
-        let cwd = env::current_dir().unwrap();
+        let cwd = sys::cwd().unwrap();
 
         // same directory
         assert_eq!(PathBuf::from("bar1").relative_from("bar1").unwrap(), cwd.mash("bar1"));

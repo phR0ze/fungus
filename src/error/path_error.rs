@@ -1,6 +1,6 @@
+use std::error::Error as StdError;
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::error::Error as StdError;
 
 // An error indicating that something went wrong with a path operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -126,7 +126,7 @@ impl PathError {
     }
 }
 
-impl StdError for PathError{}
+impl StdError for PathError {}
 
 impl AsRef<dyn StdError> for PathError {
     fn as_ref(&self) -> &(dyn StdError + 'static) {
@@ -157,7 +157,6 @@ impl fmt::Display for PathError {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use std::path::{Path, PathBuf};
 
     fn path_empty() -> Result<PathBuf> {
         Err(PathError::Empty.into())
