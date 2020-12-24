@@ -1,5 +1,5 @@
 use crate::core::ToStringExt;
-use crate::error::*;
+use crate::errors::*;
 use crate::sys::{self, user, PathExt};
 use crate::Result;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let dir = env::current_exe().unwrap().dir().unwrap();
+/// let dir = sys::exe().unwrap().dir().unwrap();
 /// assert_eq!(exec::dir().unwrap(), dir);
 /// ```
 pub fn dir() -> Result<PathBuf> {
@@ -18,6 +18,7 @@ pub fn dir() -> Result<PathBuf> {
 }
 
 /// Check if the given executable exists in the `PATH` and is executable.
+///
 pub fn exists<T: AsRef<Path>>(target: T) -> bool {
     lookup(target).is_ok()
 }
@@ -59,7 +60,7 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let base = env::current_exe().unwrap().base().unwrap();
+/// let base = sys::exe().unwrap().base().unwrap();
 /// assert_eq!(exec::name().unwrap(), base);
 /// ```
 pub fn name() -> Result<String> {
@@ -91,10 +92,10 @@ mod tests {
     //     assert_eq!(exec::lookup(&file1).unwrap(), file1.abs().unwrap());
 
     //     // Test lookup by PATH
-    //     let saved_path = env::var("PATH").unwrap();
+    //     let saved_path = sys::var("PATH").unwrap();
     //     let new_path = format!("{}:{}", tmpdir.abs().unwrap().to_string().unwrap(), &saved_path);
     //     println!("{}", &new_path);
-    //     env::set_var("PATH", new_path);
+    //     sys::set_var("PATH", new_path);
     //     assert_eq!(exec::lookup(file1.base().unwrap()).unwrap(), file1.abs().unwrap());
 
     //     assert!(sys::remove_all(&tmpdir).is_ok());
@@ -102,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_name() {
-        let exec_path = env::current_exe().unwrap();
+        let exec_path = sys::exe().unwrap();
         let name = exec_path.base().unwrap();
         assert_eq!(name, exec::name().unwrap());
     }

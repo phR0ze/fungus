@@ -1,9 +1,8 @@
+use crate::sys::{self, PathExt};
+use crate::Result;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use std::env;
 use std::path::PathBuf;
-use crate::Result;
-use crate::sys::{self, PathExt};
 
 // Implementation in Rust for the XDB Base Directory Specification
 // https://wiki.archlinux.org/index.php/XDG_Base_Directory
@@ -11,9 +10,9 @@ use crate::sys::{self, PathExt};
 
 /// Returns the full path to the current user's home directory.
 ///
-/// Alternate implementation as the Rust env::home_dir implementation has be deprecated
+/// Alternate implementation as the Rust std::env::home_dir implementation which has be deprecated
 /// https://doc.rust-lang.org/std/env/fn.home_dir.html
-/// 
+///
 /// ### Examples
 /// ```
 /// use fungus::prelude::*;
@@ -21,7 +20,7 @@ use crate::sys::{self, PathExt};
 /// assert!(user::home_dir().is_ok());
 /// ```
 pub fn home_dir() -> Result<PathBuf> {
-    let home = env::var("HOME")?;
+    let home = sys::var("HOME")?;
     let dir = PathBuf::from(home);
     Ok(dir)
 }
@@ -37,7 +36,7 @@ pub fn home_dir() -> Result<PathBuf> {
 /// assert!(user::config_dir().is_ok());
 /// ```
 pub fn config_dir() -> Result<PathBuf> {
-    Ok(match env::var("XDG_CONFIG_HOME") {
+    Ok(match sys::var("XDG_CONFIG_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".config"),
     })
@@ -54,7 +53,7 @@ pub fn config_dir() -> Result<PathBuf> {
 /// assert!(user::cache_dir().is_ok());
 /// ```
 pub fn cache_dir() -> Result<PathBuf> {
-    Ok(match env::var("XDG_CACHE_HOME") {
+    Ok(match sys::var("XDG_CACHE_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".cache"),
     })
@@ -71,7 +70,7 @@ pub fn cache_dir() -> Result<PathBuf> {
 /// assert!(user::data_dir().is_ok());
 /// ```
 pub fn data_dir() -> Result<PathBuf> {
-    Ok(match env::var("XDG_DATA_HOME") {
+    Ok(match sys::var("XDG_DATA_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".local/share"),
     })
@@ -96,7 +95,7 @@ pub fn data_dir() -> Result<PathBuf> {
 /// println!("runtime directory of the current user: {:?}", user::runtime_dir());
 /// ```
 pub fn runtime_dir() -> PathBuf {
-    match env::var("XDG_RUNTIME_DIR") {
+    match sys::var("XDG_RUNTIME_DIR") {
         Ok(x) => PathBuf::from(x),
         Err(_) => PathBuf::from("/tmp"),
     }
@@ -139,7 +138,7 @@ pub fn temp_dir<T: AsRef<str>>(prefix: T) -> Result<PathBuf> {
 /// assert!(user::data_dirs().is_ok());
 /// ```
 pub fn data_dirs() -> Result<Vec<PathBuf>> {
-    Ok(match env::var("XDG_DATA_DIRS") {
+    Ok(match sys::var("XDG_DATA_DIRS") {
         Ok(x) => sys::parse_paths(x)?,
         Err(_) => vec![PathBuf::from("/usr/local/share:/usr/share")],
     })
@@ -156,7 +155,7 @@ pub fn data_dirs() -> Result<Vec<PathBuf>> {
 /// assert!(user::config_dirs().is_ok());
 /// ```
 pub fn config_dirs() -> Result<Vec<PathBuf>> {
-    Ok(match env::var("XDG_CONFIG_DIRS") {
+    Ok(match sys::var("XDG_CONFIG_DIRS") {
         Ok(x) => sys::parse_paths(x)?,
         Err(_) => vec![PathBuf::from("/etc/xdg")],
     })
@@ -172,7 +171,7 @@ pub fn config_dirs() -> Result<Vec<PathBuf>> {
 /// assert!(user::path_dirs().is_ok());
 /// ```
 pub fn path_dirs() -> Result<Vec<PathBuf>> {
-    sys::parse_paths(env::var("PATH")?)
+    sys::parse_paths(sys::var("PATH")?)
 }
 
 // User functions
@@ -305,7 +304,7 @@ pub fn getegid() -> u32 {
 #[cfg(feature = "_libc_")]
 pub fn getrids(uid: u32, gid: u32) -> (u32, u32) {
     match uid {
-        0 => match (env::var("SUDO_UID"), env::var("SUDO_GID")) {
+        0 => match (sys::var("SUDO_UID"), sys::var("SUDO_GID")) {
             (Ok(u), Ok(g)) => match (u.parse::<u32>(), g.parse::<u32>()) {
                 (Ok(u), Ok(g)) => (u, g),
                 _ => (uid, gid),
@@ -539,7 +538,7 @@ mod tests {
 
     #[test]
     fn test_user_home() {
-        let home_str = env::var("HOME").unwrap();
+        let home_str = sys::var("HOME").unwrap();
         let home_path = PathBuf::from(home_str);
         let home_dir = home_path.parent().unwrap();
         assert_eq!(home_dir.to_path_buf(), user::home_dir().unwrap().dir().unwrap());

@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::errors::*;
 use crate::sys;
 use std::io;
 
@@ -134,8 +134,8 @@ pub struct Info {
 pub fn info() -> Result<Info> {
     // Extract kernel release and version
     let data = sys::readstring("/proc/version")?;
-    let release = data.split(" ").nth(2).ok_or_else(|| OsError::KernelReleaseNotFound)?;
-    let ver_len = release.find('-').ok_or_else(|| OsError::KernelVersionNotFound)?;
+    let release = data.split(' ').nth(2).ok_or(OsError::KernelReleaseNotFound)?;
+    let ver_len = release.find('-').ok_or(OsError::KernelVersionNotFound)?;
     let (version, _) = release.split_at(ver_len);
 
     Ok(Info { arch: arch(), kernel: version.to_string(), release: release.to_string() })

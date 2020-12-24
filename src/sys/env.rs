@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::errors::*;
 use crate::sys::PathExt;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -55,7 +55,7 @@ pub fn args() -> env::Args {
 /// ```rust
 /// use fungus::prelude::*;
 ///
-/// println!("current working directory: {:?}", sys::env::cwd().unwrap());
+/// println!("current working directory: {:?}", sys::cwd().unwrap());
 /// ```
 pub fn cwd() -> io::Result<PathBuf> {
     env::current_dir()
@@ -129,7 +129,7 @@ pub fn exe() -> io::Result<PathBuf> {
 /// assert!(sys::env_flag("FOOBAR", true));
 ///
 /// // Disabled variables will always be `false` despite default
-/// std::env::set_var("FOOBAR", "0");
+/// std::set_var("FOOBAR", "0");
 /// assert!(!sys::env_flag("FOOBAR", false));
 /// assert!(!sys::env_flag("FOOBAR", true));
 ///
@@ -196,7 +196,7 @@ pub fn set_cwd<P: AsRef<Path>>(path: P) -> Result<()> {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// env::set_var("KEY", "VALUE");
+/// sys::set_var("KEY", "VALUE");
 /// assert_eq!(sys::var("KEY"), Ok("VALUE".to_string()));
 /// ```
 pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(k: K, v: V) {
@@ -281,7 +281,7 @@ pub fn var<K: AsRef<OsStr>>(key: K) -> std::result::Result<String, env::VarError
 /// ```
 /// use fungus::prelude::*;
 ///
-/// for (key, value) in env::vars() {
+/// for (key, value) in sys::vars() {
 ///     println!("{}: {}", key, value);
 /// }
 /// ```

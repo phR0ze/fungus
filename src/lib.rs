@@ -1,10 +1,10 @@
 pub mod core;
-pub mod error;
+pub mod errors;
 pub mod sys;
 
 /// Types exported directly into the fungus namespace
-pub use crate::error::Error;
-pub use crate::error::Result;
+pub use crate::errors::Error;
+pub use crate::errors::Result;
 
 /// All essential symbols in a simple consumable way
 ///
@@ -14,7 +14,7 @@ pub use crate::error::Result;
 /// ```
 pub mod prelude {
     pub use super::core::*;
-    pub use super::error::*;
+    pub use super::errors::*;
     pub use super::sys::{self, exec, ext::*, term, user};
 
     // Re-exports

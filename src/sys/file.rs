@@ -1,7 +1,7 @@
 #[cfg(feature = "_crypto_")]
 use blake2::{Blake2b, Digest};
 
-use crate::error::*;
+use crate::errors::*;
 use crate::sys::{self, PathExt};
 use crate::Result;
 use regex::Regex;

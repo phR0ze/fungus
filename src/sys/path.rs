@@ -1,11 +1,11 @@
 use crate::core::*;
-use crate::error::*;
+use crate::errors::*;
 use crate::sys::{self, user};
 use colored::*;
 use std::collections::HashMap;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
-use std::{env, fs, io};
+use std::{fs, io};
 use walkdir::WalkDir;
 
 /// Return the path in an absolute clean form
@@ -14,7 +14,7 @@ use walkdir::WalkDir;
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let home = env::var("HOME").unwrap();
+/// let home = sys::var("HOME").unwrap();
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
 pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
@@ -36,7 +36,7 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 
     // Expand relative directories if needed
     if !path_buf.is_absolute() {
-        let mut curr = env::current_dir()?;
+        let mut curr = sys::cwd()?;
         while let Ok(path) = path_buf.first() {
             match path {
                 Component::CurDir => {
@@ -235,7 +235,7 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let home = env::var("HOME").unwrap();
+/// let home = sys::var("HOME").unwrap();
 /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
 /// ```
 pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
@@ -271,10 +271,10 @@ pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
                 Component::Normal(y) => {
                     let seg = y.to_string()?;
                     if let Some(key) = seg.strip_prefix("${") {
-                        let var = env::var(key)?;
+                        let var = sys::var(key)?;
                         path_buf.push(var);
                     } else if let Some(key) = seg.strip_prefix('$') {
-                        let var = env::var(key)?;
+                        let var = sys::var(key)?;
                         path_buf.push(var);
                     } else {
                         path_buf.push(seg);
@@ -660,7 +660,7 @@ pub trait PathExt {
     /// ```
     /// use fungus::prelude::*;
     ///
-    /// let home = env::var("HOME").unwrap();
+    /// let home = sys::var("HOME").unwrap();
     /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
     /// ```
     fn abs(&self) -> Result<PathBuf>;
@@ -769,7 +769,7 @@ pub trait PathExt {
     /// ```
     /// use fungus::prelude::*;
     ///
-    /// let home = env::var("HOME").unwrap();
+    /// let home = sys::var("HOME").unwrap();
     /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
     /// ```
     fn expand(&self) -> Result<PathBuf>;
@@ -2267,7 +2267,7 @@ mod tests {
 
     #[test]
     fn test_pathext_expand() {
-        let home = PathBuf::from(env::var("HOME").unwrap());
+        let home = PathBuf::from(sys::var("HOME").unwrap());
 
         // happy path
         assert_eq!(PathBuf::from("~/").expand().unwrap(), home);
@@ -2285,7 +2285,7 @@ mod tests {
         // Expand other variables in the path
         assert_eq!(PathBuf::from("$XDG_CONFIG_HOME").expand().unwrap(), home.mash(".config"));
         assert_eq!(PathBuf::from("${XDG_CONFIG_HOME}").expand().unwrap(), home.mash(".config"));
-        env::set_var("PATHEXT_EXPAND", "bar");
+        sys::set_var("PATHEXT_EXPAND", "bar");
         assert_eq!(PathBuf::from("~/foo/$PATHEXT_EXPAND").expand().unwrap(), home.mash("foo/bar"));
         assert_eq!(PathBuf::from("~/foo/${PATHEXT_EXPAND}").expand().unwrap(), home.mash("foo/bar"));
         assert_eq!(PathBuf::from("~/foo/$PATHEXT_EXPAND/blah").expand().unwrap(), home.mash("foo/bar/blah"));

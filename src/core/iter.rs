@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::errors::*;
 use std::fmt;
 use std::iter::Iterator;
 

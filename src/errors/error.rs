@@ -1,4 +1,4 @@
-use crate::error::*;
+use crate::errors::*;
 use std::error::Error as StdError;
 use std::{env, fmt, io};
 

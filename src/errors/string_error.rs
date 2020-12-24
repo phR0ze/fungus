@@ -47,7 +47,7 @@ impl fmt::Display for StringError {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::*;
+    use crate::errors::*;
 
     #[test]
     fn test_errors() {
