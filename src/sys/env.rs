@@ -9,20 +9,9 @@ use std::{env, io};
 /// Wraps std::env::args
 ///
 /// The first element is traditionally the path of the executable, but it can be
-/// set to arbitrary text, and may not even exist. This means this property should
-/// not be relied upon for security purposes.
-///
-/// On Unix systems the shell usually expands unquoted arguments with glob patterns
-/// (such as `*` and `?`). On Windows this is not done, and such arguments are
-/// passed as-is.
-///
-/// On glibc Linux systems, arguments are retrieved by placing a function in `.init_array`.
-/// Glibc passes `argc`, `argv`, and `envp` to functions in `.init_array`, as a non-standard
-/// extension. This allows `std::env::args` to work even in a `cdylib` or `staticlib`, as it
-/// does on macOS and Windows.
+/// set to arbitrary text, and may not even exist.
 ///
 /// # Panics
-///
 /// The returned iterator will panic during iteration if any argument to the
 /// process is not valid unicode. If this is not desired,
 /// use the [`args_os`] function instead.
@@ -187,6 +176,7 @@ pub fn flag_default<K: AsRef<OsStr>>(key: K, default: bool) -> bool {
 ///
 /// println!("{:?}", sys::hastty());
 /// ```
+#[cfg(feature = "_libc_")]
 pub fn hastty() -> bool {
     unsafe { libc::isatty(libc::STDOUT_FILENO) != 0 }
 }

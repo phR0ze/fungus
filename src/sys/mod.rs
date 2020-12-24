@@ -11,6 +11,7 @@ pub use path::*;
 
 // Export modules directly
 pub mod exec;
+pub mod libc;
 pub mod term;
 pub mod user;
 

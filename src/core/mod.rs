@@ -1,3 +1,7 @@
+// macro import has to happend before other modules
+#[macro_use]
+pub mod macros;
+
 mod finally;
 mod iter;
 mod option;

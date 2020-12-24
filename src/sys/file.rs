@@ -1,6 +1,3 @@
-#[cfg(feature = "_crypto_")]
-use blake2::{Blake2b, Digest};
-
 use crate::errors::*;
 use crate::sys::{self, PathExt};
 use crate::Result;
@@ -10,6 +7,15 @@ use std::io::{self, prelude::*, BufRead, BufReader};
 use std::os::unix::{self, fs::PermissionsExt};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+
+#[cfg(feature = "_crypto_")]
+use blake2::{Blake2b, Digest};
+
+cfgblock! {
+    #[cfg(feature = "_libc_")]
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+}
 
 /// Chmod provides flexible options for changing file permission with optional configuration.
 #[derive(Debug, Clone)]
@@ -248,8 +254,8 @@ fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<
 
     // Handle globbing
     let sources = sys::glob(&path)?;
-    if sources.len() == 0 {
-        return Err(PathError::does_not_exist(&path))?;
+    if sources.is_empty() {
+        return Err(PathError::does_not_exist(&path).into());
     }
 
     // Execute the chmod for all sources
@@ -265,7 +271,7 @@ fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<
                 }
             };
             if ret != 0 {
-                return Err(io::Error::last_os_error())?;
+                return Err(io::Error::last_os_error().into());
             }
         }
     }

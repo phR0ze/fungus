@@ -1,6 +1,6 @@
 use crate::errors::*;
 use std::error::Error as StdError;
-use std::{env, fmt, io};
+use std::{env, ffi, fmt, io};
 
 /// `Result<T>` provides a simplified result type with a common error type
 pub type Result<T> = std::result::Result<T, Error>;
@@ -12,8 +12,9 @@ pub enum Error {
     GlobPattern(glob::PatternError),
     Io(io::Error),
     Iter(IterError),
-    Path(PathError),
+    Nul(ffi::NulError),
     Os(OsError),
+    Path(PathError),
     Regex(regex::Error),
     String(StringError),
     User(UserError),
@@ -49,8 +50,9 @@ impl std::fmt::Display for Error {
             Error::GlobPattern(ref err) => write!(f, "{}", err),
             Error::Io(ref err) => write!(f, "{}", err),
             Error::Iter(ref err) => write!(f, "{}", err),
-            Error::Path(ref err) => write!(f, "{}", err),
+            Error::Nul(ref err) => write!(f, "{}", err),
             Error::Os(ref err) => write!(f, "{}", err),
+            Error::Path(ref err) => write!(f, "{}", err),
             Error::Regex(ref err) => write!(f, "{}", err),
             Error::String(ref err) => write!(f, "{}", err),
             Error::User(ref err) => write!(f, "{}", err),
@@ -67,8 +69,9 @@ impl AsRef<dyn StdError> for Error {
             Error::GlobPattern(ref err) => err,
             Error::Io(ref err) => err,
             Error::Iter(ref err) => err,
-            Error::Path(ref err) => err,
+            Error::Nul(ref err) => err,
             Error::Os(ref err) => err,
+            Error::Path(ref err) => err,
             Error::Regex(ref err) => err,
             Error::String(ref err) => err,
             Error::User(ref err) => err,
@@ -85,8 +88,9 @@ impl AsMut<dyn StdError> for Error {
             Error::GlobPattern(ref mut err) => err,
             Error::Io(ref mut err) => err,
             Error::Iter(ref mut err) => err,
-            Error::Path(ref mut err) => err,
+            Error::Nul(ref mut err) => err,
             Error::Os(ref mut err) => err,
+            Error::Path(ref mut err) => err,
             Error::Regex(ref mut err) => err,
             Error::String(ref mut err) => err,
             Error::User(ref mut err) => err,
@@ -104,8 +108,9 @@ impl StdError for Error {
             Error::GlobPattern(ref err) => Some(err),
             Error::Io(ref err) => Some(err),
             Error::Iter(ref err) => Some(err),
-            Error::Path(ref err) => Some(err),
+            Error::Nul(ref err) => Some(err),
             Error::Os(ref err) => Some(err),
+            Error::Path(ref err) => Some(err),
             Error::Regex(ref err) => Some(err),
             Error::String(ref err) => Some(err),
             Error::User(ref err) => Some(err),
@@ -139,15 +144,21 @@ impl From<IterError> for Error {
     }
 }
 
-impl From<PathError> for Error {
-    fn from(err: PathError) -> Error {
-        Error::Path(err)
+impl From<ffi::NulError> for Error {
+    fn from(err: ffi::NulError) -> Error {
+        Error::Nul(err)
     }
 }
 
 impl From<OsError> for Error {
     fn from(err: OsError) -> Error {
         Error::Os(err)
+    }
+}
+
+impl From<PathError> for Error {
+    fn from(err: PathError) -> Error {
+        Error::Path(err)
     }
 }
 

@@ -1,3 +1,4 @@
+#[macro_use]
 pub mod core;
 pub mod errors;
 pub mod sys;

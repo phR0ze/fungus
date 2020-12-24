@@ -1,8 +1,15 @@
+use crate::errors::*;
 use crate::sys::{self, PathExt};
-use crate::Result;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use std::path::PathBuf;
+
+cfgblock! {
+    #[cfg(feature = "_libc_")]
+    use std::io;
+    use std::mem;
+    use std::ptr;
+}
 
 // Implementation in Rust for the XDB Base Directory Specification
 // https://wiki.archlinux.org/index.php/XDG_Base_Directory
@@ -346,7 +353,7 @@ pub fn lookup(uid: u32) -> Result<User> {
         libc::getpwuid_r(uid, &mut passwd, buf.as_mut_ptr(), buf.len(), &mut res);
     }
     if res.is_null() || res != &mut passwd {
-        return Err(UserError::does_not_exist_by_id(uid))?;
+        return Err(UserError::does_not_exist_by_id(uid).into());
     }
 
     // Convert libc::passwd object into a User object
@@ -354,16 +361,16 @@ pub fn lookup(uid: u32) -> Result<User> {
     let gid = passwd.pw_gid;
 
     // User name for the lookedup user. We always want this and it should always exist.
-    let username = unsafe { crate::sys::libc::to_string(passwd.pw_name)? };
+    let username = unsafe { sys::libc::to_string(passwd.pw_name)? };
 
     // Will almost always be a single 'x' as the passwd is in the shadow database
     //let userpwd = unsafe { crate::sys::libc::to_string(passwd.pw_passwd)? };
 
     // User home directory e.g. '/home/<user>'. Might be a null pointer indicating the system default should be used
-    let userhome = unsafe { crate::sys::libc::to_string(passwd.pw_dir) }.unwrap_or_default();
+    let userhome = unsafe { sys::libc::to_string(passwd.pw_dir) }.unwrap_or_default();
 
     // User shell e.g. '/bin/bash'. Might be a null pointer indicating the system default should be used
-    let usershell = unsafe { crate::sys::libc::to_string(passwd.pw_shell) }.unwrap_or_default();
+    let usershell = unsafe { sys::libc::to_string(passwd.pw_shell) }.unwrap_or_default();
 
     // A string container user contextual information, possibly real name or phone number.
     //let usergecos = unsafe { crate::sys::libc::to_string(passwd.pw_gecos)? };
@@ -373,23 +380,16 @@ pub fn lookup(uid: u32) -> Result<User> {
     let realuser = if uid != ruid {
         lookup(ruid)?
     } else {
-        User {
-            uid: uid,
-            gid: gid,
-            name: username.to_string(),
-            home: PathBuf::from(&userhome),
-            shell: PathBuf::from(&usershell),
-            ..Default::default()
-        }
+        User { uid, gid, name: username.to_string(), home: PathBuf::from(&userhome), shell: PathBuf::from(&usershell), ..Default::default() }
     };
     Ok(User {
-        uid: uid,
-        gid: gid,
-        name: username.to_string(),
+        uid,
+        gid,
+        name: username,
         home: PathBuf::from(&userhome),
         shell: PathBuf::from(&usershell),
-        ruid: ruid,
-        rgid: rgid,
+        ruid,
+        rgid,
         realname: realuser.name,
         realhome: realuser.home,
         realshell: realuser.shell,
@@ -441,7 +441,7 @@ pub fn pause_sudo() -> Result<()> {
 pub fn setuid(uid: u32) -> Result<()> {
     match unsafe { libc::setuid(uid) } {
         0 => Ok(()),
-        _ => Err(io::Error::last_os_error())?,
+        _ => Err(io::Error::last_os_error().into()),
     }
 }
 
@@ -457,7 +457,7 @@ pub fn setuid(uid: u32) -> Result<()> {
 pub fn seteuid(euid: u32) -> Result<()> {
     match unsafe { libc::seteuid(euid) } {
         0 => Ok(()),
-        _ => Err(io::Error::last_os_error())?,
+        _ => Err(io::Error::last_os_error().into()),
     }
 }
 
@@ -473,7 +473,7 @@ pub fn seteuid(euid: u32) -> Result<()> {
 pub fn setgid(gid: u32) -> Result<()> {
     match unsafe { libc::setgid(gid) } {
         0 => Ok(()),
-        _ => Err(io::Error::last_os_error())?,
+        _ => Err(io::Error::last_os_error().into()),
     }
 }
 
@@ -489,7 +489,7 @@ pub fn setgid(gid: u32) -> Result<()> {
 pub fn setegid(egid: u32) -> Result<()> {
     match unsafe { libc::setegid(egid) } {
         0 => Ok(()),
-        _ => Err(io::Error::last_os_error())?,
+        _ => Err(io::Error::last_os_error().into()),
     }
 }
 
@@ -524,9 +524,9 @@ pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u
     match unsafe { libc::setresgid(rgid, egid, sgid) } {
         0 => match unsafe { libc::setresuid(ruid, euid, suid) } {
             0 => Ok(()),
-            _ => Err(io::Error::last_os_error())?,
+            _ => Err(io::Error::last_os_error().into()),
         },
-        _ => Err(io::Error::last_os_error())?,
+        _ => Err(io::Error::last_os_error().into()),
     }
 }
 
