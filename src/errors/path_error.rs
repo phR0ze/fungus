@@ -104,26 +104,6 @@ impl PathError {
     pub fn parent_not_found<T: AsRef<Path>>(path: T) -> PathError {
         PathError::ParentNotFound(path.as_ref().to_path_buf())
     }
-
-    /// Implemented directly on the `Error` type to reduce casting required
-    pub fn is<T: StdError + 'static>(&self) -> bool {
-        <dyn StdError + 'static>::is::<T>(self)
-    }
-
-    /// Implemented directly on the `Error` type to reduce casting required
-    pub fn downcast_ref<T: StdError + 'static>(&self) -> Option<&T> {
-        <dyn StdError + 'static>::downcast_ref::<T>(self)
-    }
-
-    /// Implemented directly on the `Error` type to reduce casting required
-    pub fn downcast_mut<T: StdError + 'static>(&mut self) -> Option<&mut T> {
-        <dyn StdError + 'static>::downcast_mut::<T>(self)
-    }
-
-    /// Implemented directly on the `Error` type to reduce casting required
-    pub fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.as_ref().source()
-    }
 }
 
 impl StdError for PathError {}
@@ -159,11 +139,11 @@ mod tests {
     use crate::prelude::*;
 
     fn path_empty() -> Result<PathBuf> {
-        Err(PathError::Empty.into())
+        Err(PathError::Empty)?
     }
 
     fn parent_not_found() -> Result<PathBuf> {
-        Err(PathError::parent_not_found("foo").into())
+        Err(PathError::parent_not_found("foo"))?
     }
 
     #[test]

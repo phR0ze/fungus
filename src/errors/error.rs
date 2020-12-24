@@ -23,17 +23,17 @@ pub enum Error {
 impl Error {
     /// Implemented directly on the `Error` type to reduce casting required
     pub fn is<T: StdError + 'static>(&self) -> bool {
-        <dyn StdError + 'static>::is::<T>(self)
+        self.as_ref().is::<T>()
     }
 
     /// Implemented directly on the `Error` type to reduce casting required
     pub fn downcast_ref<T: StdError + 'static>(&self) -> Option<&T> {
-        <dyn StdError + 'static>::downcast_ref::<T>(self)
+        self.as_ref().downcast_ref::<T>()
     }
 
     /// Implemented directly on the `Error` type to reduce casting required
     pub fn downcast_mut<T: StdError + 'static>(&mut self) -> Option<&mut T> {
-        <dyn StdError + 'static>::downcast_mut::<T>(self)
+        self.as_mut().downcast_mut::<T>()
     }
 
     /// Implemented directly on the `Error` type to reduce casting required
@@ -45,7 +45,6 @@ impl Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            //BadPath {path: PathRef} => write!(f, "{}", path),
             Error::File(ref err) => write!(f, "{}", err),
             Error::GlobPattern(ref err) => write!(f, "{}", err),
             Error::Io(ref err) => write!(f, "{}", err),
@@ -63,7 +62,37 @@ impl std::fmt::Display for Error {
 
 impl AsRef<dyn StdError> for Error {
     fn as_ref(&self) -> &(dyn StdError + 'static) {
-        self
+        match *self {
+            Error::File(ref err) => err,
+            Error::GlobPattern(ref err) => err,
+            Error::Io(ref err) => err,
+            Error::Iter(ref err) => err,
+            Error::Path(ref err) => err,
+            Error::Os(ref err) => err,
+            Error::Regex(ref err) => err,
+            Error::String(ref err) => err,
+            Error::User(ref err) => err,
+            Error::Var(ref err) => err,
+            Error::WalkDir(ref err) => err,
+        }
+    }
+}
+
+impl AsMut<dyn StdError> for Error {
+    fn as_mut(&mut self) -> &mut (dyn StdError + 'static) {
+        match *self {
+            Error::File(ref mut err) => err,
+            Error::GlobPattern(ref mut err) => err,
+            Error::Io(ref mut err) => err,
+            Error::Iter(ref mut err) => err,
+            Error::Path(ref mut err) => err,
+            Error::Os(ref mut err) => err,
+            Error::Regex(ref mut err) => err,
+            Error::String(ref mut err) => err,
+            Error::User(ref mut err) => err,
+            Error::Var(ref mut err) => err,
+            Error::WalkDir(ref mut err) => err,
+        }
     }
 }
 
@@ -152,10 +181,23 @@ impl From<walkdir::Error> for Error {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::prelude::*;
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
 
-//     #[test]
-//     fn test_errors() {}
-// }
+    fn path_empty() -> Result<PathBuf> {
+        Err(PathError::Empty)?
+    }
+
+    #[test]
+    fn test_is() {
+        assert!(path_empty().is_err());
+        assert!(path_empty().unwrap_err().is::<PathError>());
+    }
+
+    #[test]
+    fn test_downcast_ref() {
+        assert!(path_empty().is_err());
+        assert_eq!(path_empty().unwrap_err().downcast_ref::<PathError>(), Some(&PathError::Empty));
+    }
+}

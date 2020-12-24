@@ -115,7 +115,7 @@ impl Chmod {
         // Handle globbing
         let sources = sys::glob(&self.path)?;
         if sources.is_empty() {
-            return Err(PathError::does_not_exist(&self.path).into());
+            return Err(PathError::does_not_exist(&self.path))?;
         }
 
         // Execute the chmod for all sources
@@ -249,7 +249,7 @@ fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<
     // Handle globbing
     let sources = sys::glob(&path)?;
     if sources.len() == 0 {
-        return Err(PathError::does_not_exist(&path).into());
+        return Err(PathError::does_not_exist(&path))?;
     }
 
     // Execute the chmod for all sources
@@ -265,7 +265,7 @@ fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<
                 }
             };
             if ret != 0 {
-                return Err(io::Error::last_os_error().into());
+                return Err(io::Error::last_os_error())?;
             }
         }
     }
@@ -543,7 +543,7 @@ pub fn extract_strings<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<Vec<String
     let caps = rx.captures(&data).ok_or(FileError::FailedToExtractString)?;
     let values = caps.iter().skip(1).filter_map(|x| x).filter_map(|x| Some(x.as_str().to_string())).collect::<Vec<String>>();
     if values.is_empty() {
-        return Err(FileError::FailedToExtractString.into());
+        return Err(FileError::FailedToExtractString)?;
     }
     Ok(values)
 }

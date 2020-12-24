@@ -346,7 +346,7 @@ pub fn lookup(uid: u32) -> Result<User> {
         libc::getpwuid_r(uid, &mut passwd, buf.as_mut_ptr(), buf.len(), &mut res);
     }
     if res.is_null() || res != &mut passwd {
-        return Err(UserError::does_not_exist_by_id(uid).into());
+        return Err(UserError::does_not_exist_by_id(uid))?;
     }
 
     // Convert libc::passwd object into a User object
@@ -441,7 +441,7 @@ pub fn pause_sudo() -> Result<()> {
 pub fn setuid(uid: u32) -> Result<()> {
     match unsafe { libc::setuid(uid) } {
         0 => Ok(()),
-        _ => Err(io::Error::last_os_error().into()),
+        _ => Err(io::Error::last_os_error())?,
     }
 }
 
@@ -457,7 +457,7 @@ pub fn setuid(uid: u32) -> Result<()> {
 pub fn seteuid(euid: u32) -> Result<()> {
     match unsafe { libc::seteuid(euid) } {
         0 => Ok(()),
-        _ => Err(io::Error::last_os_error().into()),
+        _ => Err(io::Error::last_os_error())?,
     }
 }
 
@@ -473,7 +473,7 @@ pub fn seteuid(euid: u32) -> Result<()> {
 pub fn setgid(gid: u32) -> Result<()> {
     match unsafe { libc::setgid(gid) } {
         0 => Ok(()),
-        _ => Err(io::Error::last_os_error().into()),
+        _ => Err(io::Error::last_os_error())?,
     }
 }
 
@@ -489,7 +489,7 @@ pub fn setgid(gid: u32) -> Result<()> {
 pub fn setegid(egid: u32) -> Result<()> {
     match unsafe { libc::setegid(egid) } {
         0 => Ok(()),
-        _ => Err(io::Error::last_os_error().into()),
+        _ => Err(io::Error::last_os_error())?,
     }
 }
 
@@ -524,9 +524,9 @@ pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u
     match unsafe { libc::setresgid(rgid, egid, sgid) } {
         0 => match unsafe { libc::setresuid(ruid, euid, suid) } {
             0 => Ok(()),
-            _ => Err(io::Error::last_os_error().into()),
+            _ => Err(io::Error::last_os_error())?,
         },
-        _ => Err(io::Error::last_os_error().into()),
+        _ => Err(io::Error::last_os_error())?,
     }
 }
 

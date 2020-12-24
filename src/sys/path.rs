@@ -270,9 +270,13 @@ pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
             match x {
                 Component::Normal(y) => {
                     let seg = y.to_string()?;
-                    if let Some(key) = seg.strip_prefix("${") {
-                        let var = sys::var(key)?;
-                        path_buf.push(var);
+                    if let Some(chunk) = seg.strip_prefix("${") {
+                        if let Some(key) = chunk.strip_suffix("}") {
+                            let var = sys::var(key)?;
+                            path_buf.push(var);
+                        } else {
+                            return Err(PathError::invalid_expansion(seg).into());
+                        }
                     } else if let Some(key) = seg.strip_prefix('$') {
                         let var = sys::var(key)?;
                         path_buf.push(var);
@@ -1656,7 +1660,7 @@ mod tests {
 
     #[test]
     fn test_abs() {
-        let home = PathBuf::from(sys::env_var("HOME").unwrap());
+        let home = PathBuf::from(sys::var("HOME").unwrap());
         let cwd = sys::cwd().unwrap();
         let prev = cwd.dir().unwrap();
 

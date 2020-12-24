@@ -32,7 +32,7 @@ use std::{env, io};
 /// use fungus::prelude::*;
 ///
 /// // Prints each argument on a separate line
-/// for argument in env::args() {
+/// for argument in sys::args() {
 ///     println!("{}", argument);
 /// }
 /// ```
@@ -124,21 +124,58 @@ pub fn exe() -> io::Result<PathBuf> {
 /// ```rust
 /// use fungus::prelude::*;
 ///
+/// // Unset variables will be considered false
+/// assert!(!sys::flag("FOOBAR"));
+///
+/// // Falsy values will be considered `false`
+/// sys::set_var("FOOBAR", "0");
+/// assert!(!sys::flag("FOOBAR"));
+/// sys::set_var("FOOBAR", "false");
+/// assert!(!sys::flag("FOOBAR"));
+/// sys::set_var("FOOBAR", "faLse");
+/// assert!(!sys::flag("FOOBAR"));
+///
+/// // Truthy values will be considered `true`
+/// sys::set_var("FOOBAR", "1");
+/// assert!(sys::flag("FOOBAR"));
+/// sys::set_var("FOOBAR", "BOB");
+/// assert!(sys::flag("FOOBAR"));
+/// sys::set_var("FOOBAR", "True");
+/// assert!(sys::flag("FOOBAR"));
+/// ```
+pub fn flag<K: AsRef<OsStr>>(key: K) -> bool {
+    flag_default(key, false)
+}
+
+/// Get the value of the given environment variable as a flag using a default if not set
+///
+/// The flag will be considered `true` if the environment variable isn't set and the
+/// the default is set to `true` or if the variablse is set and the value is any value
+/// other than `0` or a case insensitive version of `false`.
+///
+/// The flag will be considered `false` if the environment variable isn't set and the
+/// the default is set to `false` or if the variablse is set and the value is a `0` or
+/// a case insensitive version of `false`.
+///
+/// ### Examples
+/// ```rust
+/// use fungus::prelude::*;
+///
 /// // Unset variables will be default to the given value
-/// assert!(!sys::env_flag("FOOBAR", false));
-/// assert!(sys::env_flag("FOOBAR", true));
+/// assert!(!sys::flag_default("FOOBAR", false));
+/// assert!(sys::flag_default("FOOBAR", true));
 ///
 /// // Disabled variables will always be `false` despite default
-/// std::set_var("FOOBAR", "0");
-/// assert!(!sys::env_flag("FOOBAR", false));
-/// assert!(!sys::env_flag("FOOBAR", true));
+/// sys::set_var("FOOBAR", "0");
+/// assert!(!sys::flag_default("FOOBAR", false));
+/// assert!(!sys::flag_default("FOOBAR", true));
 ///
 /// // Enabled variables will always be `true` despite default
 /// sys::set_var("FOOBAR", "1");
-/// assert!(sys::env_flag("FOOBAR", false));
-/// assert!(sys::env_flag("FOOBAR", true));
+/// assert!(sys::flag_default("FOOBAR", false));
+/// assert!(sys::flag_default("FOOBAR", true));
 /// ```
-pub fn flag<K: AsRef<OsStr>>(key: K, default: bool) -> bool {
+pub fn flag_default<K: AsRef<OsStr>>(key: K, default: bool) -> bool {
     !matches!(env::var(key).unwrap_or_else(|_| default.to_string()).to_lowercase().as_str(), "false" | "0")
 }
 
@@ -232,7 +269,7 @@ pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(k: K, v: V) {
 /// assert_eq!(sys::var(key), Ok("VALUE".to_string()));
 ///
 /// sys::unset_var(key);
-/// assert!(sys::disabled(key));
+/// assert!(!sys::flag(key));
 /// ```
 pub fn unset_var<K: AsRef<OsStr>>(k: K) {
     env::remove_var(k)
@@ -302,36 +339,58 @@ mod tests {
 
     #[test]
     fn test_flag() {
+        sys::unset_var("FLAG");
+
+        // Falsy
+        assert!(!sys::flag("FLAG"));
+        sys::set_var("FLAG", "0");
+        assert!(!sys::flag("FLAG"));
+        sys::set_var("FLAG", "false");
+        assert!(!sys::flag("FLAG"));
+        sys::set_var("FLAG", "False");
+        assert!(!sys::flag("FLAG"));
+
+        // Truthy
+        sys::set_var("FLAG", "true");
+        assert!(sys::flag("FLAG"));
+        sys::set_var("FLAG", "True");
+        assert!(sys::flag("FLAG"));
+        sys::set_var("FLAG", "blah");
+        assert!(sys::flag("FLAG"));
+    }
+
+    #[test]
+    fn test_flag_defaultg() {
         sys::unset_var("FOOBAR");
 
         // Test unset case
-        assert!(sys::flag("FOOBAR", true));
-        assert!(!sys::flag("FOOBAR", false));
+        assert!(sys::flag_default("FOOBAR", true));
+        assert!(!sys::flag_default("FOOBAR", false));
 
         // Test set to falsy
         sys::set_var("FOOBAR", "0");
-        assert!(!sys::flag("FOOBAR", false));
-        assert!(!sys::flag("FOOBAR", true));
+        assert!(!sys::flag_default("FOOBAR", false));
+        assert!(!sys::flag_default("FOOBAR", true));
 
         sys::set_var("FOOBAR", "false");
-        assert!(!sys::flag("FOOBAR", false));
-        assert!(!sys::flag("FOOBAR", true));
+        assert!(!sys::flag_default("FOOBAR", false));
+        assert!(!sys::flag_default("FOOBAR", true));
 
         sys::set_var("FOOBAR", "False");
-        assert!(!sys::flag("FOOBAR", false));
-        assert!(!sys::flag("FOOBAR", true));
+        assert!(!sys::flag_default("FOOBAR", false));
+        assert!(!sys::flag_default("FOOBAR", true));
 
         // Test set to truthy
         sys::set_var("FOOBAR", "true");
-        assert!(sys::flag("FOOBAR", false));
-        assert!(sys::flag("FOOBAR", true));
+        assert!(sys::flag_default("FOOBAR", false));
+        assert!(sys::flag_default("FOOBAR", true));
 
         sys::set_var("FOOBAR", "True");
-        assert!(sys::flag("FOOBAR", false));
-        assert!(sys::flag("FOOBAR", true));
+        assert!(sys::flag_default("FOOBAR", false));
+        assert!(sys::flag_default("FOOBAR", true));
 
         sys::set_var("FOOBAR", "blah");
-        assert!(sys::flag("FOOBAR", false));
-        assert!(sys::flag("FOOBAR", true));
+        assert!(sys::flag_default("FOOBAR", false));
+        assert!(sys::flag_default("FOOBAR", true));
     }
 }

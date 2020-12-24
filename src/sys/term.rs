@@ -4,7 +4,7 @@ use lazy_static::*;
 lazy_static! {
     /// `TERM_COLOR` will be true if the environment is a tty and the
     /// environment variable `TERM_COLOR` is not set to something falsy.
-    static ref TERM_COLOR: bool = sys::hastty() && sys::flag("TERM_COLOR", true);
+    static ref TERM_COLOR: bool = sys::hastty() && sys::flag_default("TERM_COLOR", true);
 }
 
 /// Check if the environment has a tty attached adn the environment
