@@ -19,10 +19,7 @@ pub fn dir() -> Result<PathBuf> {
 
 /// Check if the given executable exists in the `PATH` and is executable.
 pub fn exists<T: AsRef<Path>>(target: T) -> bool {
-    match lookup(target) {
-        Ok(_) => true,
-        _ => false,
-    }
+    lookup(target).is_ok()
 }
 
 /// Returns the full path of the given executable. Uses given path if resolvable and falls back on
@@ -39,8 +36,8 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
             } else if path.is_dir() || !path.is_exec() {
                 return Err(PathError::is_not_exec(path).into());
             }
-            return Ok(path);
-        }
+            Ok(path)
+        },
 
         // Target is a name
         false => {
@@ -51,7 +48,7 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
                     return Ok(path);
                 }
             }
-            return Err(PathError::does_not_exist(target).into());
+            Err(PathError::does_not_exist(target).into())
         }
     }
 }

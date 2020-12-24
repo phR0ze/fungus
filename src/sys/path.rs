@@ -243,10 +243,7 @@ pub fn dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// assert_eq!(sys::exists("/etc"), true);
 /// ```
 pub fn exists<T: AsRef<Path>>(path: T) -> bool {
-    match metadata(path) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    metadata(path).is_ok()
 }
 
 /// Expand all environment variables in the path as well as the home directory.
@@ -266,7 +263,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
     let pathstr = path.to_string()?;
 
     // Expand home directory
-    match pathstr.matches("~").count() {
+    match pathstr.matches('~').count() {
         // Only home expansion at the begining of the path is allowed
         cnt if cnt > 1 => return Err(PathError::multiple_home_symbols(path).into()),
 
@@ -287,7 +284,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 
     // Expand other variables that may exist in the path
     let pathstr = path.to_string()?;
-    if pathstr.matches("$").some() {
+    if pathstr.matches('$').some() {
         let mut path_buf = PathBuf::new();
         for x in path.components() {
             match x {
@@ -296,7 +293,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
                     if seg.starts_with("${") {
                         let var = env::var(&seg[2..seg.size() - 1])?;
                         path_buf.push(var);
-                    } else if seg.starts_with("$") {
+                    } else if seg.starts_with('$') {
                         let var = env::var(&seg[1..])?;
                         path_buf.push(var);
                     } else {
@@ -736,9 +733,9 @@ pub trait PathExt {
     ///	1. Replace multiple slashes with a single
     ///	2. Eliminate each . path name element (the current directory)
     ///	3. Eliminate each inner .. path name element (the parent directory)
-    ///	   along with the non-.. element that precedes it.
+    ///    along with the non-.. element that precedes it.
     ///	4. Eliminate .. elements that begin a rooted path:
-    ///	   that is, replace "/.." by "/" at the beginning of a path.
+    ///    that is, replace "/.." by "/" at the beginning of a path.
     /// 5. Leave intact ".." elements that begin a non-rooted path.
     /// 6. Drop trailing '/' unless it is the root
     ///

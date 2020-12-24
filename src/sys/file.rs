@@ -113,7 +113,7 @@ impl Chmod {
     pub fn chmod(&self) -> Result<()> {
         // Handle globbing
         let sources = sys::glob(&self.path)?;
-        if sources.len() == 0 {
+        if sources.is_empty() {
             return Err(PathError::does_not_exist(&self.path).into());
         }
 
@@ -299,7 +299,7 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
 
     // Handle globbing
     let sources = sys::glob(&src)?;
-    if sources.len() == 0 {
+    if sources.is_empty() {
         return Err(PathError::does_not_exist(&src).into());
     }
 
@@ -497,8 +497,8 @@ pub fn digest<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
 /// ```
 pub fn extract_string<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<String> {
     let data = readstring(path)?;
-    let caps = rx.captures(&data).ok_or_else(|| FileError::FailedToExtractString)?;
-    let value = caps.get(1).ok_or_else(|| FileError::FailedToExtractString)?;
+    let caps = rx.captures(&data).ok_or(FileError::FailedToExtractString)?;
+    let value = caps.get(1).ok_or(FileError::FailedToExtractString)?;
     Ok(value.as_str().to_string())
 }
 
@@ -538,9 +538,9 @@ pub fn extract_string_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> Result
 /// ```
 pub fn extract_strings<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<Vec<String>> {
     let data = readstring(path)?;
-    let caps = rx.captures(&data).ok_or_else(|| FileError::FailedToExtractString)?;
+    let caps = rx.captures(&data).ok_or(FileError::FailedToExtractString)?;
     let values = caps.iter().skip(1).filter_map(|x| x).filter_map(|x| Some(x.as_str().to_string())).collect::<Vec<String>>();
-    if values.len() == 0 {
+    if values.is_empty() {
         return Err(FileError::FailedToExtractString.into());
     }
     Ok(values)
@@ -626,7 +626,7 @@ pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 
     // Handle globbing
     let sources = sys::glob(&src)?;
-    if sources.len() == 0 {
+    if sources.is_empty() {
         return Err(PathError::does_not_exist(&src).into());
     }
 
@@ -875,7 +875,7 @@ pub fn touch_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
 pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> Result<()> {
     let path = path.as_ref().abs()?;
     let mut f = File::create(path)?;
-    f.write(data.as_ref())?;
+    f.write_all(data.as_ref())?;
 
     // f.sync_all() works better than f.flush()?
     f.sync_all()?;
@@ -918,7 +918,7 @@ pub fn write_p<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U, mode: u32) -> R
 /// assert_iter_eq(sys::readlines(&tmpfile).unwrap(), lines);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn writelines<T: AsRef<Path>>(path: T, data: &Vec<String>) -> Result<()> {
+pub fn writelines<T: AsRef<Path>>(path: T, data: &[String]) -> Result<()> {
     write(path, data.join("\n"))?;
     Ok(())
 }
@@ -939,7 +939,7 @@ pub fn writelines<T: AsRef<Path>>(path: T, data: &Vec<String>) -> Result<()> {
 /// assert_eq!(tmpfile.mode().unwrap(), 0o100666);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn writelines_p<T: AsRef<Path>>(path: T, data: &Vec<String>, mode: u32) -> Result<()> {
+pub fn writelines_p<T: AsRef<Path>>(path: T, data: &[String], mode: u32) -> Result<()> {
     write(&path, data.join("\n"))?;
     chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
     Ok(())

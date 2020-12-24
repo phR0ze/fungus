@@ -9,7 +9,7 @@ lazy_static! {
 /// Check if the environment has a tty attached adn the environment
 /// variable `TERM_COLOR` is not set to something falsy.
 pub fn is_color() -> bool {
-    return *TERM_COLOR;
+    *TERM_COLOR
 }
 
 /// `Colorable` defines a set of simple color functions for a given type

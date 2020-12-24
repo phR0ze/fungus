@@ -52,7 +52,7 @@ impl ToStringExt for Path {
 
 impl ToStringExt for OsStr {
     fn to_string(&self) -> Result<String> {
-        Ok(String::from(self.to_str().ok_or_else(|| StringError::FailedToString)?))
+        Ok(String::from(self.to_str().ok_or(StringError::FailedToString)?))
     }
 }
 

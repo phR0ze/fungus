@@ -203,7 +203,7 @@ where
     where
         Self: Sized,
     {
-        self.nth(0)
+        self.next()
     }
 
     fn first_result(mut self) -> Result<Self::Item>
@@ -283,10 +283,7 @@ where
     where
         Self: Sized,
     {
-        match self.next() {
-            Some(_) => true,
-            None => false,
-        }
+        self.next().is_some()
     }
 }
 
