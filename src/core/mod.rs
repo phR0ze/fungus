@@ -1,3 +1,6 @@
+#[macro_use]
+pub mod macros;
+
 mod defer;
 mod iter;
 mod option;

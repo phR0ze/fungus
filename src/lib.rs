@@ -1,4 +1,7 @@
+#[macro_use]
 pub mod core;
+
+pub mod enc;
 pub mod errors;
 pub mod sys;
 
@@ -13,12 +16,16 @@ pub use crate::errors::Result;
 /// use fungus::prelude::*;
 /// ```
 pub mod prelude {
-    pub use super::cfgblock;
-    pub use super::defer;
-
     pub use super::core::*;
     pub use super::errors::*;
     pub use super::sys::{self, exec, ext::*, user};
+    pub use super::{cfgblock, defer};
+
+    cfgblock! {
+        #[cfg(feature = "_enc_")]
+        pub use super::enc::tar;
+        pub use super::enc::gzip;
+    }
 
     // Re-exports
     //----------------------------------------------------------------------------------------------
@@ -60,38 +67,6 @@ pub mod prelude {
 macro_rules! defer {
     ($($tokens:tt)*) => {
         let _defer = defer(|| { $($tokens)* });
-    };
-}
-
-/// Provides the ability to define `#[cfg]` statements for multiple items
-///
-/// ### Examples
-/// ```ignore
-/// use fungus::prelude::*;
-///
-/// cfgblk! {
-///     #[cfg(feature = "foo")])
-///     use libc;
-///     use std::ffi::CString;
-/// }
-///
-/// // Expands to
-/// #[cfg(feature = "foo")])
-/// use libc;
-/// #[cfg(feature = "foo")])
-/// use std::ffi::CString;
-/// ```
-#[macro_export]
-macro_rules! cfgblock {
-
-    // Handle a single item
-    (#[$attr:meta] $item:item) => {
-        #[$attr] $item
-    };
-
-    // Handle more than one item recursively
-    (#[$attr:meta] $($tail:item)*) => {
-        $(cfgblock!{#[$attr] $tail})*
     };
 }
 
