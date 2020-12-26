@@ -1499,41 +1499,41 @@ mod tests {
 
     #[test]
     fn test_abs() {
-        let home = PathBuf::from(user::home_dir().unwrap());
-        // let cwd = sys::cwd().unwrap();
-        // let prev = cwd.dir().unwrap();
+        let cwd = sys::cwd().unwrap();
+        let prev = cwd.dir().unwrap();
 
-        // // expand relative directory
-        // assert_eq!(sys::abs("foo").unwrap(), cwd.mash("foo"));
+        // expand relative directory
+        assert_eq!(sys::abs("foo").unwrap(), cwd.mash("foo"));
 
-        // // expand previous directory and drop trailing slashes
-        // assert_eq!(sys::abs("..//").unwrap(), prev);
-        // assert_eq!(sys::abs("../").unwrap(), prev);
-        // assert_eq!(sys::abs("..").unwrap(), prev);
+        // expand previous directory and drop trailing slashes
+        assert_eq!(sys::abs("..//").unwrap(), prev);
+        assert_eq!(sys::abs("../").unwrap(), prev);
+        assert_eq!(sys::abs("..").unwrap(), prev);
 
-        // // expand current directory and drop trailing slashes
-        // assert_eq!(sys::abs(".//").unwrap(), cwd);
-        // assert_eq!(sys::abs("./").unwrap(), cwd);
-        // assert_eq!(sys::abs(".").unwrap(), cwd);
+        // expand current directory and drop trailing slashes
+        assert_eq!(sys::abs(".//").unwrap(), cwd);
+        assert_eq!(sys::abs("./").unwrap(), cwd);
+        assert_eq!(sys::abs(".").unwrap(), cwd);
 
-        // home dir
-        assert_eq!(sys::abs("~").unwrap(), home);
-        assert_eq!(sys::abs("~/").unwrap(), home);
+        // let home = PathBuf::from(user::home_dir().unwrap());
+        // // home dir
+        // assert_eq!(sys::abs("~").unwrap(), home);
+        // assert_eq!(sys::abs("~/").unwrap(), home);
 
-        // expand home path
-        assert_eq!(sys::abs("~/foo").unwrap(), home.mash("foo"));
+        // // expand home path
+        // assert_eq!(sys::abs("~/foo").unwrap(), home.mash("foo"));
 
-        // More complicated
-        assert_eq!(sys::abs("~/foo/bar/../.").unwrap(), home.mash("foo"));
-        assert_eq!(sys::abs("~/foo/bar/../").unwrap(), home.mash("foo"));
-        assert_eq!(sys::abs("~/foo/bar/../blah").unwrap(), home.mash("foo/blah"));
+        // // More complicated
+        // assert_eq!(sys::abs("~/foo/bar/../.").unwrap(), home.mash("foo"));
+        // assert_eq!(sys::abs("~/foo/bar/../").unwrap(), home.mash("foo"));
+        // assert_eq!(sys::abs("~/foo/bar/../blah").unwrap(), home.mash("foo/blah"));
 
-        // Move up the path multiple levels
-        assert_eq!(sys::abs("./../../foo").unwrap(), home.mash("foo"));
-        assert_eq!(sys::abs("../../foo").unwrap(), home.mash("foo"));
+        // // Move up the path multiple levels
+        // assert_eq!(sys::abs("./../../foo").unwrap(), home.mash("foo"));
+        // assert_eq!(sys::abs("../../foo").unwrap(), home.mash("foo"));
 
-        // Move up until invalid
-        assert!(sys::abs("../../../../../foo").is_err());
+        // // Move up until invalid
+        // assert!(sys::abs("../../../../../foo").is_err());
     }
 
     #[test]
