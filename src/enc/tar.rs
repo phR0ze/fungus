@@ -6,7 +6,6 @@ use std::path::Path;
 
 cfgblock! {
     #[cfg(feature = "_enc_")]
-    use tar;
     use flate2::{self, Compression};
     use flate2::read::GzDecoder;
     use flate2::write::GzEncoder;
@@ -38,7 +37,7 @@ pub fn create<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, glob: U) -> Result<()>
 
     // Handle globbing
     let sources = sys::glob(glob.as_ref())?;
-    if sources.len() == 0 {
+    if sources.is_empty() {
         return Err(PathError::does_not_exist(glob.as_ref()).into());
     }
 

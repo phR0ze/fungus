@@ -20,7 +20,7 @@ pub fn is_gzipped<T: AsRef<Path>>(path: T) -> Result<bool> {
     // Read the first 2 bytes of the file
     let mut f = File::open(&path)?;
     let mut buffer = [0; 2];
-    f.read(&mut buffer)?;
+    f.read_exact(&mut buffer)?;
 
     // Test against the gzip header signature 0x1f8b
     if buffer == [0x1f, 0x8b] || buffer == [0x8b, 0x1f] {

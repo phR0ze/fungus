@@ -29,6 +29,11 @@ pub mod prelude {
 
     // Re-exports
     //----------------------------------------------------------------------------------------------
+    cfgblock! {
+        #[cfg(feature = "_crypto_")]
+        pub use blake2;
+    }
+
     pub use gory::*;
     pub use lazy_static::*;
     pub use libc;
@@ -53,7 +58,7 @@ pub mod prelude {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("core_finally_doc");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("core_defer_doc");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 ///
