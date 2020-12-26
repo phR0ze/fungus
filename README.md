@@ -49,6 +49,8 @@ any additional terms or conditions.
 
 ## Completed <a name="completed"/></a>
 * 12/26/2020
-  * implemented a better `defer` function
-  * port system utilities from witcher
-  * use fastrand rather than rand
+  * Get fungus building and reporting with github actions
+  * Split out git and arch work into another project
+  * Implemented a better `defer` function
+  * Port system utilities from witcher
+  * Use fastrand rather than rand

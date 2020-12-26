@@ -195,9 +195,62 @@ impl From<walkdir::Error> for Error {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use std::io;
 
     fn path_empty() -> Result<PathBuf> {
         Err(PathError::Empty)?
+    }
+
+    #[test]
+    fn test_error() {
+        let mut err = Error::from(FileError::FailedToExtractString);
+        assert_eq!("failed to extract string from file", err.as_ref().to_string());
+        assert_eq!("failed to extract string from file", err.as_mut().to_string());
+        assert!(err.downcast_ref::<FileError>().is_some());
+        assert!(err.downcast_mut::<FileError>().is_some());
+        assert!(err.source().is_none());
+
+        let mut err = Error::from(io::Error::new(io::ErrorKind::AlreadyExists, "foo"));
+        assert_eq!("foo", err.as_ref().to_string());
+        assert_eq!("foo", err.as_mut().to_string());
+        assert!(err.downcast_ref::<io::Error>().is_some());
+        assert!(err.downcast_mut::<io::Error>().is_some());
+        assert!(err.source().is_none());
+
+        let mut err = Error::from(IterError::ItemNotFound);
+        assert_eq!("iterator item not found", err.as_ref().to_string());
+        assert_eq!("iterator item not found", err.as_mut().to_string());
+        assert!(err.downcast_ref::<IterError>().is_some());
+        assert!(err.downcast_mut::<IterError>().is_some());
+        assert!(err.source().is_none());
+
+        let mut err = Error::from(OsError::KernelReleaseNotFound);
+        assert_eq!("kernel release was not found", err.as_ref().to_string());
+        assert_eq!("kernel release was not found", err.as_mut().to_string());
+        assert!(err.downcast_ref::<OsError>().is_some());
+        assert!(err.downcast_mut::<OsError>().is_some());
+        assert!(err.source().is_none());
+
+        let mut err = Error::from(PathError::Empty);
+        assert_eq!("path empty", err.as_ref().to_string());
+        assert_eq!("path empty", err.as_mut().to_string());
+        assert!(err.downcast_ref::<PathError>().is_some());
+        assert!(err.downcast_mut::<PathError>().is_some());
+        assert!(err.source().is_none());
+
+        let mut err = Error::from(StringError::FailedToString);
+        assert_eq!("failed to convert value to string", err.as_ref().to_string());
+        assert_eq!("failed to convert value to string", err.as_mut().to_string());
+        assert!(err.downcast_ref::<StringError>().is_some());
+        assert!(err.downcast_mut::<StringError>().is_some());
+        assert!(err.source().is_none());
+
+        let mut err = Error::from(UserError::DoesNotExistById(1));
+        assert_eq!("user does not exist: 1", err.as_ref().to_string());
+        assert_eq!("user does not exist: 1", err.as_mut().to_string());
+        assert!(err.downcast_ref::<UserError>().is_some());
+        assert!(err.downcast_mut::<UserError>().is_some());
+        assert!(err.source().is_none());
     }
 
     #[test]
