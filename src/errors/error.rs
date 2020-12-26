@@ -204,6 +204,7 @@ mod tests {
     #[test]
     fn test_error() {
         let mut err = Error::from(FileError::FailedToExtractString);
+        assert_eq!("failed to extract string from file", err.to_string());
         assert_eq!("failed to extract string from file", err.as_ref().to_string());
         assert_eq!("failed to extract string from file", err.as_mut().to_string());
         assert!(err.downcast_ref::<FileError>().is_some());
@@ -211,6 +212,7 @@ mod tests {
         assert!(err.as_ref().source().is_none());
 
         let mut err = Error::from(io::Error::new(io::ErrorKind::AlreadyExists, "foo"));
+        assert_eq!("foo", err.to_string());
         assert_eq!("foo", err.as_ref().to_string());
         assert_eq!("foo", err.as_mut().to_string());
         assert!(err.downcast_ref::<io::Error>().is_some());
@@ -218,6 +220,7 @@ mod tests {
         assert!(err.as_ref().source().is_none());
 
         let mut err = Error::from(IterError::ItemNotFound);
+        assert_eq!("iterator item not found", err.to_string());
         assert_eq!("iterator item not found", err.as_ref().to_string());
         assert_eq!("iterator item not found", err.as_mut().to_string());
         assert!(err.downcast_ref::<IterError>().is_some());
@@ -225,6 +228,7 @@ mod tests {
         assert!(err.as_ref().source().is_none());
 
         let mut err = Error::from(OsError::KernelReleaseNotFound);
+        assert_eq!("kernel release was not found", err.to_string());
         assert_eq!("kernel release was not found", err.as_ref().to_string());
         assert_eq!("kernel release was not found", err.as_mut().to_string());
         assert!(err.downcast_ref::<OsError>().is_some());
@@ -232,6 +236,7 @@ mod tests {
         assert!(err.as_ref().source().is_none());
 
         let mut err = Error::from(PathError::Empty);
+        assert_eq!("path empty", err.to_string());
         assert_eq!("path empty", err.as_ref().to_string());
         assert_eq!("path empty", err.as_mut().to_string());
         assert!(err.downcast_ref::<PathError>().is_some());
@@ -239,6 +244,7 @@ mod tests {
         assert!(err.as_ref().source().is_none());
 
         let mut err = Error::from(StringError::FailedToString);
+        assert_eq!("failed to convert value to string", err.to_string());
         assert_eq!("failed to convert value to string", err.as_ref().to_string());
         assert_eq!("failed to convert value to string", err.as_mut().to_string());
         assert!(err.downcast_ref::<StringError>().is_some());
@@ -246,6 +252,7 @@ mod tests {
         assert!(err.as_ref().source().is_none());
 
         let mut err = Error::from(UserError::DoesNotExistById(1));
+        assert_eq!("user does not exist: 1", err.to_string());
         assert_eq!("user does not exist: 1", err.as_ref().to_string());
         assert_eq!("user does not exist: 1", err.as_mut().to_string());
         assert!(err.downcast_ref::<UserError>().is_some());
@@ -253,6 +260,7 @@ mod tests {
         assert!(err.as_ref().source().is_none());
 
         let mut err = Error::from(std::env::VarError::NotPresent);
+        assert_eq!("environment variable not found", err.to_string());
         assert_eq!("environment variable not found", err.as_ref().to_string());
         assert_eq!("environment variable not found", err.as_mut().to_string());
         assert!(err.downcast_ref::<std::env::VarError>().is_some());
