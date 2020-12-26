@@ -3,6 +3,7 @@ pub mod core;
 
 pub mod enc;
 pub mod errors;
+pub mod net;
 pub mod sys;
 
 /// Types exported directly into the fungus namespace
@@ -18,6 +19,7 @@ pub use crate::errors::Result;
 pub mod prelude {
     pub use super::core::*;
     pub use super::errors::*;
+    pub use super::net::{self, agent};
     pub use super::sys::{self, exec, ext::*, user};
     pub use super::{cfgblock, defer};
 

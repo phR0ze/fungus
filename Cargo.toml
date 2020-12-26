@@ -1,6 +1,6 @@
 [package]
 name = "fungus"
-version = "0.0.98"
+version = "0.0.99"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -41,7 +41,6 @@ lazy_static = "1.4.*"
 blake2 = { version = "0.9.*", optional = true }
 flate2 = { version = "1.0.*", optional = true }
 tar = { package = "tar", version = "0.4.*", optional = true }
-# git2 = { version = "0.11", optional = true, default = false, features = ["https"] }
 
 [features]
 default = ["_enc_", "_crypto_"]
@@ -49,17 +48,8 @@ default = ["_enc_", "_crypto_"]
 # Includes encoders/decoders
 _enc_ = ["flate2", "tar"]
 
-# Includes cypto dependent functions/types/mods:
+# Includes cypto dependent functions/types/mods
 _crypto_ = ["blake2"]
-
-# # Includes Arch linux specific features
-# _arch_ = ["git2"]
-
-# # Includes net dependent functions/types/mods:
-# _net_ = ["git2"]
-
-# [patch.crates-io]
-# git2 = { git = "https://github.com/phR0ze/git2-rs", branch = "master" }
 
 # Examples and tests are built with these dependencies
 [dev-dependencies]
