@@ -14,7 +14,7 @@ use walkdir::WalkDir;
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let home = user::home_Dir()).unwrap();
+/// let home = user::home_Dir().unwrap();
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
 pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
@@ -235,7 +235,7 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let home = user::home_Dir().unwrap();
+/// let home = user::home_dir().unwrap();
 /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
 /// ```
 pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
@@ -1515,10 +1515,10 @@ mod tests {
         assert_eq!(sys::abs("./").unwrap(), cwd);
         assert_eq!(sys::abs(".").unwrap(), cwd);
 
-        // let home = PathBuf::from(user::home_dir().unwrap());
-        // // home dir
-        // assert_eq!(sys::abs("~").unwrap(), home);
-        // assert_eq!(sys::abs("~/").unwrap(), home);
+        // home dir
+        let home = PathBuf::from(user::home_dir().unwrap());
+        assert_eq!(sys::abs("~").unwrap(), home);
+        assert_eq!(sys::abs("~/").unwrap(), home);
 
         // // expand home path
         // assert_eq!(sys::abs("~/foo").unwrap(), home.mash("foo"));
