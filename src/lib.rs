@@ -20,7 +20,9 @@ pub mod prelude {
 
     // Re-exports
     //----------------------------------------------------------------------------------------------
+    pub use gory::*;
     pub use lazy_static::*;
+    pub use libc;
     pub use regex::Regex;
     pub use std::ffi::{OsStr, OsString};
     pub use std::fmt;

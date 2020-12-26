@@ -176,7 +176,6 @@ pub fn flag_default<K: AsRef<OsStr>>(key: K, default: bool) -> bool {
 ///
 /// println!("{:?}", sys::hastty());
 /// ```
-#[cfg(feature = "_libc_")]
 pub fn hastty() -> bool {
     unsafe { libc::isatty(libc::STDOUT_FILENO) != 0 }
 }

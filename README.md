@@ -1,15 +1,13 @@
-FUNGUS
+# fungus
 [![license-badge](https://img.shields.io/crates/l/fungus.svg)](https://opensource.org/licenses/MIT)
 [![build](https://github.com/phR0ze/fungus/workflows/build/badge.svg?branch=main)](https://github.com/phR0ze/fungus/actions)
 [![codecov](https://codecov.io/gh/phR0ze/fungus/branch/master/graph/badge.svg?token=2Q81XD9WU1)](https://codecov.io/gh/phR0ze/fungus)
 [![crates.io](https://img.shields.io/crates/v/fungus.svg)](https://crates.io/crates/fungus)
 [![rust-version](https://img.shields.io/badge/rust-latest%20stable-blue.svg)](https://github.com/rust-lang/rust/releases)
-====================================================================================================
 
-Rust utilities to reduce code verbosity
+***Rust utilities to reduce code verbosity***
 
-The intent is to reduce code verbosity for common system functions to keep things DRY. The focus is
-on adding value rather than simply renaming or surfacing functions in different ways.
+The intent of `fungus` is to reduce code verbosity for common system functions to keep things DRY.
 
 TBD
 

@@ -1,7 +1,7 @@
 use crate::core::*;
 use crate::errors::*;
 use crate::sys::{self, user};
-use colored::*;
+use gory::*;
 use std::collections::HashMap;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
@@ -1448,199 +1448,39 @@ impl PathExt for Path {
 }
 
 pub trait PathColorExt {
-    fn black(&self) -> Result<ColoredString>;
-    fn red(&self) -> Result<ColoredString>;
-    fn green(&self) -> Result<ColoredString>;
-    fn yellow(&self) -> Result<ColoredString>;
-    fn blue(&self) -> Result<ColoredString>;
-    fn magenta(&self) -> Result<ColoredString>;
-    fn purple(&self) -> Result<ColoredString>;
-    fn cyan(&self) -> Result<ColoredString>;
-    fn white(&self) -> Result<ColoredString>;
-    fn bright_black(&self) -> Result<ColoredString>;
-    fn bright_red(&self) -> Result<ColoredString>;
-    fn bright_green(&self) -> Result<ColoredString>;
-    fn bright_yellow(&self) -> Result<ColoredString>;
-    fn bright_blue(&self) -> Result<ColoredString>;
-    fn bright_magenta(&self) -> Result<ColoredString>;
-    fn bright_purple(&self) -> Result<ColoredString>;
-    fn bright_cyan(&self) -> Result<ColoredString>;
-    fn bright_white(&self) -> Result<ColoredString>;
-    fn color<S: Into<Color>>(&self, color: S) -> Result<ColoredString>;
-    fn on_black(&self) -> Result<ColoredString>;
-    fn on_red(&self) -> Result<ColoredString>;
-    fn on_green(&self) -> Result<ColoredString>;
-    fn on_yellow(&self) -> Result<ColoredString>;
-    fn on_blue(&self) -> Result<ColoredString>;
-    fn on_magenta(&self) -> Result<ColoredString>;
-    fn on_purple(&self) -> Result<ColoredString>;
-    fn on_cyan(&self) -> Result<ColoredString>;
-    fn on_white(&self) -> Result<ColoredString>;
-    fn on_bright_black(&self) -> Result<ColoredString>;
-    fn on_bright_red(&self) -> Result<ColoredString>;
-    fn on_bright_green(&self) -> Result<ColoredString>;
-    fn on_bright_yellow(&self) -> Result<ColoredString>;
-    fn on_bright_blue(&self) -> Result<ColoredString>;
-    fn on_bright_magenta(&self) -> Result<ColoredString>;
-    fn on_bright_purple(&self) -> Result<ColoredString>;
-    fn on_bright_cyan(&self) -> Result<ColoredString>;
-    fn on_bright_white(&self) -> Result<ColoredString>;
-    fn on_color<S: Into<Color>>(&self, color: S) -> Result<ColoredString>;
-    fn normal(&self) -> Result<ColoredString>;
-    fn bold(&self) -> Result<ColoredString>;
-    fn dimmed(&self) -> Result<ColoredString>;
-    fn italic(&self) -> Result<ColoredString>;
-    fn underline(&self) -> Result<ColoredString>;
-    fn blink(&self) -> Result<ColoredString>;
-    fn reverse(&self) -> Result<ColoredString>;
-    fn reversed(&self) -> Result<ColoredString>;
-    fn hidden(&self) -> Result<ColoredString>;
-    fn strikethrough(&self) -> Result<ColoredString>;
+    fn black(&self) -> ColorString;
+    fn red(&self) -> ColorString;
+    fn green(&self) -> ColorString;
+    fn yellow(&self) -> ColorString;
+    fn blue(&self) -> ColorString;
+    fn magenta(&self) -> ColorString;
+    fn cyan(&self) -> ColorString;
+    fn white(&self) -> ColorString;
 }
 impl PathColorExt for Path {
-    fn black(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::Black))
+    fn black(&self) -> ColorString {
+        self.display().to_string().black()
     }
-    fn red(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::Red))
+    fn red(&self) -> ColorString {
+        self.display().to_string().red()
     }
-    fn green(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::Green))
+    fn green(&self) -> ColorString {
+        self.display().to_string().green()
     }
-    fn yellow(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::Yellow))
+    fn yellow(&self) -> ColorString {
+        self.display().to_string().yellow()
     }
-    fn blue(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::Blue))
+    fn blue(&self) -> ColorString {
+        self.display().to_string().blue()
     }
-    fn magenta(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::Magenta))
+    fn magenta(&self) -> ColorString {
+        self.display().to_string().magenta()
     }
-    fn purple(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::Magenta))
+    fn cyan(&self) -> ColorString {
+        self.display().to_string().cyan()
     }
-    fn cyan(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::Cyan))
-    }
-    fn white(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::White))
-    }
-    fn bright_black(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightBlack))
-    }
-    fn bright_red(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightRed))
-    }
-    fn bright_green(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightGreen))
-    }
-    fn bright_yellow(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightYellow))
-    }
-    fn bright_blue(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightBlue))
-    }
-    fn bright_magenta(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightMagenta))
-    }
-    fn bright_purple(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightMagenta))
-    }
-    fn bright_cyan(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightCyan))
-    }
-    fn bright_white(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(Color::BrightWhite))
-    }
-    fn color<S: Into<Color>>(&self, color: S) -> Result<ColoredString> {
-        Ok(self.to_string()?.color(color.into()))
-    }
-    fn on_black(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::Black))
-    }
-    fn on_red(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::Red))
-    }
-    fn on_green(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::Green))
-    }
-    fn on_yellow(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::Yellow))
-    }
-    fn on_blue(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::Blue))
-    }
-    fn on_magenta(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::Magenta))
-    }
-    fn on_purple(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::Magenta))
-    }
-    fn on_cyan(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::Cyan))
-    }
-    fn on_white(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::White))
-    }
-    fn on_bright_black(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightBlack))
-    }
-    fn on_bright_red(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightRed))
-    }
-    fn on_bright_green(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightGreen))
-    }
-    fn on_bright_yellow(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightYellow))
-    }
-    fn on_bright_blue(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightBlue))
-    }
-    fn on_bright_magenta(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightMagenta))
-    }
-    fn on_bright_purple(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightMagenta))
-    }
-    fn on_bright_cyan(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightCyan))
-    }
-    fn on_bright_white(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(Color::BrightWhite))
-    }
-    fn on_color<S: Into<Color>>(&self, color: S) -> Result<ColoredString> {
-        Ok(self.to_string()?.on_color(color))
-    }
-    fn normal(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.normal())
-    }
-    fn bold(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.bold())
-    }
-    fn dimmed(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.dimmed())
-    }
-    fn italic(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.italic())
-    }
-    fn underline(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.underline())
-    }
-    fn blink(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.blink())
-    }
-    fn reverse(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.reverse())
-    }
-    fn reversed(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.reversed())
-    }
-    fn hidden(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.hidden())
-    }
-    fn strikethrough(&self) -> Result<ColoredString> {
-        Ok(self.to_string()?.strikethrough())
+    fn white(&self) -> ColorString {
+        self.display().to_string().white()
     }
 }
 
@@ -1649,7 +1489,6 @@ impl PathColorExt for Path {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use colored::*;
 
     // Test setup
     fn setup() -> PathBuf {
@@ -2563,54 +2402,14 @@ mod tests {
     }
 
     #[test]
-    fn test_pathcoloredext() {
-        assert!(PathBuf::from("foo").black().is_ok());
-        assert!(PathBuf::from("foo").red().is_ok());
-        assert!(PathBuf::from("foo").green().is_ok());
-        assert!(PathBuf::from("foo").yellow().is_ok());
-        assert!(PathBuf::from("foo").blue().is_ok());
-        assert!(PathBuf::from("foo").magenta().is_ok());
-        assert!(PathBuf::from("foo").purple().is_ok());
-        assert!(PathBuf::from("foo").cyan().is_ok());
-        assert!(PathBuf::from("foo").white().is_ok());
-        assert!(PathBuf::from("foo").bright_black().is_ok());
-        assert!(PathBuf::from("foo").bright_red().is_ok());
-        assert!(PathBuf::from("foo").bright_green().is_ok());
-        assert!(PathBuf::from("foo").bright_yellow().is_ok());
-        assert!(PathBuf::from("foo").bright_blue().is_ok());
-        assert!(PathBuf::from("foo").bright_magenta().is_ok());
-        assert!(PathBuf::from("foo").bright_purple().is_ok());
-        assert!(PathBuf::from("foo").bright_cyan().is_ok());
-        assert!(PathBuf::from("foo").bright_white().is_ok());
-        assert!(PathBuf::from("foo").color(Color::Blue).is_ok());
-        assert!(PathBuf::from("foo").on_black().is_ok());
-        assert!(PathBuf::from("foo").on_red().is_ok());
-        assert!(PathBuf::from("foo").on_green().is_ok());
-        assert!(PathBuf::from("foo").on_yellow().is_ok());
-        assert!(PathBuf::from("foo").on_blue().is_ok());
-        assert!(PathBuf::from("foo").on_magenta().is_ok());
-        assert!(PathBuf::from("foo").on_purple().is_ok());
-        assert!(PathBuf::from("foo").on_cyan().is_ok());
-        assert!(PathBuf::from("foo").on_white().is_ok());
-        assert!(PathBuf::from("foo").on_bright_black().is_ok());
-        assert!(PathBuf::from("foo").on_bright_red().is_ok());
-        assert!(PathBuf::from("foo").on_bright_green().is_ok());
-        assert!(PathBuf::from("foo").on_bright_yellow().is_ok());
-        assert!(PathBuf::from("foo").on_bright_blue().is_ok());
-        assert!(PathBuf::from("foo").on_bright_magenta().is_ok());
-        assert!(PathBuf::from("foo").on_bright_purple().is_ok());
-        assert!(PathBuf::from("foo").on_bright_cyan().is_ok());
-        assert!(PathBuf::from("foo").on_bright_white().is_ok());
-        assert!(PathBuf::from("foo").on_color(Color::Blue).is_ok());
-        assert!(PathBuf::from("foo").normal().is_ok());
-        assert!(PathBuf::from("foo").bold().is_ok());
-        assert!(PathBuf::from("foo").dimmed().is_ok());
-        assert!(PathBuf::from("foo").italic().is_ok());
-        assert!(PathBuf::from("foo").underline().is_ok());
-        assert!(PathBuf::from("foo").blink().is_ok());
-        assert!(PathBuf::from("foo").reverse().is_ok());
-        assert!(PathBuf::from("foo").reversed().is_ok());
-        assert!(PathBuf::from("foo").hidden().is_ok());
-        assert!(PathBuf::from("foo").strikethrough().is_ok());
+    fn test_pathcolorext() {
+        assert_eq!("foo".black(), PathBuf::from("foo").black());
+        assert_eq!("foo".red(), PathBuf::from("foo").red());
+        assert_eq!("foo".green(), PathBuf::from("foo").green());
+        assert_eq!("foo".yellow(), PathBuf::from("foo").yellow());
+        assert_eq!("foo".blue(), PathBuf::from("foo").blue());
+        assert_eq!("foo".magenta(), PathBuf::from("foo").magenta());
+        assert_eq!("foo".cyan(), PathBuf::from("foo").cyan());
+        assert_eq!("foo".white(), PathBuf::from("foo").white());
     }
 }

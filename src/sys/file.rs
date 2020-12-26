@@ -2,20 +2,16 @@ use crate::errors::*;
 use crate::sys::{self, PathExt};
 use crate::Result;
 use regex::Regex;
+use std::ffi::CString;
 use std::fs::{self, File};
 use std::io::{self, prelude::*, BufRead, BufReader};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::{self, fs::PermissionsExt};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 #[cfg(feature = "_crypto_")]
 use blake2::{Blake2b, Digest};
-
-cfgblock! {
-    #[cfg(feature = "_libc_")]
-    use std::ffi::CString;
-    use std::os::unix::ffi::OsStrExt;
-}
 
 /// Chmod provides flexible options for changing file permission with optional configuration.
 #[derive(Debug, Clone)]
@@ -222,7 +218,6 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
 /// assert!(sys::chown(&file1, user::getuid(), user::getgid()).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-#[cfg(feature = "_libc_")]
 pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
     chown_p(path, uid, gid, true)
 }
@@ -242,13 +237,11 @@ pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
 /// assert!(sys::chown(&file1, user::getuid(), user::getgid()).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-#[cfg(feature = "_libc_")]
 pub fn lchown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
     chown_p(path, uid, gid, false)
 }
 
 /// Private implementation of chown
-#[cfg(feature = "_libc_")]
 fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<()> {
     let path = path.as_ref().abs()?;
 
