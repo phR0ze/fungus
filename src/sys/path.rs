@@ -14,7 +14,7 @@ use walkdir::WalkDir;
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let home = user::home_Dir().unwrap();
+/// let home = user::home_dir().unwrap();
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
 pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
@@ -1520,13 +1520,13 @@ mod tests {
         assert_eq!(sys::abs("~").unwrap(), home);
         assert_eq!(sys::abs("~/").unwrap(), home);
 
-        // // expand home path
-        // assert_eq!(sys::abs("~/foo").unwrap(), home.mash("foo"));
+        // expand home path
+        assert_eq!(sys::abs("~/foo").unwrap(), home.mash("foo"));
 
-        // // More complicated
-        // assert_eq!(sys::abs("~/foo/bar/../.").unwrap(), home.mash("foo"));
-        // assert_eq!(sys::abs("~/foo/bar/../").unwrap(), home.mash("foo"));
-        // assert_eq!(sys::abs("~/foo/bar/../blah").unwrap(), home.mash("foo/blah"));
+        // More complicated
+        assert_eq!(sys::abs("~/foo/bar/../.").unwrap(), home.mash("foo"));
+        assert_eq!(sys::abs("~/foo/bar/../").unwrap(), home.mash("foo"));
+        assert_eq!(sys::abs("~/foo/bar/../blah").unwrap(), home.mash("foo/blah"));
 
         // // Move up the path multiple levels
         // assert_eq!(sys::abs("./../../foo").unwrap(), home.mash("foo"));
