@@ -266,6 +266,7 @@ mod tests {
         assert!(err.downcast_ref::<std::env::VarError>().is_some());
         assert!(err.downcast_mut::<std::env::VarError>().is_some());
         assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
     }
 
     #[test]
