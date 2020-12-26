@@ -211,6 +211,14 @@ mod tests {
         assert!(err.downcast_mut::<FileError>().is_some());
         assert!(err.as_ref().source().is_none());
 
+        let mut err = Error::from(glob::PatternError { pos: 1, msg: "1" });
+        assert_eq!("Pattern syntax error near position 1: 1", err.to_string());
+        assert_eq!("Pattern syntax error near position 1: 1", err.as_ref().to_string());
+        assert_eq!("Pattern syntax error near position 1: 1", err.as_mut().to_string());
+        assert!(err.downcast_ref::<glob::PatternError>().is_some());
+        assert!(err.downcast_mut::<glob::PatternError>().is_some());
+        assert!(err.as_ref().source().is_none());
+
         let mut err = Error::from(io::Error::new(io::ErrorKind::AlreadyExists, "foo"));
         assert_eq!("foo", err.to_string());
         assert_eq!("foo", err.as_ref().to_string());
@@ -227,6 +235,14 @@ mod tests {
         assert!(err.downcast_mut::<IterError>().is_some());
         assert!(err.as_ref().source().is_none());
 
+        let mut err = Error::from(std::ffi::CString::new(b"f\0oo".to_vec()).unwrap_err());
+        assert_eq!("nul byte found in provided data at position: 1", err.to_string());
+        assert_eq!("nul byte found in provided data at position: 1", err.as_ref().to_string());
+        assert_eq!("nul byte found in provided data at position: 1", err.as_mut().to_string());
+        assert!(err.downcast_ref::<std::ffi::NulError>().is_some());
+        assert!(err.downcast_mut::<std::ffi::NulError>().is_some());
+        assert!(err.as_ref().source().is_none());
+
         let mut err = Error::from(OsError::KernelReleaseNotFound);
         assert_eq!("kernel release was not found", err.to_string());
         assert_eq!("kernel release was not found", err.as_ref().to_string());
@@ -241,6 +257,14 @@ mod tests {
         assert_eq!("path empty", err.as_mut().to_string());
         assert!(err.downcast_ref::<PathError>().is_some());
         assert!(err.downcast_mut::<PathError>().is_some());
+        assert!(err.as_ref().source().is_none());
+
+        let mut err = Error::from(regex::Error::Syntax("foo".to_string()));
+        assert_eq!("foo", err.to_string());
+        assert_eq!("foo", err.as_ref().to_string());
+        assert_eq!("foo", err.as_mut().to_string());
+        assert!(err.downcast_ref::<regex::Error>().is_some());
+        assert!(err.downcast_mut::<regex::Error>().is_some());
         assert!(err.as_ref().source().is_none());
 
         let mut err = Error::from(StringError::FailedToString);
