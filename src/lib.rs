@@ -14,6 +14,7 @@ pub use crate::errors::Result;
 /// ```
 pub mod prelude {
     pub use super::cfgblock;
+    pub use super::defer;
 
     pub use super::core::*;
     pub use super::errors::*;
@@ -55,12 +56,12 @@ pub mod prelude {
 /// }
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
-// #[macro_export]
-// macro_rules! defer {
-//     ($($tokens:tt)*) => {
-//         let _defer = Defer(|| { $($tokens)* });
-//     };
-// }
+#[macro_export]
+macro_rules! defer {
+    ($($tokens:tt)*) => {
+        let _defer = defer(|| { $($tokens)* });
+    };
+}
 
 /// Provides the ability to define `#[cfg]` statements for multiple items
 ///
@@ -99,7 +100,12 @@ macro_rules! cfgblock {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use std::cell::Cell;
 
     #[test]
-    fn test_defer() {}
+    fn test_defer_macro() {
+        let obj = Cell::new(1);
+        defer!(obj.set(2));
+        assert_eq!(1, obj.get());
+    }
 }

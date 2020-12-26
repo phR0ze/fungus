@@ -1,3 +1,5 @@
+use std::thread;
+
 /// Ensure the given closure is executed once the surrounding scope closes despite panics.
 /// Inspired by Golang's `defer`, Java's finally and Ruby's `ensure`.
 ///
@@ -8,24 +10,51 @@
 /// ```
 /// use fungus::prelude::*;
 ///
-/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("core_finally_doc");
+/// let tmpdir = PathBuf::from("tests/temp").abs().unwrap().mash("core_defer_doc");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert!(sys::mkdir(&tmpdir).is_ok());
 ///
-/// // Create a scope that will trigger finally's destructor
+/// // Create a scope that will trigger defer's destructor
 /// {
-///     defer!(sys::remove_all(&tmpdir).unwrap());
+///     let _defer = defer(|| sys::remove_all(&tmpdir).unwrap());
 /// }
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
-pub fn defer<T: FnOnce()>(f: T) -> impl Drop {
-    Defer(Some(f))
+pub fn defer<T: FnMut()>(f: T) -> impl Drop {
+    Defer(f)
 }
 
-pub struct Defer<T: FnOnce()>(Option<T>);
+pub struct Defer<T: FnMut()>(T);
 
-impl<T: FnOnce()> Drop for Defer<T> {
+impl<T: FnMut()> Drop for Defer<T> {
     fn drop(&mut self) {
-        self.0.take().map(|f| f());
+        (self.0)();
+    }
+}
+
+// Unit tests
+// -------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use std::cell::Cell;
+    use std::panic::catch_unwind;
+    use std::panic::AssertUnwindSafe;
+
+    // #[test]
+    // fn test_defer_fires_even_with_panic() {
+    //     let obj = Cell::new(1);
+    //     let _ = catch_unwind(AssertUnwindSafe(|| {
+    //         let _defer = defer(|| obj.set(2));
+    //         panic!();
+    //     }));
+    //     //assert_eq!(obj.get(), 2);
+    // }
+
+    #[test]
+    fn test_defer_actually_waits_until_end() {
+        let obj = Cell::new(1);
+        let _defer = defer(|| obj.set(2));
+        assert_eq!(1, obj.get());
     }
 }

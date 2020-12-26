@@ -112,7 +112,7 @@ pub fn runtime_dir() -> PathBuf {
 /// let tmpdir = user::temp_dir("foo").unwrap();
 /// assert_eq!(tmpdir.exists(), true);
 /// {
-///     let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
+///     let _defer = defer(|| sys::remove_all(&tmpdir).unwrap());
 /// }
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
@@ -552,7 +552,7 @@ mod tests {
         let tmpdir = user::temp_dir("test_user_dirs").unwrap();
         assert_eq!(tmpdir.exists(), true);
         {
-            let _f = finally(|| sys::remove_all(&tmpdir).unwrap());
+            let _defer = defer(|| sys::remove_all(&tmpdir).unwrap());
         }
         assert_eq!(tmpdir.exists(), false);
     }
