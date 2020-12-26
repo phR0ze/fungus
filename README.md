@@ -1,7 +1,7 @@
 # fungus
 [![license-badge](https://img.shields.io/crates/l/fungus.svg)](https://opensource.org/licenses/MIT)
 [![build](https://github.com/phR0ze/fungus/workflows/build/badge.svg?branch=main)](https://github.com/phR0ze/fungus/actions)
-[![codecov](https://codecov.io/gh/phR0ze/fungus/branch/master/graph/badge.svg?token=2Q81XD9WU1)](https://codecov.io/gh/phR0ze/fungus)
+[![codecov](https://codecov.io/gh/phR0ze/fungus/branch/main/graph/badge.svg?token=2Q81XD9WU1)](https://codecov.io/gh/phR0ze/fungus)
 [![crates.io](https://img.shields.io/crates/v/fungus.svg)](https://crates.io/crates/fungus)
 [![rust-version](https://img.shields.io/badge/rust-latest%20stable-blue.svg)](https://github.com/rust-lang/rust/releases)
 
