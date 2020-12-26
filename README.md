@@ -46,4 +46,9 @@ any additional terms or conditions.
 ---
 
 ## Backlog <a name="backlog"/></a>
-* port system utilities from witcher
+
+## Completed <a name="completed"/></a>
+* 12/26/2020
+  * implemented a better `defer` function
+  * port system utilities from witcher
+  * use fastrand rather than rand

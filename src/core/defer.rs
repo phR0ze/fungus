@@ -1,5 +1,3 @@
-use std::thread;
-
 /// Ensure the given closure is executed once the surrounding scope closes despite panics.
 /// Inspired by Golang's `defer`, Java's finally and Ruby's `ensure`.
 ///
@@ -38,18 +36,25 @@ impl<T: FnMut()> Drop for Defer<T> {
 mod tests {
     use crate::prelude::*;
     use std::cell::Cell;
-    use std::panic::catch_unwind;
-    use std::panic::AssertUnwindSafe;
+    use std::panic::{self, catch_unwind, AssertUnwindSafe};
 
-    // #[test]
-    // fn test_defer_fires_even_with_panic() {
-    //     let obj = Cell::new(1);
-    //     let _ = catch_unwind(AssertUnwindSafe(|| {
-    //         let _defer = defer(|| obj.set(2));
-    //         panic!();
-    //     }));
-    //     //assert_eq!(obj.get(), 2);
-    // }
+    // Registers a panic hook that does nothing to supress the panic output
+    // that get dumped to the screen regardless of panic handling with catch_unwind
+    fn supress_panic_err() {
+        panic::set_hook(Box::new(|_| {}));
+    }
+
+    #[test]
+    fn test_defer_fires_even_with_panic() {
+        supress_panic_err();
+
+        let obj = Cell::new(1);
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            defer!(obj.set(2));
+            panic!();
+        }));
+        assert_eq!(obj.get(), 2);
+    }
 
     #[test]
     fn test_defer_actually_waits_until_end() {
