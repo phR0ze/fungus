@@ -97,7 +97,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).first().unwrap(), 2);
     /// ```
-    fn first_result(self) -> Result<Self::Item>
+    fn first_result(self) -> FuResult<Self::Item>
     where
         Self: Sized;
 
@@ -110,7 +110,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).last().unwrap(), 2);
     /// ```
-    fn last_result(self) -> Result<Self::Item>
+    fn last_result(self) -> FuResult<Self::Item>
     where
         Self: Sized;
 
@@ -123,7 +123,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// assert_eq!((0..10).filter(|&x| x == 2).single().unwrap(), 2);
     /// ```
-    fn single(self) -> Result<Self::Item>
+    fn single(self) -> FuResult<Self::Item>
     where
         Self: Sized;
 
@@ -206,7 +206,7 @@ where
         self.next()
     }
 
-    fn first_result(mut self) -> Result<Self::Item>
+    fn first_result(mut self) -> FuResult<Self::Item>
     where
         Self: Sized,
     {
@@ -216,7 +216,7 @@ where
         }
     }
 
-    fn last_result(self) -> Result<Self::Item>
+    fn last_result(self) -> FuResult<Self::Item>
     where
         Self: Sized,
     {
@@ -226,7 +226,7 @@ where
         }
     }
 
-    fn single(mut self) -> Result<Self::Item>
+    fn single(mut self) -> FuResult<Self::Item>
     where
         Self: Sized,
     {

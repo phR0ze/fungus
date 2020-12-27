@@ -8,7 +8,7 @@ use std::os::unix::ffi::OsStrExt;
 ///
 /// # Safety
 /// FFI with libc
-pub unsafe fn to_string(ptr: *const libc::c_char) -> Result<String> {
+pub unsafe fn to_string(ptr: *const libc::c_char) -> FuResult<String> {
     if ptr.is_null() {
         Err(StringError::FailedToString.into())
     } else {

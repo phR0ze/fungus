@@ -18,7 +18,7 @@ use std::{io, iter, mem, ptr};
 ///
 /// assert!(user::home_dir().is_ok());
 /// ```
-pub fn home_dir() -> Result<PathBuf> {
+pub fn home_dir() -> FuResult<PathBuf> {
     let home = sys::var("HOME")?;
     let dir = PathBuf::from(home);
     Ok(dir)
@@ -34,7 +34,7 @@ pub fn home_dir() -> Result<PathBuf> {
 ///
 /// assert!(user::config_dir().is_ok());
 /// ```
-pub fn config_dir() -> Result<PathBuf> {
+pub fn config_dir() -> FuResult<PathBuf> {
     Ok(match sys::var("XDG_CONFIG_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".config"),
@@ -51,7 +51,7 @@ pub fn config_dir() -> Result<PathBuf> {
 ///
 /// assert!(user::cache_dir().is_ok());
 /// ```
-pub fn cache_dir() -> Result<PathBuf> {
+pub fn cache_dir() -> FuResult<PathBuf> {
     Ok(match sys::var("XDG_CACHE_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".cache"),
@@ -68,7 +68,7 @@ pub fn cache_dir() -> Result<PathBuf> {
 ///
 /// assert!(user::data_dir().is_ok());
 /// ```
-pub fn data_dir() -> Result<PathBuf> {
+pub fn data_dir() -> FuResult<PathBuf> {
     Ok(match sys::var("XDG_DATA_HOME") {
         Ok(x) => PathBuf::from(x),
         Err(_) => home_dir()?.mash(".local/share"),
@@ -116,7 +116,7 @@ pub fn runtime_dir() -> PathBuf {
 /// }
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
-pub fn temp_dir<T: AsRef<str>>(prefix: T) -> Result<PathBuf> {
+pub fn temp_dir<T: AsRef<str>>(prefix: T) -> FuResult<PathBuf> {
     loop {
         let suffix: String = iter::repeat_with(fastrand::alphanumeric).take(8).collect();
         let dir = PathBuf::from(format!("/tmp/{}-{}", prefix.as_ref(), suffix));
@@ -136,7 +136,7 @@ pub fn temp_dir<T: AsRef<str>>(prefix: T) -> Result<PathBuf> {
 ///
 /// assert!(user::data_dirs().is_ok());
 /// ```
-pub fn data_dirs() -> Result<Vec<PathBuf>> {
+pub fn data_dirs() -> FuResult<Vec<PathBuf>> {
     Ok(match sys::var("XDG_DATA_DIRS") {
         Ok(x) => sys::parse_paths(x)?,
         Err(_) => vec![PathBuf::from("/usr/local/share:/usr/share")],
@@ -153,7 +153,7 @@ pub fn data_dirs() -> Result<Vec<PathBuf>> {
 ///
 /// assert!(user::config_dirs().is_ok());
 /// ```
-pub fn config_dirs() -> Result<Vec<PathBuf>> {
+pub fn config_dirs() -> FuResult<Vec<PathBuf>> {
     Ok(match sys::var("XDG_CONFIG_DIRS") {
         Ok(x) => sys::parse_paths(x)?,
         Err(_) => vec![PathBuf::from("/etc/xdg")],
@@ -169,7 +169,7 @@ pub fn config_dirs() -> Result<Vec<PathBuf>> {
 ///
 /// assert!(user::path_dirs().is_ok());
 /// ```
-pub fn path_dirs() -> Result<Vec<PathBuf>> {
+pub fn path_dirs() -> FuResult<Vec<PathBuf>> {
     sys::parse_paths(sys::var("PATH")?)
 }
 
@@ -213,7 +213,7 @@ impl User {
 ///
 /// assert!(user::current().is_ok());
 /// ```
-pub fn current() -> Result<User> {
+pub fn current() -> FuResult<User> {
     let user = lookup(unsafe { libc::getuid() })?;
     Ok(user)
 }
@@ -226,7 +226,7 @@ pub fn current() -> Result<User> {
 ///
 /// assert!(user::drop_sudo().is_ok());
 /// ```
-pub fn drop_sudo() -> Result<()> {
+pub fn drop_sudo() -> FuResult<()> {
     match getuid() {
         0 => {
             let (ruid, rgid) = getrids(0, 0);
@@ -325,7 +325,7 @@ pub fn is_root() -> bool {
 ///
 /// assert!(user::lookup(user::getuid()).is_ok());
 /// ```
-pub fn lookup(uid: u32) -> Result<User> {
+pub fn lookup(uid: u32) -> FuResult<User> {
     // Get the libc::passwd by user id
     let mut buf = vec![0; 2048];
     let mut res = ptr::null_mut::<libc::passwd>();
@@ -385,7 +385,7 @@ pub fn lookup(uid: u32) -> Result<User> {
 ///
 /// println!("current user name: {:?}", user::name().unwrap());
 /// ```
-pub fn name() -> Result<String> {
+pub fn name() -> FuResult<String> {
     Ok(current()?.name)
 }
 
@@ -398,7 +398,7 @@ pub fn name() -> Result<String> {
 ///
 /// assert!(user::pause_sudo().is_ok());
 /// ```
-pub fn pause_sudo() -> Result<()> {
+pub fn pause_sudo() -> FuResult<()> {
     match getuid() {
         0 => {
             let (ruid, rgid) = getrids(0, 0);
@@ -416,7 +416,7 @@ pub fn pause_sudo() -> Result<()> {
 ///
 /// assert!(user::setuid(user::getuid()).is_ok());
 /// ```
-pub fn setuid(uid: u32) -> Result<()> {
+pub fn setuid(uid: u32) -> FuResult<()> {
     match unsafe { libc::setuid(uid) } {
         0 => Ok(()),
         _ => Err(io::Error::last_os_error().into()),
@@ -431,7 +431,7 @@ pub fn setuid(uid: u32) -> Result<()> {
 ///
 /// assert!(user::seteuid(user::geteuid()).is_ok());
 /// ```
-pub fn seteuid(euid: u32) -> Result<()> {
+pub fn seteuid(euid: u32) -> FuResult<()> {
     match unsafe { libc::seteuid(euid) } {
         0 => Ok(()),
         _ => Err(io::Error::last_os_error().into()),
@@ -446,7 +446,7 @@ pub fn seteuid(euid: u32) -> Result<()> {
 ///
 /// assert!(user::setgid(user::getgid()).is_ok());
 /// ```
-pub fn setgid(gid: u32) -> Result<()> {
+pub fn setgid(gid: u32) -> FuResult<()> {
     match unsafe { libc::setgid(gid) } {
         0 => Ok(()),
         _ => Err(io::Error::last_os_error().into()),
@@ -461,7 +461,7 @@ pub fn setgid(gid: u32) -> Result<()> {
 ///
 /// assert!(user::setegid(user::getegid()).is_ok());
 /// ```
-pub fn setegid(egid: u32) -> Result<()> {
+pub fn setegid(egid: u32) -> FuResult<()> {
     match unsafe { libc::setegid(egid) } {
         0 => Ok(()),
         _ => Err(io::Error::last_os_error().into()),
@@ -476,7 +476,7 @@ pub fn setegid(egid: u32) -> Result<()> {
 ///
 /// user:sudo().unwrap();
 /// ```
-pub fn sudo() -> Result<()> {
+pub fn sudo() -> FuResult<()> {
     switchuser(0, 0, 0, 0, 0, 0)
 }
 
@@ -492,7 +492,7 @@ pub fn sudo() -> Result<()> {
 /// // Switch to user 1000 and drop root priviledges permanantely
 /// user::switchuser(1000, 1000, 1000, 1000, 1000, 1000);
 /// ```
-pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u32) -> Result<()> {
+pub fn switchuser(ruid: u32, euid: u32, suid: u32, rgid: u32, egid: u32, sgid: u32) -> FuResult<()> {
     // Best practice to drop the group first
     match unsafe { libc::setresgid(rgid, egid, sgid) } {
         0 => match unsafe { libc::setresuid(ruid, euid, suid) } {

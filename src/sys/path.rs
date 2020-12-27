@@ -17,7 +17,7 @@ use walkdir::WalkDir;
 /// let home = user::home_dir().unwrap();
 /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
 /// ```
-pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+pub fn abs<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
     let path = path.as_ref();
 
     // Check for empty string
@@ -71,7 +71,7 @@ pub fn abs<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// assert_iter_eq(sys::all_dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+pub fn all_dirs<T: AsRef<Path>>(path: T) -> FuResult<Vec<PathBuf>> {
     let abs = path.as_ref().abs()?;
     if abs.exists() {
         let mut paths: Vec<PathBuf> = Vec::new();
@@ -112,7 +112,7 @@ pub fn all_dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// assert_iter_eq(sys::all_files(&tmpdir).unwrap(), vec![file2, file1]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+pub fn all_files<T: AsRef<Path>>(path: T) -> FuResult<Vec<PathBuf>> {
     let abs = path.as_ref().abs()?;
     if abs.exists() {
         let mut paths: Vec<PathBuf> = Vec::new();
@@ -155,7 +155,7 @@ pub fn all_files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), vec![dir1, file2, file3, file1]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+pub fn all_paths<T: AsRef<Path>>(path: T) -> FuResult<Vec<PathBuf>> {
     let abs = path.as_ref().abs()?;
     if abs.exists() {
         let mut paths: Vec<PathBuf> = Vec::new();
@@ -194,7 +194,7 @@ pub fn all_paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// assert_iter_eq(sys::dirs(&tmpdir).unwrap(), vec![dir1, dir2]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn dirs<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+pub fn dirs<T: AsRef<Path>>(path: T) -> FuResult<Vec<PathBuf>> {
     let abs = path.as_ref().abs()?;
     if abs.exists() {
         if abs.is_dir() {
@@ -238,7 +238,7 @@ pub fn exists<T: AsRef<Path>>(path: T) -> bool {
 /// let home = user::home_dir().unwrap();
 /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
 /// ```
-pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+pub fn expand<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
     let mut path = path.as_ref().to_path_buf();
     let pathstr = path.to_string()?;
 
@@ -311,7 +311,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// assert_iter_eq(sys::files(&tmpdir).unwrap(), vec![file1, file2]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn files<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+pub fn files<T: AsRef<Path>>(path: T) -> FuResult<Vec<PathBuf>> {
     let abs = path.as_ref().abs()?;
     if abs.exists() {
         if abs.is_dir() {
@@ -499,7 +499,7 @@ pub fn is_symlink_file<T: AsRef<Path>>(path: T) -> bool {
 ///
 /// assert_eq!(sys::gid("/etc").unwrap(), 0);
 /// ```
-pub fn gid<T: AsRef<Path>>(path: T) -> Result<u32> {
+pub fn gid<T: AsRef<Path>>(path: T) -> FuResult<u32> {
     Ok(metadata(path)?.gid())
 }
 
@@ -521,7 +521,7 @@ pub fn gid<T: AsRef<Path>>(path: T) -> Result<u32> {
 /// assert_iter_eq(sys::glob(tmpdir.mash("*")).unwrap(), vec![dir1, dir2, file1]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn glob<T: AsRef<Path>>(src: T) -> Result<Vec<PathBuf>> {
+pub fn glob<T: AsRef<Path>>(src: T) -> FuResult<Vec<PathBuf>> {
     let abs = src.as_ref().abs()?.to_string()?;
     let mut paths: Vec<PathBuf> = Vec::new();
     for x in glob::glob(&abs)? {
@@ -555,7 +555,7 @@ pub fn mash<T: AsRef<Path>, U: AsRef<Path>>(dir: T, base: U) -> PathBuf {
 /// let meta = sys::metadata(Path::new("/etc")).unwrap();
 /// assert_eq!(meta.is_dir(), true);
 /// ```
-pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
+pub fn metadata<T: AsRef<Path>>(path: T) -> FuResult<fs::Metadata> {
     let abs = path.as_ref().abs()?;
     let meta = fs::metadata(abs)?;
     Ok(meta)
@@ -571,7 +571,7 @@ pub fn metadata<T: AsRef<Path>>(path: T) -> Result<fs::Metadata> {
 /// let paths = vec![PathBuf::from("/foo1"), PathBuf::from("/foo2/bar")];
 /// assert_iter_eq(sys::parse_paths("/foo1:/foo2/bar").unwrap(), paths);
 /// ```
-pub fn parse_paths<T: AsRef<str>>(value: T) -> Result<Vec<PathBuf>> {
+pub fn parse_paths<T: AsRef<str>>(value: T) -> FuResult<Vec<PathBuf>> {
     let mut paths: Vec<PathBuf> = Vec::new();
     for dir in value.as_ref().split(':') {
         // Unix shell semantics: path element "" means "."
@@ -603,7 +603,7 @@ pub fn parse_paths<T: AsRef<str>>(value: T) -> Result<Vec<PathBuf>> {
 /// assert_iter_eq(sys::paths(&tmpdir).unwrap(), vec![dir1, dir2, file1]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
+pub fn paths<T: AsRef<Path>>(path: T) -> FuResult<Vec<PathBuf>> {
     let abs = path.as_ref().abs()?;
     if abs.exists() {
         if abs.is_dir() {
@@ -637,7 +637,7 @@ pub fn paths<T: AsRef<Path>>(path: T) -> Result<Vec<PathBuf>> {
 /// assert_eq!(sys::readlink(link1).unwrap(), file1);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn readlink<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+pub fn readlink<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
     let abs = path.as_ref().abs()?;
     let abs = fs::read_link(abs)?;
     Ok(abs)
@@ -651,7 +651,7 @@ pub fn readlink<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 ///
 /// assert_eq!(sys::uid("/etc").unwrap(), 0);
 /// ```
-pub fn uid<T: AsRef<Path>>(path: T) -> Result<u32> {
+pub fn uid<T: AsRef<Path>>(path: T) -> FuResult<u32> {
     Ok(metadata(path)?.uid())
 }
 
@@ -667,7 +667,7 @@ pub trait PathExt {
     /// let home = user::home_dir().unwrap();
     /// assert_eq!(PathBuf::from(&home), sys::abs("~").unwrap());
     /// ```
-    fn abs(&self) -> Result<PathBuf>;
+    fn abs(&self) -> FuResult<PathBuf>;
 
     /// Returns a new absolute [`PathBuf`] based on the given absolute `Path`. The last element of
     /// the given path will be assumed to be a file name.
@@ -679,7 +679,7 @@ pub trait PathExt {
     /// let home = PathBuf::from("~").abs().unwrap();
     /// assert_eq!(PathBuf::from("foo2").abs_from(home.mash("foo1").abs().unwrap()).unwrap(), home.mash("foo2"));
     /// ```
-    fn abs_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
+    fn abs_from<T: AsRef<Path>>(&self, path: T) -> FuResult<PathBuf>;
 
     /// Returns the final component of the `Path`, if there is one.
     ///
@@ -689,7 +689,7 @@ pub trait PathExt {
     ///
     /// assert_eq!("bar", PathBuf::from("/foo/bar").base().unwrap());
     /// ```
-    fn base(&self) -> Result<String>;
+    fn base(&self) -> FuResult<String>;
 
     /// Set the given mode for the `Path` and return the `Path`
     ///
@@ -708,7 +708,7 @@ pub trait PathExt {
     /// assert_eq!(file1.mode().unwrap(), 0o100555);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
-    fn chmod(&self, mode: u32) -> Result<()>;
+    fn chmod(&self, mode: u32) -> FuResult<()>;
 
     /// Return the shortest path equivalent to the path by purely lexical processing and thus does not handle
     /// links correctly in some cases, use canonicalize in those cases. It applies the following rules
@@ -724,7 +724,7 @@ pub trait PathExt {
     /// 6. Drop trailing '/' unless it is the root
     ///
     /// If the result of this process is an empty string, return the string `.`, representing the current directory.
-    fn clean(&self) -> Result<PathBuf>;
+    fn clean(&self) -> FuResult<PathBuf>;
 
     /// Returns the `Path` with the given string concatenated on.
     ///
@@ -734,7 +734,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(Path::new("/foo/bar").concat(".rs").unwrap(), PathBuf::from("/foo/bar.rs"));
     /// ```
-    fn concat<T: AsRef<str>>(&self, val: T) -> Result<PathBuf>;
+    fn concat<T: AsRef<str>>(&self, val: T) -> FuResult<PathBuf>;
 
     /// Returns the `Path` without its final component, if there is one.
     ///
@@ -745,7 +745,7 @@ pub trait PathExt {
     /// let dir = PathBuf::from("/foo/bar").dir().unwrap();
     /// assert_eq!(PathBuf::from("/foo").as_path(), dir);
     /// ```
-    fn dir(&self) -> Result<PathBuf>;
+    fn dir(&self) -> FuResult<PathBuf>;
 
     /// Returns true if the `Path` is empty.
     ///
@@ -776,7 +776,7 @@ pub trait PathExt {
     /// let home = user::home_dir().unwrap();
     /// assert_eq!(PathBuf::from(&home).mash("foo"), PathBuf::from("~/foo").expand().unwrap());
     /// ```
-    fn expand(&self) -> Result<PathBuf>;
+    fn expand(&self) -> FuResult<PathBuf>;
 
     /// Returns the extension of the path or an error.
     ///
@@ -786,7 +786,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(Path::new("foo.bar").ext().unwrap(), "bar");
     /// ```
-    fn ext(&self) -> Result<String>;
+    fn ext(&self) -> FuResult<String>;
 
     /// Returns the first path component.
     ///
@@ -798,7 +798,7 @@ pub trait PathExt {
     /// let first = Component::Normal(OsStr::new("foo"));
     /// assert_eq!(PathBuf::from("foo/bar").first().unwrap(), first);
     /// ```
-    fn first(&self) -> Result<Component>;
+    fn first(&self) -> FuResult<Component>;
 
     /// Returns the group ID of the owner of this file.
     ///
@@ -808,7 +808,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(Path::new("/etc").gid().unwrap(), 0);
     /// ```
-    fn gid(&self) -> Result<u32>;
+    fn gid(&self) -> FuResult<u32>;
 
     /// Returns true if the `Path` contains the given path or string.
     ///
@@ -968,7 +968,7 @@ pub trait PathExt {
     /// let first = Component::Normal(OsStr::new("bar"));
     /// assert_eq!(PathBuf::from("foo/bar").last().unwrap(), first);
     /// ```
-    fn last(&self) -> Result<Component>;
+    fn last(&self) -> FuResult<Component>;
 
     /// Returns a new owned [`PathBuf`] from `self` mashed together with `path`.
     /// Differs from the `mash` implementation as `mash` drops root prefix of the given `path` if
@@ -992,7 +992,7 @@ pub trait PathExt {
     /// let meta = Path::new("/etc").metadata().unwrap();
     /// assert_eq!(meta.is_dir(), true);
     /// ```
-    fn metadata(&self) -> Result<fs::Metadata>;
+    fn metadata(&self) -> FuResult<fs::Metadata>;
 
     /// Returns the Metadata object for the `Path` if it exists else and error
     ///
@@ -1009,7 +1009,7 @@ pub trait PathExt {
     /// assert_eq!(file1.mode().unwrap(), 0o100644);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
-    fn mode(&self) -> Result<u32>;
+    fn mode(&self) -> FuResult<u32>;
 
     /// Returns the final component of the `Path` without an extension if there is one
     ///
@@ -1019,7 +1019,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(PathBuf::from("/foo/bar.foo").name().unwrap(), "bar");
     /// ```
-    fn name(&self) -> Result<String>;
+    fn name(&self) -> FuResult<String>;
 
     /// Return the permissions for the `Path`
     ///
@@ -1036,7 +1036,7 @@ pub trait PathExt {
     /// assert_eq!(file1.perms().unwrap().mode(), 0o100644);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
-    fn perms(&self) -> Result<fs::Permissions>;
+    fn perms(&self) -> FuResult<fs::Permissions>;
 
     /// Returns the absolute path for the link target. Handles path expansion
     ///
@@ -1054,7 +1054,7 @@ pub trait PathExt {
     /// assert_eq!(link1.readlink().unwrap(), file1);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
-    fn readlink(&self) -> Result<PathBuf>;
+    fn readlink(&self) -> FuResult<PathBuf>;
 
     /// Returns the `Path` relative to the given `Path`
     ///
@@ -1064,7 +1064,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(PathBuf::from("foo/bar1").relative_from("foo/bar2").unwrap(), PathBuf::from("bar1"));
     /// ```
-    fn relative_from<T: AsRef<Path>>(&self, path: T) -> Result<PathBuf>;
+    fn relative_from<T: AsRef<Path>>(&self, path: T) -> FuResult<PathBuf>;
 
     /// Set the given [`Permissions`] on the `Path` and return the `Path`
     ///
@@ -1083,7 +1083,7 @@ pub trait PathExt {
     /// assert_eq!(file1.perms().unwrap().mode(), 0o100555);
     /// assert!(sys::remove_all(&tmpdir).is_ok());
     /// ```
-    fn setperms(&self, perms: fs::Permissions) -> Result<PathBuf>;
+    fn setperms(&self, perms: fs::Permissions) -> FuResult<PathBuf>;
 
     /// Returns a new [`PathBuf`] with the file extension trimmed off.
     ///
@@ -1093,7 +1093,7 @@ pub trait PathExt {
     ///
     /// assert_eq!(Path::new("foo.exe").trim_ext().unwrap(), PathBuf::from("foo"));
     /// ```
-    fn trim_ext(&self) -> Result<PathBuf>;
+    fn trim_ext(&self) -> FuResult<PathBuf>;
 
     /// Returns a new [`PathBuf`] with first [`Component`] trimmed off.
     ///
@@ -1154,15 +1154,15 @@ pub trait PathExt {
     ///
     /// assert_eq!(Path::new("/etc").uid().unwrap(), 0);
     /// ```
-    fn uid(&self) -> Result<u32>;
+    fn uid(&self) -> FuResult<u32>;
 }
 
 impl PathExt for Path {
-    fn abs(&self) -> Result<PathBuf> {
+    fn abs(&self) -> FuResult<PathBuf> {
         abs(self)
     }
 
-    fn abs_from<T: AsRef<Path>>(&self, base: T) -> Result<PathBuf> {
+    fn abs_from<T: AsRef<Path>>(&self, base: T) -> FuResult<PathBuf> {
         let base = base.as_ref().abs()?;
         if !self.is_absolute() && self != base {
             let mut path = base.trim_last();
@@ -1181,16 +1181,16 @@ impl PathExt for Path {
         Ok(self.to_path_buf())
     }
 
-    fn base(&self) -> Result<String> {
+    fn base(&self) -> FuResult<String> {
         self.file_name().ok_or_else(|| PathError::filename_not_found(self))?.to_string()
     }
 
-    fn chmod(&self, mode: u32) -> Result<()> {
+    fn chmod(&self, mode: u32) -> FuResult<()> {
         sys::chmod(self, mode)?;
         Ok(())
     }
 
-    fn clean(&self) -> Result<PathBuf> {
+    fn clean(&self) -> FuResult<PathBuf> {
         // Components already handles the following cases:
         // 1. Repeated separators are ignored, so a/b and a//b both have a and b as components.
         // 2. Occurrences of . are normalized away, except if they are at the beginning of the path.
@@ -1237,11 +1237,11 @@ impl PathExt for Path {
         Ok(path_buf)
     }
 
-    fn concat<T: AsRef<str>>(&self, val: T) -> Result<PathBuf> {
+    fn concat<T: AsRef<str>>(&self, val: T) -> FuResult<PathBuf> {
         Ok(PathBuf::from(format!("{}{}", self.to_string()?, val.as_ref())))
     }
 
-    fn dir(&self) -> Result<PathBuf> {
+    fn dir(&self) -> FuResult<PathBuf> {
         let dir = self.parent().ok_or_else(|| PathError::parent_not_found(self))?;
         Ok(dir.to_path_buf())
     }
@@ -1254,22 +1254,22 @@ impl PathExt for Path {
         exists(&self)
     }
 
-    fn expand(&self) -> Result<PathBuf> {
+    fn expand(&self) -> FuResult<PathBuf> {
         expand(&self)
     }
 
-    fn ext(&self) -> Result<String> {
+    fn ext(&self) -> FuResult<String> {
         match self.extension() {
             Some(val) => val.to_string(),
             None => Err(PathError::extension_not_found(self).into()),
         }
     }
 
-    fn first(&self) -> Result<Component> {
+    fn first(&self) -> FuResult<Component> {
         self.components().first_result()
     }
 
-    fn gid(&self) -> Result<u32> {
+    fn gid(&self) -> FuResult<u32> {
         gid(&self)
     }
 
@@ -1322,7 +1322,7 @@ impl PathExt for Path {
         is_symlink_file(self)
     }
 
-    fn last(&self) -> Result<Component> {
+    fn last(&self) -> FuResult<Component> {
         self.components().last_result()
     }
 
@@ -1330,29 +1330,29 @@ impl PathExt for Path {
         mash(self, path)
     }
 
-    fn metadata(&self) -> Result<fs::Metadata> {
+    fn metadata(&self) -> FuResult<fs::Metadata> {
         let meta = fs::metadata(self)?;
         Ok(meta)
     }
 
-    fn mode(&self) -> Result<u32> {
+    fn mode(&self) -> FuResult<u32> {
         let perms = self.perms()?;
         Ok(perms.mode())
     }
 
-    fn name(&self) -> Result<String> {
+    fn name(&self) -> FuResult<String> {
         self.trim_ext()?.base()
     }
 
-    fn perms(&self) -> Result<fs::Permissions> {
+    fn perms(&self) -> FuResult<fs::Permissions> {
         Ok(self.metadata()?.permissions())
     }
 
-    fn readlink(&self) -> Result<PathBuf> {
+    fn readlink(&self) -> FuResult<PathBuf> {
         readlink(self)
     }
 
-    fn relative_from<T: AsRef<Path>>(&self, base: T) -> Result<PathBuf> {
+    fn relative_from<T: AsRef<Path>>(&self, base: T) -> FuResult<PathBuf> {
         let path = self.abs()?;
         let base = base.as_ref().abs()?;
         if path != base {
@@ -1386,12 +1386,12 @@ impl PathExt for Path {
         Ok(path)
     }
 
-    fn setperms(&self, perms: fs::Permissions) -> Result<PathBuf> {
+    fn setperms(&self, perms: fs::Permissions) -> FuResult<PathBuf> {
         fs::set_permissions(&self, perms)?;
         Ok(self.to_path_buf())
     }
 
-    fn trim_ext(&self) -> Result<PathBuf> {
+    fn trim_ext(&self) -> FuResult<PathBuf> {
         Ok(match self.extension() {
             Some(val) => self.trim_suffix(format!(".{}", val.to_string()?)),
             None => self.to_path_buf(),
@@ -1442,7 +1442,7 @@ impl PathExt for Path {
         }
     }
 
-    fn uid(&self) -> Result<u32> {
+    fn uid(&self) -> FuResult<u32> {
         uid(&self)
     }
 }

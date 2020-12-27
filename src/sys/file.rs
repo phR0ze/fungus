@@ -1,6 +1,6 @@
 use crate::errors::*;
 use crate::sys::{self, PathExt};
-use crate::Result;
+use crate::FuResult;
 use regex::Regex;
 use std::ffi::CString;
 use std::fs::{self, File};
@@ -113,7 +113,7 @@ impl Chmod {
 
     /// Execute the [`Chmod`] options against the set `path` with the set `mode`.
     #[allow(clippy::all)]
-    pub fn chmod(&self) -> Result<()> {
+    pub fn chmod(&self) -> FuResult<()> {
         // Handle globbing
         let sources = sys::glob(&self.path)?;
         if sources.is_empty() {
@@ -170,7 +170,7 @@ impl Chmod {
 /// assert_eq!(file1.mode().unwrap(), 0o100555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<()> {
+pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> FuResult<()> {
     chmod_p(path)?.mode(mode).chmod()
 }
 
@@ -194,7 +194,7 @@ pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) -> Result<()> {
 /// assert_eq!(file1.mode().unwrap(), 0o100555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
+pub fn chmod_p<T: AsRef<Path>>(path: T) -> FuResult<Chmod> {
     let path = path.as_ref().abs()?;
     let mode = match path.mode() {
         Ok(x) => x,
@@ -218,7 +218,7 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> Result<Chmod> {
 /// assert!(sys::chown(&file1, user::getuid(), user::getgid()).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
+pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> FuResult<()> {
     chown_p(path, uid, gid, true)
 }
 
@@ -237,12 +237,12 @@ pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
 /// assert!(sys::chown(&file1, user::getuid(), user::getgid()).is_ok());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn lchown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> Result<()> {
+pub fn lchown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> FuResult<()> {
     chown_p(path, uid, gid, false)
 }
 
 /// Private implementation of chown
-fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<()> {
+fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> FuResult<()> {
     let path = path.as_ref().abs()?;
 
     // Handle globbing
@@ -293,7 +293,7 @@ fn chown_p<T: AsRef<Path>>(path: T, uid: u32, gid: u32, follow: bool) -> Result<
 /// assert_eq!(file2.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<PathBuf> {
+pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> FuResult<PathBuf> {
     let mut clone = true;
     let dstabs = dst.as_ref().abs()?;
 
@@ -364,7 +364,7 @@ impl Copyfile {
     }
 
     /// Execute the copyfile operation with the current options.
-    pub fn copy(&mut self) -> Result<PathBuf> {
+    pub fn copy(&mut self) -> FuResult<PathBuf> {
         // Configure and check source
         if !self.src.exists() {
             return Err(PathError::does_not_exist(&self.src).into());
@@ -429,7 +429,7 @@ impl Copyfile {
 /// assert_eq!(file1.mode().unwrap(), file2.mode().unwrap());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
+pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> FuResult<()> {
     copyfile_p(src, dst)?.copy()?;
     Ok(())
 }
@@ -455,7 +455,7 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 /// assert_eq!(file2.mode().unwrap(), 0o100555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copyfile> {
+pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> FuResult<Copyfile> {
     Ok(Copyfile { src: src.as_ref().abs()?, dst: dst.as_ref().abs()?, mode: None, follow_links: false })
 }
 
@@ -476,7 +476,7 @@ pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<Copy
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(feature = "_crypto_")]
-pub fn digest<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
+pub fn digest<T: AsRef<Path>>(path: T) -> FuResult<Vec<u8>> {
     Ok(Blake2b::digest(&readbytes(path)?).into_iter().collect())
 }
 
@@ -495,7 +495,7 @@ pub fn digest<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
 /// assert_eq!(sys::extract_string(&tmpfile, &rx).unwrap(), "Citizen Kane");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn extract_string<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<String> {
+pub fn extract_string<T: AsRef<Path>>(path: T, rx: &Regex) -> FuResult<String> {
     let data = readstring(path)?;
     let caps = rx.captures(&data).ok_or(FileError::FailedToExtractString)?;
     let value = caps.get(1).ok_or(FileError::FailedToExtractString)?;
@@ -517,7 +517,7 @@ pub fn extract_string<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<String> {
 /// assert_eq!(sys::extract_string(&tmpfile, &rx).unwrap(), "Citizen Kane");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn extract_string_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> Result<String> {
+pub fn extract_string_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> FuResult<String> {
     extract_string(path, &Regex::new(rx.as_ref())?)
 }
 
@@ -537,7 +537,7 @@ pub fn extract_string_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> Result
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[allow(clippy::all)]
-pub fn extract_strings<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<Vec<String>> {
+pub fn extract_strings<T: AsRef<Path>>(path: T, rx: &Regex) -> FuResult<Vec<String>> {
     let data = readstring(path)?;
     let caps = rx.captures(&data).ok_or(FileError::FailedToExtractString)?;
     let values = caps.iter().skip(1).filter_map(|x| x).filter_map(|x| Some(x.as_str().to_string())).collect::<Vec<String>>();
@@ -561,7 +561,7 @@ pub fn extract_strings<T: AsRef<Path>>(path: T, rx: &Regex) -> Result<Vec<String
 /// assert_eq!(sys::extract_strings_p(&tmpfile, r"'([^']+)'\s+\((\d{4})\)").unwrap(), vec!["Citizen Kane", "1941"]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn extract_strings_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> Result<Vec<String>> {
+pub fn extract_strings_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> FuResult<Vec<String>> {
     extract_strings(path, &Regex::new(rx.as_ref())?)
 }
 
@@ -578,7 +578,7 @@ pub fn extract_strings_p<T: AsRef<Path>, U: AsRef<str>>(path: T, rx: U) -> Resul
 /// assert_eq!(tmpdir.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn mkdir<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+pub fn mkdir<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
     let path = path.as_ref().abs()?;
     if !path.exists() {
         fs::create_dir_all(&path)?;
@@ -598,7 +598,7 @@ pub fn mkdir<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// assert_eq!(tmpdir.mode().unwrap(), 0o40555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn mkdir_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
+pub fn mkdir_p<T: AsRef<Path>>(path: T, mode: u32) -> FuResult<PathBuf> {
     let path = mkdir(path)?;
     chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
     Ok(path)
@@ -622,7 +622,7 @@ pub fn mkdir_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
 /// assert_eq!(file2.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
+pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> FuResult<()> {
     let src = src.as_ref().abs()?;
 
     // Handle globbing
@@ -658,7 +658,7 @@ pub fn move_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> Result<()> {
 /// assert!(sys::remove(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
-pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
+pub fn remove<T: AsRef<Path>>(path: T) -> FuResult<()> {
     let path = path.as_ref().abs()?;
     if let Ok(meta) = fs::metadata(&path) {
         if meta.is_file() {
@@ -682,7 +682,7 @@ pub fn remove<T: AsRef<Path>>(path: T) -> Result<()> {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// assert_eq!(tmpdir.exists(), false);
 /// ```
-pub fn remove_all<T: AsRef<Path>>(path: T) -> Result<()> {
+pub fn remove_all<T: AsRef<Path>>(path: T) -> FuResult<()> {
     let path = path.as_ref().abs()?;
     if path.exists() {
         fs::remove_dir_all(path)?;
@@ -704,7 +704,7 @@ pub fn remove_all<T: AsRef<Path>>(path: T) -> Result<()> {
 /// assert_eq!(str::from_utf8(&sys::readbytes(&tmpfile).unwrap()).unwrap(), "this is a test");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn readbytes<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
+pub fn readbytes<T: AsRef<Path>>(path: T) -> FuResult<Vec<u8>> {
     let path = path.as_ref().abs()?;
     match std::fs::read(path) {
         Ok(data) => Ok(data),
@@ -726,7 +726,7 @@ pub fn readbytes<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
 /// assert_iter_eq(sys::readlines(&tmpfile).unwrap(), vec![String::from("this is a test")]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn readlines<T: AsRef<Path>>(path: T) -> Result<Vec<String>> {
+pub fn readlines<T: AsRef<Path>>(path: T) -> FuResult<Vec<String>> {
     match readlines_p(path)?.collect::<io::Result<Vec<String>>>() {
         Ok(data) => Ok(data),
         Err(err) => Err(err.into()),
@@ -747,7 +747,7 @@ pub fn readlines<T: AsRef<Path>>(path: T) -> Result<Vec<String>> {
 /// assert_iter_eq(sys::readlines_p(&tmpfile).unwrap().collect::<io::Result<Vec<String>>>().unwrap(), vec![String::from("this is a test")]);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn readlines_p<T: AsRef<Path>>(path: T) -> Result<io::Lines<BufReader<File>>> {
+pub fn readlines_p<T: AsRef<Path>>(path: T) -> FuResult<io::Lines<BufReader<File>>> {
     let path = path.as_ref().abs()?;
     let file = File::open(path)?;
     Ok(BufReader::new(file).lines())
@@ -767,7 +767,7 @@ pub fn readlines_p<T: AsRef<Path>>(path: T) -> Result<io::Lines<BufReader<File>>
 /// assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn readstring<T: AsRef<Path>>(path: T) -> Result<String> {
+pub fn readstring<T: AsRef<Path>>(path: T) -> FuResult<String> {
     let path = path.as_ref().abs()?;
     match std::fs::read_to_string(path) {
         Ok(data) => Ok(data),
@@ -805,7 +805,7 @@ pub fn revoking_mode(old: u32, new: u32) -> bool {
 /// assert_eq!(link1.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<PathBuf> {
+pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> FuResult<PathBuf> {
     let path = link.as_ref().abs()?;
     if path.exists() {
         return Err(PathError::exists_already(path).into());
@@ -829,7 +829,7 @@ pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(link: T, target: U) -> Result<Pat
 /// assert_eq!(tmpfile.exists(), true);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
+pub fn touch<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
     let path = path.as_ref().abs()?;
     if !path.exists() {
         File::create(&path)?;
@@ -851,7 +851,7 @@ pub fn touch<T: AsRef<Path>>(path: T) -> Result<PathBuf> {
 /// assert_eq!(tmpfile.mode().unwrap(), 0o100555);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn touch_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
+pub fn touch_p<T: AsRef<Path>>(path: T, mode: u32) -> FuResult<PathBuf> {
     let path = touch(path)?;
     chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
     Ok(path)
@@ -871,7 +871,7 @@ pub fn touch_p<T: AsRef<Path>>(path: T, mode: u32) -> Result<PathBuf> {
 /// assert_eq!(sys::readstring(&tmpfile).unwrap(), "this is a test");
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> Result<()> {
+pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> FuResult<()> {
     let path = path.as_ref().abs()?;
     let mut f = File::create(path)?;
     f.write_all(data.as_ref())?;
@@ -896,7 +896,7 @@ pub fn write<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U) -> Result<()> {
 /// assert_eq!(tmpfile.mode().unwrap(), 0o100666);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn write_p<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U, mode: u32) -> Result<()> {
+pub fn write_p<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U, mode: u32) -> FuResult<()> {
     write(&path, data)?;
     chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
     Ok(())
@@ -917,7 +917,7 @@ pub fn write_p<T: AsRef<Path>, U: AsRef<[u8]>>(path: T, data: U, mode: u32) -> R
 /// assert_iter_eq(sys::readlines(&tmpfile).unwrap(), lines);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn writelines<T: AsRef<Path>>(path: T, data: &[String]) -> Result<()> {
+pub fn writelines<T: AsRef<Path>>(path: T, data: &[String]) -> FuResult<()> {
     write(path, data.join("\n"))?;
     Ok(())
 }
@@ -938,7 +938,7 @@ pub fn writelines<T: AsRef<Path>>(path: T, data: &[String]) -> Result<()> {
 /// assert_eq!(tmpfile.mode().unwrap(), 0o100666);
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-pub fn writelines_p<T: AsRef<Path>>(path: T, data: &[String], mode: u32) -> Result<()> {
+pub fn writelines_p<T: AsRef<Path>>(path: T, data: &[String], mode: u32) -> FuResult<()> {
     write(&path, data.join("\n"))?;
     chmod_p(&path)?.recurse(false).mode(mode).chmod()?;
     Ok(())

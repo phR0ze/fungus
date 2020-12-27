@@ -131,7 +131,7 @@ pub struct Info {
 }
 
 /// Get system information
-pub fn info() -> Result<Info> {
+pub fn info() -> FuResult<Info> {
     // Extract kernel release and version
     let data = sys::readstring("/proc/version")?;
     let release = data.split(' ').nth(2).ok_or(OsError::KernelReleaseNotFound)?;

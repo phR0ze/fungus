@@ -1,7 +1,7 @@
 use crate::core::ToStringExt;
 use crate::errors::*;
 use crate::sys::{self, user, PathExt};
-use crate::Result;
+use crate::FuResult;
 use std::path::{Path, PathBuf};
 
 /// Returns the full path to the directory of the current running executable.
@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 /// let dir = sys::exe().unwrap().dir().unwrap();
 /// assert_eq!(exec::dir().unwrap(), dir);
 /// ```
-pub fn dir() -> Result<PathBuf> {
+pub fn dir() -> FuResult<PathBuf> {
     Ok(sys::exe()?.dir()?)
 }
 
@@ -26,7 +26,7 @@ pub fn exists<T: AsRef<Path>>(target: T) -> bool {
 /// Returns the full path of the given executable. Uses given path if resolvable and falls back on
 /// the system `PATH` if simply an exec name.
 /// ```
-pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
+pub fn lookup<T: AsRef<Path>>(target: T) -> FuResult<PathBuf> {
     let path = target.as_ref();
     match path.has("/") {
         // Target is a path
@@ -63,7 +63,7 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> Result<PathBuf> {
 /// let base = sys::exe().unwrap().base().unwrap();
 /// assert_eq!(exec::name().unwrap(), base);
 /// ```
-pub fn name() -> Result<String> {
+pub fn name() -> FuResult<String> {
     Ok(sys::exe()?.base()?)
 }
 

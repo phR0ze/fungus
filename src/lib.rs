@@ -7,8 +7,8 @@ pub mod net;
 pub mod sys;
 
 /// Types exported directly into the fungus namespace
-pub use crate::errors::Error;
-pub use crate::errors::Result;
+pub use crate::errors::FuError;
+pub use crate::errors::FuResult;
 
 /// All essential symbols in a simple consumable way
 ///

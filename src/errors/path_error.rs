@@ -138,11 +138,11 @@ impl fmt::Display for PathError {
 mod tests {
     use crate::prelude::*;
 
-    fn path_empty() -> Result<PathBuf> {
+    fn path_empty() -> FuResult<PathBuf> {
         Err(PathError::Empty)?
     }
 
-    fn parent_not_found() -> Result<PathBuf> {
+    fn parent_not_found() -> FuResult<PathBuf> {
         Err(PathError::parent_not_found("foo"))?
     }
 

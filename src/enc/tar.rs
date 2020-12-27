@@ -32,7 +32,7 @@ cfgblock! {
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(feature = "_enc_")]
-pub fn create<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, glob: U) -> Result<()> {
+pub fn create<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, glob: U) -> FuResult<()> {
     let tarfile = tarfile.as_ref().abs()?;
 
     // Handle globbing
@@ -79,7 +79,7 @@ pub fn create<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, glob: U) -> Result<()>
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 #[cfg(feature = "_enc_")]
-pub fn extract_all<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, dst: U) -> Result<()> {
+pub fn extract_all<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, dst: U) -> FuResult<()> {
     let dst = dst.as_ref().abs()?;
     let tarfile = tarfile.as_ref().abs()?;
 

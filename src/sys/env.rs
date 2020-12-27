@@ -192,7 +192,7 @@ pub fn hastty() -> bool {
 /// sys::set_cwd("~/").unwrap();
 /// println!("current working directory: {:?}", sys::cwd().unwrap());
 /// ```
-pub fn set_cwd<P: AsRef<Path>>(path: P) -> Result<()> {
+pub fn set_cwd<P: AsRef<Path>>(path: P) -> FuResult<()> {
     let abs = path.as_ref().abs()?;
     Ok(env::set_current_dir(abs)?)
 }

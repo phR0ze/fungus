@@ -39,18 +39,18 @@ pub trait ToStringExt {
     /// assert_eq!(OsStr::new("foo").to_string().unwrap(), "foo".to_string());
     /// assert_eq!(Path::new("/foo").to_string().unwrap(), "/foo".to_string());
     /// ```
-    fn to_string(&self) -> Result<String>;
+    fn to_string(&self) -> FuResult<String>;
 }
 
 impl ToStringExt for Path {
-    fn to_string(&self) -> Result<String> {
+    fn to_string(&self) -> FuResult<String> {
         let _str = self.to_str().ok_or_else(|| PathError::failed_to_string(self))?;
         Ok(String::from(_str))
     }
 }
 
 impl ToStringExt for OsStr {
-    fn to_string(&self) -> Result<String> {
+    fn to_string(&self) -> FuResult<String> {
         Ok(String::from(self.to_str().ok_or(StringError::FailedToString)?))
     }
 }

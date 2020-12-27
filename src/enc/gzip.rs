@@ -14,7 +14,7 @@ use std::path::Path;
 /// let gzipped = tmpdir.mash("../../alpine-base.tgz");
 /// assert_eq!(gzip::is_gzipped(gzipped).unwrap(), true);
 /// ```
-pub fn is_gzipped<T: AsRef<Path>>(path: T) -> Result<bool> {
+pub fn is_gzipped<T: AsRef<Path>>(path: T) -> FuResult<bool> {
     let path = path.as_ref().abs()?;
 
     // Read the first 2 bytes of the file

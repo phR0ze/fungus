@@ -46,7 +46,7 @@ impl fmt::Display for IterError {
 mod tests {
     use crate::prelude::*;
 
-    fn item_not_found() -> Result<i32> {
+    fn item_not_found() -> FuResult<i32> {
         Err(IterError::item_not_found())?
     }
 
