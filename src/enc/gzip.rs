@@ -31,7 +31,6 @@ pub fn is_gzipped<T: AsRef<Path>>(path: T) -> FuResult<bool> {
 
 // Unit tests
 // -------------------------------------------------------------------------------------------------
-#[cfg(feature = "_enc_")]
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;

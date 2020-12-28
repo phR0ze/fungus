@@ -1,6 +1,6 @@
 [package]
 name = "fungus"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2018"
 authors = ["phR0ze"]
 license = "MIT OR Apache-2.0"
@@ -37,19 +37,10 @@ fastrand = "1.4.*"
 walkdir = "2.3.*"
 lazy_static = "1.4.*"
 
-# Optional dependencies based on features
-blake2 = { version = "0.9.*", optional = true }
-flate2 = { version = "1.0.*", optional = true }
-tar = { package = "tar", version = "0.4.*", optional = true }
-
-[features]
-default = ["_enc_", "_crypto_"]
-
-# Includes encoders/decoders
-_enc_ = ["flate2", "tar"]
-
-# Includes cypto dependent functions/types/mods
-_crypto_ = ["blake2"]
+# Encoding/decoding
+blake2 = "0.9.*"
+flate2 = "1.0.*"
+tar = "0.4.*"
 
 # Examples and tests are built with these dependencies
 [dev-dependencies]

@@ -22,20 +22,12 @@ pub mod prelude {
     pub use super::net::{self, agent};
     pub use super::sys::{self, exec, ext::*, user};
     pub use super::{cfgblock, defer};
-
-    cfgblock! {
-        #[cfg(feature = "_enc_")]
-        pub use super::enc::tar;
-        pub use super::enc::gzip;
-    }
+    pub use super::enc::tar;
+    pub use super::enc::gzip;
 
     // Re-exports
     //----------------------------------------------------------------------------------------------
-    cfgblock! {
-        #[cfg(feature = "_crypto_")]
-        pub use blake2;
-    }
-
+    pub use blake2;
     pub use gory::*;
     pub use lazy_static::*;
     pub use libc;

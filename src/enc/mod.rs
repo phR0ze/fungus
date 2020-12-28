@@ -1,5 +1,2 @@
-cfgblock! {
-    #[cfg(feature = "_enc_")]
-    pub mod tar;
-    pub mod gzip;
-}
+pub mod tar;
+pub mod gzip;

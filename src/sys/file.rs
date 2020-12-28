@@ -9,8 +9,6 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::{self, fs::PermissionsExt};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-
-#[cfg(feature = "_crypto_")]
 use blake2::{Blake2b, Digest};
 
 /// Chmod provides flexible options for changing file permission with optional configuration.
@@ -475,7 +473,6 @@ pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> FuResult<Co
 /// assert_iter_eq(sys::digest(&file1).unwrap(), sys::digest(&file2).unwrap());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-#[cfg(feature = "_crypto_")]
 pub fn digest<T: AsRef<Path>>(path: T) -> FuResult<Vec<u8>> {
     Ok(Blake2b::digest(&readbytes(path)?).into_iter().collect())
 }
@@ -1270,7 +1267,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "_crypto_")]
     fn test_digest() {
         let tmpdir = setup().mash("file_digest");
         let file1 = tmpdir.mash("file1");

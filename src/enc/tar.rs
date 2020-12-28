@@ -3,13 +3,9 @@ use crate::errors::*;
 use crate::sys::{self, PathExt};
 use std::fs::File;
 use std::path::Path;
-
-cfgblock! {
-    #[cfg(feature = "_enc_")]
-    use flate2::{self, Compression};
-    use flate2::read::GzDecoder;
-    use flate2::write::GzEncoder;
-}
+use flate2::{self, Compression};
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
 
 /// Create a tarball `tarfile` uing gzip compression from the files implicated by the `glob`.
 /// Handles file globbing and recursively adds source files based on glob.
@@ -31,7 +27,6 @@ cfgblock! {
 /// assert_eq!(sys::readstring(&dstfile).unwrap(), "single file\n".to_string());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-#[cfg(feature = "_enc_")]
 pub fn create<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, glob: U) -> FuResult<()> {
     let tarfile = tarfile.as_ref().abs()?;
 
@@ -78,7 +73,6 @@ pub fn create<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, glob: U) -> FuResult<(
 /// assert_eq!(sys::readstring(&dstfile).unwrap(), "single file\n".to_string());
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
-#[cfg(feature = "_enc_")]
 pub fn extract_all<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, dst: U) -> FuResult<()> {
     let dst = dst.as_ref().abs()?;
     let tarfile = tarfile.as_ref().abs()?;
@@ -99,7 +93,6 @@ pub fn extract_all<T: AsRef<Path>, U: AsRef<Path>>(tarfile: T, dst: U) -> FuResu
 
 // Unit tests
 // -------------------------------------------------------------------------------------------------
-#[cfg(feature = "_enc_")]
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
