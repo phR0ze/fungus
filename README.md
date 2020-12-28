@@ -9,8 +9,6 @@
 
 The intent of `fungus` is to reduce code verbosity for common system functions to keep things DRY.
 
-TBD
-
 ### Quick links
 * [Usage](#usage)
 * [Contribute](#contribute)
@@ -18,6 +16,7 @@ TBD
 * [License](#license)
   * [Contribution](#contribution)
 * [Backlog](#backlog)
+* [Changes](#changes)
 
 # Usage <a name="usage"/></a>
 TBD
@@ -46,8 +45,11 @@ any additional terms or conditions.
 ---
 
 ## Backlog <a name="backlog"/></a>
+* Update documentation
 
-## Completed <a name="completed"/></a>
+## Changes <a name="changes"/></a>
+* 12/28/2020
+  * Split git2 functionality out to [skellige](https://crates.io/crates/skellige)
 * 12/26/2020
   * Get fungus building and reporting with github actions
   * Split out git and arch work into another project
