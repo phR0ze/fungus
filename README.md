@@ -16,7 +16,7 @@ The intent of `fungus` is to reduce code verbosity for common system functions t
 * [License](#license)
   * [Contribution](#contribution)
 * [Backlog](#backlog)
-* [Changes](#changes)
+* [Changelog](#changelog)
 
 # Usage <a name="usage"/></a>
 TBD
@@ -47,7 +47,9 @@ any additional terms or conditions.
 ## Backlog <a name="backlog"/></a>
 * Update documentation
 
-## Changes <a name="changes"/></a>
+## Changelog <a name="changelog"/></a>
+* 12/29/2020
+  * Split Arch Linux functionality out to [relic](https://crates.io/crates/relic)
 * 12/28/2020
   * Split git2 functionality out to [skellige](https://crates.io/crates/skellige)
 * 12/26/2020

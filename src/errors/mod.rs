@@ -6,7 +6,6 @@ mod path_error;
 mod string_error;
 mod user_error;
 
-// Export contents of modules into core
 pub use error::*;
 pub use file_error::*;
 pub use iter_error::*;

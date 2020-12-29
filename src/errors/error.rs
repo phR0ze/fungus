@@ -100,26 +100,6 @@ impl AsMut<dyn StdError> for FuError {
     }
 }
 
-// Unwrap the internal error and return it
-impl StdError for FuError {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match *self {
-            FuError::File(ref err) => Some(err),
-            FuError::GlobPattern(ref err) => Some(err),
-            FuError::Io(ref err) => Some(err),
-            FuError::Iter(ref err) => Some(err),
-            FuError::Nul(ref err) => Some(err),
-            FuError::Os(ref err) => Some(err),
-            FuError::Path(ref err) => Some(err),
-            FuError::Regex(ref err) => Some(err),
-            FuError::String(ref err) => Some(err),
-            FuError::User(ref err) => Some(err),
-            FuError::Var(ref err) => Some(err),
-            FuError::WalkDir(ref err) => Some(err),
-        }
-    }
-}
-
 impl From<FileError> for FuError {
     fn from(err: FileError) -> FuError {
         FuError::File(err)
@@ -209,7 +189,7 @@ mod tests {
         assert_eq!("failed to extract string from file", err.as_mut().to_string());
         assert!(err.downcast_ref::<FileError>().is_some());
         assert!(err.downcast_mut::<FileError>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(glob::PatternError { pos: 1, msg: "1" });
         assert_eq!("Pattern syntax error near position 1: 1", err.to_string());
@@ -217,7 +197,7 @@ mod tests {
         assert_eq!("Pattern syntax error near position 1: 1", err.as_mut().to_string());
         assert!(err.downcast_ref::<glob::PatternError>().is_some());
         assert!(err.downcast_mut::<glob::PatternError>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(io::Error::new(io::ErrorKind::AlreadyExists, "foo"));
         assert_eq!("foo", err.to_string());
@@ -225,7 +205,7 @@ mod tests {
         assert_eq!("foo", err.as_mut().to_string());
         assert!(err.downcast_ref::<io::Error>().is_some());
         assert!(err.downcast_mut::<io::Error>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(IterError::ItemNotFound);
         assert_eq!("iterator item not found", err.to_string());
@@ -233,7 +213,7 @@ mod tests {
         assert_eq!("iterator item not found", err.as_mut().to_string());
         assert!(err.downcast_ref::<IterError>().is_some());
         assert!(err.downcast_mut::<IterError>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(std::ffi::CString::new(b"f\0oo".to_vec()).unwrap_err());
         assert_eq!("nul byte found in provided data at position: 1", err.to_string());
@@ -241,7 +221,7 @@ mod tests {
         assert_eq!("nul byte found in provided data at position: 1", err.as_mut().to_string());
         assert!(err.downcast_ref::<std::ffi::NulError>().is_some());
         assert!(err.downcast_mut::<std::ffi::NulError>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(OsError::KernelReleaseNotFound);
         assert_eq!("kernel release was not found", err.to_string());
@@ -249,7 +229,7 @@ mod tests {
         assert_eq!("kernel release was not found", err.as_mut().to_string());
         assert!(err.downcast_ref::<OsError>().is_some());
         assert!(err.downcast_mut::<OsError>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(PathError::Empty);
         assert_eq!("path empty", err.to_string());
@@ -257,7 +237,7 @@ mod tests {
         assert_eq!("path empty", err.as_mut().to_string());
         assert!(err.downcast_ref::<PathError>().is_some());
         assert!(err.downcast_mut::<PathError>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(regex::Error::Syntax("foo".to_string()));
         assert_eq!("foo", err.to_string());
@@ -265,7 +245,7 @@ mod tests {
         assert_eq!("foo", err.as_mut().to_string());
         assert!(err.downcast_ref::<regex::Error>().is_some());
         assert!(err.downcast_mut::<regex::Error>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(StringError::FailedToString);
         assert_eq!("failed to convert value to string", err.to_string());
@@ -273,7 +253,7 @@ mod tests {
         assert_eq!("failed to convert value to string", err.as_mut().to_string());
         assert!(err.downcast_ref::<StringError>().is_some());
         assert!(err.downcast_mut::<StringError>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(UserError::DoesNotExistById(1));
         assert_eq!("user does not exist: 1", err.to_string());
@@ -281,7 +261,7 @@ mod tests {
         assert_eq!("user does not exist: 1", err.as_mut().to_string());
         assert!(err.downcast_ref::<UserError>().is_some());
         assert!(err.downcast_mut::<UserError>().is_some());
-        assert!(err.as_ref().source().is_none());
+        assert!(err.source().is_none());
 
         let mut err = FuError::from(std::env::VarError::NotPresent);
         assert_eq!("environment variable not found", err.to_string());
@@ -289,7 +269,6 @@ mod tests {
         assert_eq!("environment variable not found", err.as_mut().to_string());
         assert!(err.downcast_ref::<std::env::VarError>().is_some());
         assert!(err.downcast_mut::<std::env::VarError>().is_some());
-        assert!(err.as_ref().source().is_none());
         assert!(err.source().is_none());
     }
 
