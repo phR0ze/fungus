@@ -34,7 +34,7 @@ fungas attempts to follow these intents:
 # Usage <a name="usage"/></a>
 
 #### Requires rustc >= 1.30 <a name="rustc-requirements"/></a>
-This minimum rustc requirement is driven by the enhancemnts made to [Rust's `std::error::Error`
+This minimum rustc requirement is driven by the enhancements made to [Rust's `std::error::Error`
 handling improvements](https://doc.rust-lang.org/std/error/trait.Error.html#method.source)
 
 TBD
