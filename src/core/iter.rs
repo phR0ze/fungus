@@ -1,6 +1,5 @@
 use crate::errors::*;
-use std::fmt;
-use std::iter::Iterator;
+use std::{fmt, iter::Iterator};
 
 // Iterator extensions and utilities
 //--------------------------------------------------------------------------------------------------
@@ -17,7 +16,7 @@ pub fn assert_iter_eq<T, U>(x: T, y: U)
 where
     T: IntoIterator,
     U: IntoIterator,
-    T::Item: fmt::Debug + PartialEq<U::Item>,
+    T::Item: fmt::Debug+PartialEq<U::Item>,
     U::Item: fmt::Debug,
 {
     let mut x = x.into_iter();
@@ -37,7 +36,7 @@ where
                     _ => false,
                 };
                 assert!(equal, "Iterators not equal {:?} != {:?}", a, b);
-            }
+            },
         }
     }
 }

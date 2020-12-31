@@ -16,6 +16,5 @@ pub mod user;
 
 // Export extensions
 pub mod ext {
-    pub use super::path::PathColorExt;
-    pub use super::path::PathExt;
+    pub use super::path::{PathColorExt, PathExt};
 }

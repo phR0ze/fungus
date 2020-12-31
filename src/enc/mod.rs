@@ -1,2 +1,2 @@
-pub mod tar;
 pub mod gzip;
+pub mod tar;

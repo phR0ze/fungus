@@ -1,8 +1,5 @@
-use crate::errors::*;
-use crate::sys::PathExt;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
+use crate::{errors::*, sys::PathExt};
+use std::{fs::File, io::prelude::*, path::Path};
 
 /// Returns true if the given `path` is a gzipped file
 ///

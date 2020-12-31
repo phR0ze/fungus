@@ -1,6 +1,8 @@
-use std::error::Error as StdError;
-use std::fmt;
-use std::path::{Path, PathBuf};
+use std::{
+    error::Error as StdError,
+    fmt,
+    path::{Path, PathBuf},
+};
 
 // An error indicating that something went wrong with a path operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -109,7 +111,7 @@ impl PathError {
 impl StdError for PathError {}
 
 impl AsRef<dyn StdError> for PathError {
-    fn as_ref(&self) -> &(dyn StdError + 'static) {
+    fn as_ref(&self) -> &(dyn StdError+'static) {
         self
     }
 }

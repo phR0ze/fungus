@@ -1,7 +1,9 @@
-use crate::core::ToStringExt;
-use crate::errors::*;
-use crate::sys::{self, user, PathExt};
-use crate::FuResult;
+use crate::{
+    core::ToStringExt,
+    errors::*,
+    sys::{self, user, PathExt},
+    FuResult,
+};
 use std::path::{Path, PathBuf};
 
 /// Returns the full path to the directory of the current running executable.
@@ -18,7 +20,6 @@ pub fn dir() -> FuResult<PathBuf> {
 }
 
 /// Check if the given executable exists in the `PATH` and is executable.
-///
 pub fn exists<T: AsRef<Path>>(target: T) -> bool {
     lookup(target).is_ok()
 }
@@ -38,7 +39,7 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> FuResult<PathBuf> {
                 return Err(PathError::is_not_exec(path).into());
             }
             Ok(path)
-        }
+        },
 
         // Target is a name
         false => {
@@ -50,7 +51,7 @@ pub fn lookup<T: AsRef<Path>>(target: T) -> FuResult<PathBuf> {
                 }
             }
             Err(PathError::does_not_exist(target).into())
-        }
+        },
     }
 }
 

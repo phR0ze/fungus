@@ -35,8 +35,10 @@ impl<T: FnMut()> Drop for Defer<T> {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use std::cell::Cell;
-    use std::panic::{self, catch_unwind, AssertUnwindSafe};
+    use std::{
+        cell::Cell,
+        panic::{self, catch_unwind, AssertUnwindSafe},
+    };
 
     // Registers a panic hook that does nothing to supress the panic output
     // that get dumped to the screen regardless of panic handling with catch_unwind

@@ -1,7 +1,5 @@
 use crate::errors::*;
-use std::ffi::OsStr;
-use std::path::Path;
-use std::str;
+use std::{ffi::OsStr, path::Path, str};
 
 pub trait StringExt {
     /// Returns the length in characters rather than bytes i.e. this is a human understandable
@@ -60,8 +58,10 @@ impl ToStringExt for OsStr {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use std::ffi::OsStr;
-    use std::path::{Path, PathBuf};
+    use std::{
+        ffi::OsStr,
+        path::{Path, PathBuf},
+    };
 
     #[test]
     fn test_str_size() {

@@ -1,7 +1,8 @@
-use crate::errors::*;
-use crate::sys::{self, PathExt};
-use std::path::PathBuf;
-use std::{io, iter, mem, ptr};
+use crate::{
+    errors::*,
+    sys::{self, PathExt},
+};
+use std::{io, iter, mem, path::PathBuf, ptr};
 
 // Implementation in Rust for the XDB Base Directory Specification
 // https://wiki.archlinux.org/index.php/XDG_Base_Directory
@@ -231,7 +232,7 @@ pub fn drop_sudo() -> FuResult<()> {
         0 => {
             let (ruid, rgid) = getrids(0, 0);
             switchuser(ruid, ruid, ruid, rgid, rgid, rgid)
-        }
+        },
         _ => Ok(()),
     }
 }
@@ -345,23 +346,31 @@ pub fn lookup(uid: u32) -> FuResult<User> {
     let username = unsafe { sys::libc::to_string(passwd.pw_name)? };
 
     // Will almost always be a single 'x' as the passwd is in the shadow database
-    //let userpwd = unsafe { crate::sys::libc::to_string(passwd.pw_passwd)? };
+    // let userpwd = unsafe { crate::sys::libc::to_string(passwd.pw_passwd)? };
 
-    // User home directory e.g. '/home/<user>'. Might be a null pointer indicating the system default should be used
+    // User home directory e.g. '/home/<user>'. Might be a null pointer indicating the system default
+    // should be used
     let userhome = unsafe { sys::libc::to_string(passwd.pw_dir) }.unwrap_or_default();
 
     // User shell e.g. '/bin/bash'. Might be a null pointer indicating the system default should be used
     let usershell = unsafe { sys::libc::to_string(passwd.pw_shell) }.unwrap_or_default();
 
     // A string container user contextual information, possibly real name or phone number.
-    //let usergecos = unsafe { crate::sys::libc::to_string(passwd.pw_gecos)? };
+    // let usergecos = unsafe { crate::sys::libc::to_string(passwd.pw_gecos)? };
 
     // Get the user's real ids as well if applicable
     let (ruid, rgid) = getrids(uid, gid);
     let realuser = if uid != ruid {
         lookup(ruid)?
     } else {
-        User { uid, gid, name: username.to_string(), home: PathBuf::from(&userhome), shell: PathBuf::from(&usershell), ..Default::default() }
+        User {
+            uid,
+            gid,
+            name: username.to_string(),
+            home: PathBuf::from(&userhome),
+            shell: PathBuf::from(&usershell),
+            ..Default::default()
+        }
     };
     Ok(User {
         uid,
@@ -403,7 +412,7 @@ pub fn pause_sudo() -> FuResult<()> {
         0 => {
             let (ruid, rgid) = getrids(0, 0);
             switchuser(ruid, ruid, 0, rgid, rgid, 0)
-        }
+        },
         _ => Ok(()),
     }
 }

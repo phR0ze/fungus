@@ -1,11 +1,15 @@
-use crate::core::*;
-use crate::errors::*;
-use crate::sys::{self, user};
+use crate::{
+    core::*,
+    errors::*,
+    sys::{self, user},
+};
 use gory::*;
-use std::collections::HashMap;
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::{Component, Path, PathBuf};
-use std::{fs, io};
+use std::{
+    collections::HashMap,
+    fs, io,
+    os::unix::fs::{MetadataExt, PermissionsExt},
+    path::{Component, Path, PathBuf},
+};
 use walkdir::WalkDir;
 
 /// Return the path in an absolute clean form
@@ -41,11 +45,11 @@ pub fn abs<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
             match path {
                 Component::CurDir => {
                     path_buf = path_buf.trim_first();
-                }
+                },
                 Component::ParentDir => {
                     curr = curr.dir()?;
                     path_buf = path_buf.trim_first();
-                }
+                },
                 _ => return Ok(curr.mash(path_buf)),
             }
         }
@@ -250,16 +254,16 @@ pub fn expand<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
         // Invalid home expansion requested
         cnt if cnt == 1 && !path.has_prefix("~/") && pathstr != "~" => {
             return Err(PathError::invalid_expansion(path).into());
-        }
+        },
 
         // Single tilda only
         cnt if cnt == 1 && pathstr == "~" => {
             path = user::home_dir()?;
-        }
+        },
 
         // Replace prefix with home directory
         1 => path = user::home_dir()?.mash(&pathstr[2..]),
-        _ => (),
+        _ => {},
     }
 
     // Expand other variables that may exist in the path
@@ -283,7 +287,7 @@ pub fn expand<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
                     } else {
                         path_buf.push(seg);
                     }
-                }
+                },
                 _ => path_buf.push(x),
             }
         }
@@ -710,9 +714,9 @@ pub trait PathExt {
     /// ```
     fn chmod(&self, mode: u32) -> FuResult<()>;
 
-    /// Return the shortest path equivalent to the path by purely lexical processing and thus does not handle
-    /// links correctly in some cases, use canonicalize in those cases. It applies the following rules
-    /// interatively until no further processing can be done.
+    /// Return the shortest path equivalent to the path by purely lexical processing and thus does
+    /// not handle links correctly in some cases, use canonicalize in those cases. It applies
+    /// the following rules interatively until no further processing can be done.
     ///
     /// 1. Replace multiple slashes with a single
     /// 2. Eliminate each . path name element (the current directory)
@@ -723,7 +727,8 @@ pub trait PathExt {
     /// 5. Leave intact ".." elements that begin a non-rooted path.
     /// 6. Drop trailing '/' unless it is the root
     ///
-    /// If the result of this process is an empty string, return the string `.`, representing the current directory.
+    /// If the result of this process is an empty string, return the string `.`, representing the
+    /// current directory.
     fn clean(&self) -> FuResult<PathBuf>;
 
     /// Returns the `Path` with the given string concatenated on.
@@ -1172,7 +1177,7 @@ impl PathExt for Path {
                     Some(component) => match component {
                         Component::ParentDir => path = path.trim_last(),
                         Component::Normal(x) => return Ok(path.mash(x).mash(components.collect::<PathBuf>()).clean()?),
-                        _ => (),
+                        _ => {},
                     },
                     None => return Err(PathError::Empty.into()),
                 }
@@ -1194,7 +1199,8 @@ impl PathExt for Path {
         // Components already handles the following cases:
         // 1. Repeated separators are ignored, so a/b and a//b both have a and b as components.
         // 2. Occurrences of . are normalized away, except if they are at the beginning of the path.
-        //    e.g. a/./b, a/b/, a/b/. and a/b all have a and b as components, but ./a/b starts with an additional CurDir component.
+        //    e.g. a/./b, a/b/, a/b/. and a/b all have a and b as components, but ./a/b starts with an
+        // additional CurDir component.
         // 6. A trailing slash is normalized away, /a/b and /a/b/ are equivalent.
         let mut cnt = 0;
         let mut prev = None;
@@ -1208,25 +1214,25 @@ impl PathExt for Path {
                 x if x == Component::ParentDir && cnt > 0 && !prev.has(&Component::ParentDir) => {
                     match prev.unwrap() {
                         // 4. Eliminate .. elements that begin a root path
-                        Component::RootDir => (),
+                        Component::RootDir => {},
 
                         // 3. Eliminate inner .. path name elements
                         Component::Normal(_) => {
                             cnt -= 1;
                             path_buf.pop();
                             prev = path_buf.components().last();
-                        }
-                        _ => (),
+                        },
+                        _ => {},
                     }
                     continue;
-                }
+                },
 
                 // Normal
                 _ => {
                     cnt += 1;
                     path_buf.push(component);
                     prev = Some(component);
-                }
+                },
             };
         }
 
@@ -1366,9 +1372,9 @@ impl PathExt for Path {
                         comps.push(a);
                         comps.extend(x.by_ref());
                         break;
-                    }
+                    },
                     (None, _) => comps.push(Component::ParentDir),
-                    (Some(a), Some(b)) if comps.is_empty() && a == b => (),
+                    (Some(a), Some(b)) if comps.is_empty() && a == b => {},
                     (Some(a), Some(b)) if b == Component::CurDir => comps.push(a),
                     (Some(_), Some(b)) if b == Component::ParentDir => return Ok(path),
                     (Some(a), Some(_)) => {
@@ -1378,7 +1384,7 @@ impl PathExt for Path {
                         comps.push(a);
                         comps.extend(x.by_ref());
                         break;
-                    }
+                    },
                 }
             }
             return Ok(comps.iter().collect::<PathBuf>());
@@ -1428,7 +1434,7 @@ impl PathExt for Path {
                     } else {
                         PathBuf::from(suffix)
                     }
-                }
+                },
                 _ => PathBuf::from(base),
             },
             _ => self.to_path_buf(),
@@ -1461,24 +1467,31 @@ impl PathColorExt for Path {
     fn black(&self) -> ColorString {
         self.display().to_string().black()
     }
+
     fn red(&self) -> ColorString {
         self.display().to_string().red()
     }
+
     fn green(&self) -> ColorString {
         self.display().to_string().green()
     }
+
     fn yellow(&self) -> ColorString {
         self.display().to_string().yellow()
     }
+
     fn blue(&self) -> ColorString {
         self.display().to_string().blue()
     }
+
     fn magenta(&self) -> ColorString {
         self.display().to_string().magenta()
     }
+
     fn cyan(&self) -> ColorString {
         self.display().to_string().cyan()
     }
+
     fn white(&self) -> ColorString {
         self.display().to_string().white()
     }
@@ -1961,7 +1974,11 @@ mod tests {
         let paths = vec![PathBuf::from("/foo1"), PathBuf::from("/foo2/bar")];
         assert_iter_eq(sys::parse_paths("/foo1:/foo2/bar").unwrap(), paths);
 
-        let paths = vec![sys::cwd().unwrap(), PathBuf::from("/foo1"), PathBuf::from("/foo2/bar")];
+        let paths = vec![
+            sys::cwd().unwrap(),
+            PathBuf::from("/foo1"),
+            PathBuf::from("/foo2/bar"),
+        ];
         assert_iter_eq(sys::parse_paths(":/foo1:/foo2/bar").unwrap(), paths);
     }
 

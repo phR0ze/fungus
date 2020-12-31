@@ -1,5 +1,4 @@
-use std::error::Error as StdError;
-use std::fmt;
+use std::{error::Error as StdError, fmt};
 
 // An error indicating that something went wrong with an os operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

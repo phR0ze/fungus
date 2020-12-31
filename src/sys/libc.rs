@@ -1,7 +1,8 @@
-use crate::core::*;
-use crate::errors::*;
-use std::ffi::{CStr, OsStr};
-use std::os::unix::ffi::OsStrExt;
+use crate::{core::*, errors::*};
+use std::{
+    ffi::{CStr, OsStr},
+    os::unix::ffi::OsStrExt,
+};
 
 /// Convert libc::c_chart into a Rust String. Returns an empty string if `ptr` is null or if the
 /// String conversion fails.

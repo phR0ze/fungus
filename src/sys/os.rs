@@ -1,5 +1,4 @@
-use crate::errors::*;
-use crate::sys;
+use crate::{errors::*, sys};
 use std::io;
 
 /// Type of operating system rust is running on

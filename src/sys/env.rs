@@ -1,8 +1,10 @@
-use crate::errors::*;
-use crate::sys::PathExt;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
-use std::{env, io};
+use crate::{errors::*, sys::PathExt};
+use std::{
+    env,
+    ffi::OsStr,
+    io,
+    path::{Path, PathBuf},
+};
 
 /// Returns the arguments that this program was started with (normally passed
 /// via the command line).

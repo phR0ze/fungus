@@ -1,11 +1,10 @@
-use crate::enc::gzip;
-use crate::errors::*;
-use crate::sys::{self, PathExt};
-use std::fs::File;
-use std::path::Path;
-use flate2::{self, Compression};
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
+use crate::{
+    enc::gzip,
+    errors::*,
+    sys::{self, PathExt},
+};
+use flate2::{self, read::GzDecoder, write::GzEncoder, Compression};
+use std::{fs::File, path::Path};
 
 /// Create a tarball `tarfile` uing gzip compression from the files implicated by the `glob`.
 /// Handles file globbing and recursively adds source files based on glob.

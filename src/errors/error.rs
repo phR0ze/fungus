@@ -1,6 +1,5 @@
 use crate::errors::*;
-use std::error::Error as StdError;
-use std::{env, ffi, fmt, io};
+use std::{env, error::Error as StdError, ffi, fmt, io};
 
 /// `Result<T>` provides a simplified result type with a common error type
 pub type FuResult<T> = std::result::Result<T, FuError>;
@@ -23,22 +22,22 @@ pub enum FuError {
 }
 impl FuError {
     /// Implemented directly on the `Error` type to reduce casting required
-    pub fn is<T: StdError + 'static>(&self) -> bool {
+    pub fn is<T: StdError+'static>(&self) -> bool {
         self.as_ref().is::<T>()
     }
 
     /// Implemented directly on the `Error` type to reduce casting required
-    pub fn downcast_ref<T: StdError + 'static>(&self) -> Option<&T> {
+    pub fn downcast_ref<T: StdError+'static>(&self) -> Option<&T> {
         self.as_ref().downcast_ref::<T>()
     }
 
     /// Implemented directly on the `Error` type to reduce casting required
-    pub fn downcast_mut<T: StdError + 'static>(&mut self) -> Option<&mut T> {
+    pub fn downcast_mut<T: StdError+'static>(&mut self) -> Option<&mut T> {
         self.as_mut().downcast_mut::<T>()
     }
 
     /// Implemented directly on the `Error` type to reduce casting required
-    pub fn source(&self) -> Option<&(dyn StdError + 'static)> {
+    pub fn source(&self) -> Option<&(dyn StdError+'static)> {
         self.as_ref().source()
     }
 }
@@ -63,7 +62,7 @@ impl std::fmt::Display for FuError {
 }
 
 impl AsRef<dyn StdError> for FuError {
-    fn as_ref(&self) -> &(dyn StdError + 'static) {
+    fn as_ref(&self) -> &(dyn StdError+'static) {
         match *self {
             FuError::File(ref err) => err,
             FuError::GlobPattern(ref err) => err,
@@ -82,7 +81,7 @@ impl AsRef<dyn StdError> for FuError {
 }
 
 impl AsMut<dyn StdError> for FuError {
-    fn as_mut(&mut self) -> &mut (dyn StdError + 'static) {
+    fn as_mut(&mut self) -> &mut (dyn StdError+'static) {
         match *self {
             FuError::File(ref mut err) => err,
             FuError::GlobPattern(ref mut err) => err,

@@ -1,15 +1,18 @@
-use crate::errors::*;
-use crate::sys::{self, PathExt};
-use crate::FuResult;
-use regex::Regex;
-use std::ffi::CString;
-use std::fs::{self, File};
-use std::io::{self, prelude::*, BufRead, BufReader};
-use std::os::unix::ffi::OsStrExt;
-use std::os::unix::{self, fs::PermissionsExt};
-use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
+use crate::{
+    errors::*,
+    sys::{self, PathExt},
+    FuResult,
+};
 use blake2::{Blake2b, Digest};
+use regex::Regex;
+use std::{
+    ffi::CString,
+    fs::{self, File},
+    io::{self, prelude::*, BufRead, BufReader},
+    os::unix::{self, ffi::OsStrExt, fs::PermissionsExt},
+    path::{Path, PathBuf},
+};
+use walkdir::WalkDir;
 
 /// Chmod provides flexible options for changing file permission with optional configuration.
 #[derive(Debug, Clone)]
@@ -203,7 +206,6 @@ pub fn chmod_p<T: AsRef<Path>>(path: T) -> FuResult<Chmod> {
 
 /// Change the ownership of the `path` providing path expansion, globbing, recursion and error
 /// tracing. Follows links.
-///
 //// ### Examples
 /// ```ignore
 /// use fungus::prelude::*;
@@ -222,7 +224,6 @@ pub fn chown<T: AsRef<Path>>(path: T, uid: u32, gid: u32) -> FuResult<()> {
 
 /// Change the ownership of the `path` providing path expansion, globbing, recursion and error
 /// tracing. Does not follow links.
-///
 //// ### Examples
 /// ```ignore
 /// use fungus::prelude::*;
@@ -320,17 +321,17 @@ pub fn copy<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> FuResult<PathBuf>
                 // Copy dir links needs to be first as is_dir follows links
                 x if x.is_symlink_dir() => {
                     symlink(&dstpath, srcpath.readlink()?)?;
-                }
+                },
 
                 // Create destination directories as needed
                 x if x.is_dir() => {
                     mkdir(dstpath)?;
-                }
+                },
 
                 // Copy file
                 _ => {
                     copyfile(&srcpath, &dstpath)?;
-                }
+                },
             }
         }
     }
@@ -378,7 +379,7 @@ impl Copyfile {
                 if self.dst.is_dir() {
                     self.dst = self.dst.mash(self.src.base()?)
                 }
-            }
+            },
 
             // Doesn't exist so dst is a new destination name, ensure all paths exist
             false => {
@@ -387,7 +388,7 @@ impl Copyfile {
                 if srcdir != dstdir {
                     mkdir(dstdir)?.chmod(srcdir.mode()?)?;
                 }
-            }
+            },
         }
 
         // Check for same file
@@ -454,7 +455,12 @@ pub fn copyfile<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> FuResult<()> 
 /// assert!(sys::remove_all(&tmpdir).is_ok());
 /// ```
 pub fn copyfile_p<T: AsRef<Path>, U: AsRef<Path>>(src: T, dst: U) -> FuResult<Copyfile> {
-    Ok(Copyfile { src: src.as_ref().abs()?, dst: dst.as_ref().abs()?, mode: None, follow_links: false })
+    Ok(Copyfile {
+        src: src.as_ref().abs()?,
+        dst: dst.as_ref().abs()?,
+        mode: None,
+        follow_links: false,
+    })
 }
 
 /// Computes and returns the digest of the given `path`.
@@ -1148,7 +1154,13 @@ mod tests {
         assert_eq!(dir3file.exists(), false);
         assert!(sys::copy(&dir1, &dir2).is_ok());
 
-        let paths = vec![tmpdir.mash("dir1"), tmpdir.mash("dir1/file"), tmpdir.mash("dir2"), tmpdir.mash("dir2/dir1"), tmpdir.mash("dir2/dir1/file")];
+        let paths = vec![
+            tmpdir.mash("dir1"),
+            tmpdir.mash("dir1/file"),
+            tmpdir.mash("dir2"),
+            tmpdir.mash("dir2/dir1"),
+            tmpdir.mash("dir2/dir1/file"),
+        ];
         assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), paths);
 
         // cleanup
@@ -1173,7 +1185,12 @@ mod tests {
         assert_eq!(dir2file.exists(), false);
         assert!(sys::copy(&dir1, &dir2).is_ok());
 
-        let paths = vec![tmpdir.mash("dir1"), tmpdir.mash("dir1/file"), tmpdir.mash("dir2"), tmpdir.mash("dir2/file")];
+        let paths = vec![
+            tmpdir.mash("dir1"),
+            tmpdir.mash("dir1/file"),
+            tmpdir.mash("dir2"),
+            tmpdir.mash("dir2/file"),
+        ];
         assert_iter_eq(sys::all_paths(&tmpdir).unwrap(), paths);
 
         // cleanup

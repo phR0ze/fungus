@@ -1,5 +1,4 @@
-use std::error::Error as StdError;
-use std::fmt;
+use std::{error::Error as StdError, fmt};
 
 /// An error indicating something went wrong with an iterator operation
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

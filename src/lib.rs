@@ -17,13 +17,15 @@ pub use crate::errors::FuResult;
 /// use fungus::prelude::*;
 /// ```
 pub mod prelude {
-    pub use super::core::*;
-    pub use super::errors::*;
-    pub use super::net::{self, agent};
-    pub use super::sys::{self, exec, ext::*, user};
-    pub use super::{cfgblock, defer};
-    pub use super::enc::tar;
-    pub use super::enc::gzip;
+    pub use super::{
+        cfgblock,
+        core::*,
+        defer,
+        enc::{gzip, tar},
+        errors::*,
+        net::{self, agent},
+        sys::{self, exec, ext::*, user},
+    };
 
     // Re-exports
     //----------------------------------------------------------------------------------------------
@@ -32,14 +34,15 @@ pub mod prelude {
     pub use lazy_static::*;
     pub use libc;
     pub use regex::Regex;
-    pub use std::ffi::{OsStr, OsString};
-    pub use std::fmt;
-    pub use std::fs::{self, File, OpenOptions};
-    pub use std::io::{self, prelude::*, BufRead, BufReader};
-    pub use std::os::unix::fs::{MetadataExt, PermissionsExt};
-    pub use std::path::Component;
-    pub use std::path::{Path, PathBuf};
-    pub use std::str;
+    pub use std::{
+        ffi::{OsStr, OsString},
+        fmt,
+        fs::{self, File, OpenOptions},
+        io::{self, prelude::*, BufRead, BufReader},
+        os::unix::fs::{MetadataExt, PermissionsExt},
+        path::{Component, Path, PathBuf},
+        str,
+    };
 }
 
 /// Ensure the given closure is executed once the surrounding scope closes despite panics.
