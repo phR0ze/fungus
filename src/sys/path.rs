@@ -1502,6 +1502,7 @@ impl PathColorExt for Path {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use std::path::Component;
 
     // Test setup
     fn setup() -> PathBuf {

@@ -40,7 +40,7 @@ pub mod prelude {
         fs::{self, File, OpenOptions},
         io::{self, prelude::*, BufRead, BufReader},
         os::unix::fs::{MetadataExt, PermissionsExt},
-        path::{Component, Path, PathBuf},
+        path::{Path, PathBuf},
         str,
     };
 }

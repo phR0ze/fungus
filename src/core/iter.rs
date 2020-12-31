@@ -289,6 +289,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use std::path::Component;
 
     #[test]
     fn test_slice() {
