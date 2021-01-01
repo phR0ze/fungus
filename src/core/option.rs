@@ -1,5 +1,5 @@
 pub trait OptionExt<T> {
-    fn has<U>(&self, value: &U) -> bool
+    fn has<U>(&self, value: U) -> bool
     where
         U: PartialEq<T>;
 }
@@ -12,20 +12,20 @@ impl<T> OptionExt<T> for Option<T> {
     /// use fungus::core::*;
     ///
     /// let x: Option<u32> = Some(2);
-    /// assert!(x.has(&2));
+    /// assert!(x.has(2));
     ///
     /// let x: Option<u32> = Some(3);
-    /// assert!(!x.has(&2));
+    /// assert!(!x.has(2));
     ///
     /// let x: Option<u32> = None;
-    /// assert!(!x.has(&2));
+    /// assert!(!x.has(2));
     /// ```
-    fn has<U>(&self, x: &U) -> bool
+    fn has<U>(&self, x: U) -> bool
     where
         U: PartialEq<T>,
     {
         match self {
-            Some(y) => x == y,
+            Some(y) => x == *y,
             None => false,
         }
     }
@@ -38,8 +38,8 @@ mod tests {
 
     #[test]
     fn test_has() {
-        assert!(Some(Component::ParentDir).has(&Component::ParentDir));
-        assert_eq!(Some(Component::ParentDir).has(&Component::ParentDir), true);
-        assert_eq!(None.has(&Component::ParentDir), false);
+        assert!(Some(Component::ParentDir).has(Component::ParentDir));
+        assert_eq!(Some(Component::ParentDir).has(Component::ParentDir), true);
+        assert_eq!(None.has(Component::ParentDir), false);
     }
 }

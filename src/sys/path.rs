@@ -1211,7 +1211,7 @@ impl PathExt for Path {
                 x if x == Component::CurDir && cnt == 0 => continue,
 
                 // 5. Leave .. begining non rooted path
-                x if x == Component::ParentDir && cnt > 0 && !prev.has(&Component::ParentDir) => {
+                x if x == Component::ParentDir && cnt > 0 && !prev.has(Component::ParentDir) => {
                     match prev.unwrap() {
                         // 4. Eliminate .. elements that begin a root path
                         Component::RootDir => {},
