@@ -23,6 +23,7 @@ pub mod prelude {
         defer,
         enc::{gzip, tar},
         errors::*,
+        function,
         net::{self, agent},
         sys::{self, exec, ext::*, user},
     };
@@ -72,6 +73,43 @@ macro_rules! defer {
     };
 }
 
+/// Expands to a string literal of the current function's name similar to the
+/// venerable `file!` or `line!` https://github.com/rust-lang/rfcs/pull/1719.
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// fn my_func() -> &'static str {
+///     function!()
+/// }
+/// assert_eq!(my_func(), "my_func");
+/// ```
+#[macro_export]
+macro_rules! function {
+    () => {{
+        // Capture the function's type and passes it to `std::any::type_name` to get the
+        // function's fully qualified name, which includes our target.
+        // https://doc.rust-lang.org/std/any/fn.type_name.html
+        fn _f() {}
+        fn type_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+
+        // Capture the fully qualified name
+        let fqn = type_of(_f);
+
+        // Trim off the suffix
+        let fqn = &fqn[..fqn.len() - 4];
+
+        // Trim off the prefix if it exists
+        match fqn.rfind(':') {
+            Some(i) => &fqn[i + 1..],
+            None => &fqn,
+        }
+    }};
+}
+
 // Unit tests
 // -------------------------------------------------------------------------------------------------
 #[cfg(test)]
@@ -84,5 +122,14 @@ mod tests {
         let obj = Cell::new(1);
         defer!(obj.set(2));
         assert_eq!(1, obj.get());
+    }
+
+    #[test]
+    fn test_function_macro() {
+        fn indirect_func_name() -> &'static str {
+            function!()
+        }
+        assert_eq!(function!(), "test_function_macro");
+        assert_eq!(indirect_func_name(), "indirect_func_name");
     }
 }
