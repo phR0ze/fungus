@@ -46,6 +46,16 @@ pub mod prelude {
     };
 }
 
+/// All essential symbols for testing in a simple consumable way
+///
+/// ### Examples
+/// ```
+/// use fungus::assert::*;
+/// ```
+pub mod assert {
+    pub use super::{assert_dir, assert_file, assert_no_dir, assert_no_file, assert_setup, create_test_setup_func, prelude::*};
+}
+
 /// Ensure the given closure is executed once the surrounding scope closes despite panics.
 /// Inspired by Golang's `defer`, Java's finally and Ruby's `ensure`.
 ///

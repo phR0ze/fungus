@@ -1,4 +1,6 @@
 #[macro_use]
+pub mod assert;
+#[macro_use]
 pub mod macros;
 
 mod defer;

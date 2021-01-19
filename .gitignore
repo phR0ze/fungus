@@ -2,6 +2,7 @@
 /target/
 **/*.rs.bk
 Cargo.lock
+tests/temp
 
 # Simple top level location for binary output
 bin/

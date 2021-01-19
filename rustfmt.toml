@@ -64,7 +64,7 @@ brace_style = "SameLineWhere"
 # Stable: Yes
 #
 # Changed: modern monitors have more horizontal width than they used to
-chain_width = 150
+chain_width = 130
 
 # Combine control expressions with function calls.
 # https://rust-lang.github.io/rustfmt/?version=master&search=#combine_control_expr
