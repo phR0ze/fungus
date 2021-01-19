@@ -53,7 +53,7 @@ pub mod prelude {
 /// use fungus::assert::*;
 /// ```
 pub mod assert {
-    pub use super::{assert_dir, assert_file, assert_no_dir, assert_no_file, assert_setup, create_test_setup_func, prelude::*};
+    pub use super::{assert_dir, assert_file, assert_no_dir, assert_no_file, assert_setup, core::assert::*, create_test_setup_func, prelude::*};
 }
 
 /// Ensure the given closure is executed once the surrounding scope closes despite panics.

@@ -2,6 +2,8 @@
 use crate::function;
 use gory::*;
 
+pub const TEST_TEMP_DIR: &'static str = "tests/temp";
+
 /// Create the test `setup` function to be called in tests to disable RUST_BACKTRACE
 /// and create a directory to work in for a given test. This is very useful for
 /// manipulating files in a thread safe space.
@@ -137,11 +139,23 @@ mod tests {
 
     #[test]
     fn test_assert_setup() {
-        let temp_dir = PathBuf::from("tests/foo");
-        let target = assert_setup!(&temp_dir);
-        assert!(sys::is_dir(&target));
-        assert_eq!(&target, &PathBuf::from("tests/foo/test_assert_setup"));
-        assert!(sys::remove_all(&temp_dir).is_ok());
+        // Default temp dir
+        {
+            let temp_dir = PathBuf::from(TEST_TEMP_DIR);
+            let target = assert_setup!(&temp_dir);
+            assert!(sys::is_dir(&target));
+            assert_eq!(&target, &PathBuf::from("tests/temp/test_assert_setup"));
+            assert!(sys::remove_all(&target).is_ok());
+        }
+
+        // Alternate temp dir
+        {
+            let temp_dir = PathBuf::from("tests/foo");
+            let target = assert_setup!(&temp_dir);
+            assert!(sys::is_dir(&target));
+            assert_eq!(&target, &PathBuf::from("tests/foo/test_assert_setup"));
+            assert!(sys::remove_all(&temp_dir).is_ok());
+        }
     }
 
     #[test]
