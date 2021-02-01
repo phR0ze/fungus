@@ -14,16 +14,43 @@ pub trait StringExt {
     /// assert_eq!("ƒoo".size(), 3); // fancy f!
     /// ```
     fn size(&self) -> usize;
+
+    /// Returns a new [`String`] with the given `suffix` trimmed off else the original `String`.
+    ///
+    /// ### Examples
+    /// ```
+    /// use fungus::prelude::*;
+    ///
+    /// assert_eq!("/foo/bar".to_string().trim_suffix("/bar"), "/foo".to_string());
+    /// ```
+    fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String;
 }
+
 impl StringExt for str {
     fn size(&self) -> usize {
         self.chars().count()
+    }
+
+    fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String {
+        let target = suffix.into();
+        match self.ends_with(&target) {
+            true => self[..self.len() - target.len()].to_owned(),
+            _ => self.to_owned(),
+        }
     }
 }
 
 impl StringExt for String {
     fn size(&self) -> usize {
         self.chars().count()
+    }
+
+    fn trim_suffix<T: Into<String>>(&self, suffix: T) -> String {
+        let target = suffix.into();
+        match self.ends_with(&target) {
+            true => self[..self.len() - target.len()].to_owned(),
+            _ => self.to_owned(),
+        }
     }
 }
 
@@ -75,6 +102,18 @@ mod tests {
         assert_eq!("foo".to_string().size(), 3);
         assert_eq!("ƒoo".to_string().len(), 4); // fancy f!
         assert_eq!("ƒoo".to_string().size(), 3); // fancy f!
+    }
+
+    #[test]
+    fn test_str_trim_suffix() {
+        assert_eq!("foo".trim_suffix("oo"), "f".to_string());
+        assert_eq!("ƒoo".trim_suffix("o"), "ƒo".to_string()); // fancy f!
+    }
+
+    #[test]
+    fn test_string_trim_suffix() {
+        assert_eq!("foo".to_string().trim_suffix("oo"), "f".to_string());
+        assert_eq!("ƒoo".to_string().trim_suffix("o"), "ƒo".to_string()); // fancy f!
     }
 
     #[test]

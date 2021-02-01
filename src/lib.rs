@@ -5,6 +5,7 @@ pub mod enc;
 pub mod errors;
 pub mod net;
 pub mod sys;
+pub mod unit;
 
 /// Types exported directly into the fungus namespace
 pub use crate::errors::FuError;
@@ -26,6 +27,7 @@ pub mod prelude {
         function,
         net::{self, agent},
         sys::{self, exec, ext::*, user},
+        unit,
     };
 
     // Re-exports
