@@ -199,15 +199,15 @@ mod c {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn utc_now() {
-    //     println!("{}", Utc::now().format("%a %e %b %Y %r %Z"));
-    // }
+    #[test]
+    fn utc_now() {
+        println!("{}", Utc::now().format("%a %e %b %Y %r %Z"));
+    }
 
-    // #[test]
-    // fn local_now() {
-    //     println!("{}", Local::now().format("%a %e %b %Y %r %Z"));
-    // }
+    #[test]
+    fn local_now() {
+        println!("{}", Local::now().format("%a %e %b %Y %r %Z"));
+    }
 
     #[test]
     fn local_format() {
