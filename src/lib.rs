@@ -27,7 +27,7 @@ pub mod prelude {
         function,
         net::{self, agent},
         sys::{self, exec, ext::*, user},
-        unit,
+        unit::{self, time},
     };
 
     // Re-exports
