@@ -6,6 +6,7 @@ use crate::{
 use gory::*;
 use std::{
     collections::HashMap,
+    ffi::OsStr,
     fs, io,
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Component, Path, PathBuf},
@@ -645,6 +646,33 @@ pub fn readlink<T: AsRef<Path>>(path: T) -> FuResult<PathBuf> {
     let abs = path.as_ref().abs()?;
     let abs = fs::read_link(abs)?;
     Ok(abs)
+}
+
+/// Return the current working path trimmed back to the relative dir
+///
+/// ### Examples
+/// ```
+/// use fungus::prelude::*;
+///
+/// assert_eq!(sys::rel_to("home").unwrap(), PathBuf::from("/home"));
+/// ```
+pub fn rel_to(dir: &str) -> FuResult<PathBuf> {
+    let cwd = sys::cwd()?;
+
+    // Expand path
+    let mut path = cwd.expand()?;
+
+    // Check for empty string
+    if dir.is_empty() {
+        return Ok(path);
+    }
+
+    let target = OsStr::new(dir);
+    while path.last()? != Component::Normal(&target) {
+        path = path.trim_last();
+    }
+
+    Ok(path)
 }
 
 /// Returns the user ID of the owner of this file. Handles path expansion.
@@ -1750,6 +1778,11 @@ mod tests {
         // Clean up
         assert!(sys::remove_all(&tmpdir).is_ok());
         assert_eq!(tmpdir.exists(), false);
+    }
+
+    #[test]
+    fn test_rel_to() {
+        assert_eq!(sys::rel_to("home").unwrap(), PathBuf::from("/home"));
     }
 
     #[test]
